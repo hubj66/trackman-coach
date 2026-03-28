@@ -66,17 +66,23 @@ function fillFullFairway(ctx, w, h) {
 
 function fillSideView(ctx, w, h, gy) {
   const t = T();
+  // Sky — starts from card bg color at top, fades into sky color
   const sky = ctx.createLinearGradient(0, 0, 0, gy);
-  sky.addColorStop(0, t.sky1); sky.addColorStop(1, t.sky2);
+  sky.addColorStop(0, dk() ? '#0a1018' : '#d0e8f8');
+  sky.addColorStop(0.5, t.sky1);
+  sky.addColorStop(1, t.sky2);
   ctx.fillStyle = sky; ctx.fillRect(0, 0, w, gy);
+  // Ground stripes
   const sw = 28;
   for (let i = 0; i * sw < w; i++) {
     ctx.fillStyle = i % 2 === 0 ? t.gnd1 : t.gnd2;
     ctx.fillRect(i * sw, gy, sw, h - gy);
   }
+  // Ground edge line
   ctx.strokeStyle = dk() ? '#2a5a2a' : '#55a030';
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+  // Shadow strip
   const gs = ctx.createLinearGradient(0, gy, 0, gy + 20);
   gs.addColorStop(0, 'rgba(0,0,0,0.3)'); gs.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = gs; ctx.fillRect(0, gy, w, 20);
@@ -203,24 +209,6 @@ function drawFace(cid, did, you, ideal, updateDesc) {
   // Full-width green
   fillFullFairway(ctx, w, h);
 
-  // Fade top and bottom edges into card background color
-  const d = dk();
-  const edgeColor = d ? '#161819' : '#ffffff';
-  const vigV = ctx.createLinearGradient(0, 0, 0, h);
-  vigV.addColorStop(0,    edgeColor);
-  vigV.addColorStop(0.12, 'rgba(0,0,0,0)');
-  vigV.addColorStop(0.88, 'rgba(0,0,0,0)');
-  vigV.addColorStop(1,    edgeColor);
-  ctx.fillStyle = vigV; ctx.fillRect(0, 0, w, h);
-
-  // Fade left and right edges into card background
-  const vigH = ctx.createLinearGradient(0, 0, w, 0);
-  vigH.addColorStop(0,    edgeColor);
-  vigH.addColorStop(0.12, 'rgba(0,0,0,0)');
-  vigH.addColorStop(0.88, 'rgba(0,0,0,0)');
-  vigH.addColorStop(1,    edgeColor);
-  ctx.fillStyle = vigH; ctx.fillRect(0, 0, w, h);
-
   const cx = w / 2;
   const ballY = h * 0.76;
   const flagY = h * 0.13;
@@ -338,16 +326,7 @@ function drawPath(cid, did, you, ideal, updateDesc) {
 
   fillFullFairway(ctx, w, h);
 
-  // Fade all edges into card background for seamless look
-  const ec = dk() ? '#161819' : '#ffffff';
-  const vigH2 = ctx.createLinearGradient(0, 0, w, 0);
-  vigH2.addColorStop(0, ec); vigH2.addColorStop(0.12, 'rgba(0,0,0,0)');
-  vigH2.addColorStop(0.88, 'rgba(0,0,0,0)'); vigH2.addColorStop(1, ec);
-  ctx.fillStyle = vigH2; ctx.fillRect(0, 0, w, h);
-  const vigV2 = ctx.createLinearGradient(0, 0, 0, h);
-  vigV2.addColorStop(0, ec); vigV2.addColorStop(0.1, 'rgba(0,0,0,0)');
-  vigV2.addColorStop(0.9, 'rgba(0,0,0,0)'); vigV2.addColorStop(1, ec);
-  ctx.fillStyle = vigV2; ctx.fillRect(0, 0, w, h);
+  const cx = w/2, cy = h*0.5;
 
   const cx = w/2, cy = h*0.5;
   const pc = kpiColor('path', you);
@@ -432,17 +411,6 @@ function drawAttack(cid, did, you, ideal, updateDesc) {
 
   const gy = h * 0.64;
   fillSideView(ctx, w, h, gy);
-
-  // Fade left/right/top/bottom edges into card background
-  const ec2 = dk() ? '#161819' : '#ffffff';
-  const vigA = ctx.createLinearGradient(0, 0, w, 0);
-  vigA.addColorStop(0, ec2); vigA.addColorStop(0.1, 'rgba(0,0,0,0)');
-  vigA.addColorStop(0.9, 'rgba(0,0,0,0)'); vigA.addColorStop(1, ec2);
-  ctx.fillStyle = vigA; ctx.fillRect(0, 0, w, h);
-  const vigA2 = ctx.createLinearGradient(0, 0, 0, h);
-  vigA2.addColorStop(0, ec2); vigA2.addColorStop(0.08, 'rgba(0,0,0,0)');
-  vigA2.addColorStop(0.92, 'rgba(0,0,0,0)'); vigA2.addColorStop(1, ec2);
-  ctx.fillStyle = vigA2; ctx.fillRect(0, 0, w, h);
 
   const bx = w * 0.5, by = gy - 12;
   const ac = kpiColor('attack', you);
