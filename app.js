@@ -330,8 +330,7 @@ function drawShotShape() {
   const hasFace = C.primary.find(i => i.id === 'face');
   const hasPath = C.primary.find(i => i.id === 'path');
   if (!hasFace || !hasPath || club === 'putter') return;
-  if (typeof renderShotShapeSection === 'function') renderShotShapeSection();
-  else if (typeof _drawShotShape === 'function') _drawShotShape();
+  if (typeof _drawShotShape === 'function') _drawShotShape();
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
