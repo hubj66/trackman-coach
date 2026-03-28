@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1a1a18" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0e1012" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f0f2f4" media="(prefers-color-scheme: light)">
 <meta name="description" content="Trackman Coach — enter your numbers, get a diagnosis and practice priorities.">
 <title>Trackman Coach</title>
 <link rel="stylesheet" href="style.css">
@@ -13,8 +13,10 @@
 <body>
 
 <div class="header">
-  <div class="header-title">Trackman Coach</div>
-  <div class="header-sub">54 handicap · enter your numbers after each session</div>
+  <div>
+    <div class="header-title">Trackman<span> Coach</span></div>
+  </div>
+  <div class="header-sub">54 HCP · SESSION TOOL</div>
 </div>
 
 <div class="club-scroll" id="club-scroll">
@@ -26,19 +28,17 @@
 
 <div class="main">
 
-  <!-- KPI targets -->
-  <div class="section" style="padding-top:14px">
+  <div class="section" style="padding-top:18px">
     <div class="sec-label">Target KPIs</div>
     <div class="kgrid" id="kgrid"></div>
-    <div class="sec-label">Focus order at 54 hcp</div>
+    <div class="sec-label">Focus order</div>
     <div class="focus-box" id="focusbox"></div>
   </div>
 
-  <div class="divider"></div>
+  <div class="divider" style="margin:10px 0"></div>
 
-  <!-- Input sliders -->
   <div class="section">
-    <div class="sec-label">Your numbers — from Trackman</div>
+    <div class="sec-label">Your numbers — enter from Trackman</div>
   </div>
   <div class="input-list" id="inputgrid"></div>
 
@@ -46,29 +46,26 @@
   <div id="shotshape-section" style="display:none">
     <div class="spacer"></div>
     <div class="section"><div class="sec-label">Predicted shot shape</div></div>
-    <div style="padding:0 16px">
+    <div style="padding:0 18px">
       <div class="vc-wrap">
-        <canvas class="cv" id="shotshape-canvas" height="220"></canvas>
-        <div class="vc-desc" id="shotshape-desc" style="margin-top:8px"></div>
+        <div class="vc-header"><span class="vc-title">Ball flight · top view</span></div>
+        <canvas class="cv" id="shotshape-canvas" height="230"></canvas>
+        <div class="vc-desc" id="shotshape-desc"></div>
       </div>
     </div>
   </div>
 
-  <!-- Diagnosis -->
   <div class="spacer"></div>
   <div class="section"><div class="sec-label">Diagnosis</div></div>
-  <div class="banner banner-ok" id="banner">Move the sliders to your Trackman numbers to get a diagnosis.</div>
+  <div class="banner banner-ok" id="banner">Move the sliders to your Trackman numbers.</div>
 
-  <!-- Practice priorities -->
-  <div class="section"><div class="sec-label">Practice priorities</div></div>
+  <div class="section" style="padding-top:14px"><div class="sec-label">Practice priorities</div></div>
   <div class="tip-list" id="tiplist"></div>
 
-  <!-- Visualizations -->
   <div class="spacer"></div>
-  <div class="section"><div class="sec-label">Visualizations — you vs target</div></div>
+  <div class="section"><div class="sec-label">Visualizations</div></div>
   <div class="vgrid" id="vgrid"></div>
 
-  <!-- CTA -->
   <div class="spacer"></div>
   <div class="cta-wrap">
     <button class="ask-btn" onclick="doAsk()">

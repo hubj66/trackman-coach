@@ -1,5 +1,4 @@
 // app.js — main app logic, state, UI rendering
-// Wires together clubs.js, engine.js, viz.js and shotshape.js
 
 let club = 'driver';
 const vals = {};
@@ -10,7 +9,6 @@ function sel(id, el) {
   club = id;
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
-  // Clear stored previous angles so visualizations don't animate from wrong value
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
 }
@@ -19,10 +17,20 @@ function sel(id, el) {
 
 function getColor(inp, v) {
   const [lo, hi] = inp.ideal;
-  if (v >= lo && v <= hi) return '#1D9E75';
+  if (v >= lo && v <= hi) return '#00d68f';
   const margin = Math.max((hi - lo) * 0.8, 2);
-  if (v >= lo - margin && v <= hi + margin) return '#EF9F27';
-  return '#e24b4a';
+  if (v >= lo - margin && v <= hi + margin) return '#ffaa00';
+  return '#ff4d4d';
+}
+
+// Light mode overrides
+function getColorAdapted(inp, v) {
+  const light = matchMedia('(prefers-color-scheme: light)').matches;
+  const [lo, hi] = inp.ideal;
+  if (v >= lo && v <= hi) return light ? '#00a86b' : '#00d68f';
+  const margin = Math.max((hi - lo) * 0.8, 2);
+  if (v >= lo - margin && v <= hi + margin) return light ? '#d4880a' : '#ffaa00';
+  return light ? '#d93030' : '#ff4d4d';
 }
 
 function fillPct(inp, v) {
@@ -34,20 +42,26 @@ function dispVal(inp, v) {
   return v + inp.unit;
 }
 
-// ── Android vibration feedback ─────────────────────────────────────────────
+// ── Vibration ──────────────────────────────────────────────────────────────
 
 function vibrate(ms) {
   if (navigator.vibrate) navigator.vibrate(ms);
 }
 
-// ── Main render ────────────────────────────────────────────────────────────
+// ── Render ─────────────────────────────────────────────────────────────────
+
+function badgeToClass(bt) {
+  if (bt === 'Critical') return 'critical';
+  if (bt === 'Important') return 'important';
+  return 'watch';
+}
 
 function render() {
   const C = CLUBS[club];
 
-  // KPI cards
+  // KPI cards with side accent class
   document.getElementById('kgrid').innerHTML = C.kpis.map(k => `
-    <div class="kcard">
+    <div class="kcard ${badgeToClass(k.bt)}">
       <div class="kcard-lbl">${k.l}</div>
       <div class="kcard-val">${k.v}</div>
       <div class="kcard-desc">${k.d}</div>
@@ -59,13 +73,13 @@ function render() {
     `<div class="focus-item"><span class="dot ${f.c}"></span><span>${f.t}</span></div>`
   ).join('');
 
-  // Input sliders
+  // Sliders
   if (!vals[club]) vals[club] = {};
   document.getElementById('inputgrid').innerHTML = C.inputs.map(inp => {
     const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
-    const col = getColor(inp, v);
+    const col = getColorAdapted(inp, v);
     const pct = fillPct(inp, v);
-    const idealStr = `ideal ${inp.ideal[0]}${inp.unit.trim()} to ${inp.ideal[1]}${inp.unit.trim()}`;
+    const idealStr = `ideal ${inp.ideal[0]}${inp.unit.trim()} → ${inp.ideal[1]}${inp.unit.trim()}`;
     return `<div class="irow">
       <div class="irow-top">
         <span class="irow-lbl">${inp.l}</span>
@@ -91,7 +105,7 @@ function render() {
   renderShotShapeSection();
 }
 
-// ── Slider update ──────────────────────────────────────────────────────────
+// ── Slider ─────────────────────────────────────────────────────────────────
 
 let lastColor = {};
 
@@ -100,13 +114,11 @@ function onSlider(id, v) {
   vals[club][id] = v;
   const inp = CLUBS[club].inputs.find(i => i.id === id);
   if (!inp) return;
-  const col = getColor(inp, v);
+  const col = getColorAdapted(inp, v);
 
-  // Vibrate when crossing into green zone (entering ideal range)
-  if (lastColor[id] && lastColor[id] !== '#1D9E75' && col === '#1D9E75') {
-    vibrate(30); // short pulse = entered ideal zone
-  } else if (lastColor[id] && lastColor[id] === '#1D9E75' && col !== '#1D9E75') {
-    vibrate([10, 10, 10]); // double tap = left ideal zone
+  if (lastColor[id] && lastColor[id] !== col) {
+    if (col.includes('d68f') || col.includes('a86b')) vibrate(25);
+    else vibrate([8, 8, 8]);
   }
   lastColor[id] = col;
 
@@ -115,14 +127,11 @@ function onSlider(id, v) {
   const sf = document.getElementById('sf-' + id);
   if (sf) { sf.style.width = fillPct(inp, v) + '%'; sf.style.background = col; }
 
-  // Live update shot shape while dragging face or path
   if (id === 'face' || id === 'path') drawShotShape();
-
   diagnose();
 }
 
-function onSliderEnd(id, v) {
-  // Animate visualizations only when user lifts finger (smoother UX)
+function onSliderEnd(id) {
   if (id === 'face') triggerFace('vface', 'vdface');
   if (id === 'path') triggerPath('vpath', 'vdpath');
   if (id === 'attack') triggerAttack('vattack', 'vdattack');
@@ -142,8 +151,7 @@ function getVal(id) {
 
 function setBanner(msg, cls) {
   const b = document.getElementById('banner');
-  b.innerHTML = msg;
-  b.className = 'banner ' + cls;
+  b.innerHTML = msg; b.className = 'banner ' + cls;
 }
 
 function setTips(tips) {
@@ -167,12 +175,11 @@ function doAsk() {
     const v = vals[club] && vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
     msg = msg.replace('{' + inp.id + '}', dispVal(inp, v));
   });
-
   if (navigator.share) {
     navigator.share({ title: 'Trackman drill request', text: msg }).catch(() => {});
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(msg)
-      .then(() => showToast('Copied! Paste into Claude.'))
+      .then(() => showToast('Copied — paste into Claude'))
       .catch(() => prompt('Copy this:', msg));
   } else {
     prompt('Copy this:', msg);
@@ -183,12 +190,8 @@ function doAsk() {
 
 function showToast(msg) {
   let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg.length > 60 ? msg.slice(0, 57) + '…' : msg;
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
   t.style.opacity = '1';
   setTimeout(() => t.style.opacity = '0', 2500);
 }
