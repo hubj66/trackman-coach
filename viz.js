@@ -1,7 +1,7 @@
-// viz.js — clean diagram drawings
-// Face angle: top-down (pure fairway, bird's eye)
-// Club path: top-down (pure fairway, bird's eye)
-// Attack angle: side view (sky + ground)
+// viz.js — rebuilt diagrams
+// Face angle: top-down, full-width fairway, clear clubface, labels in margins
+// Club path: top-down, full-width, path arrow through center
+// Attack angle: side view, sky + ground
 
 function dk() { return !matchMedia('(prefers-color-scheme: light)').matches; }
 
@@ -22,32 +22,22 @@ function idealMid(id) {
   return inp ? (inp.ideal[0] + inp.ideal[1]) / 2 : 0;
 }
 
-// ── Theme ──────────────────────────────────────────────────────────────────
 function T() {
   const d = dk();
   return {
-    // Fairway (top-down)
-    rough:   d ? '#0d1a0d' : '#4a8c30',
-    rough2:  d ? '#0f1f0f' : '#528a38',
-    fairway: d ? '#162816' : '#6db84a',
-    stripe1: d ? '#1a2e1a' : '#78c455',
-    stripe2: d ? '#142414' : '#68b045',
-    // Sky (side view)
-    sky1:    d ? '#07111e' : '#b8d8f0',
-    sky2:    d ? '#0d1e30' : '#daeeff',
-    // Ground (side view)
-    gnd1:    d ? '#1a2e1a' : '#6db84a',
-    gnd2:    d ? '#162616' : '#60a840',
-    gnd3:    d ? '#1e3020' : '#78c455',
-    // Text / UI
-    text:    d ? '#f0ede8' : '#0e1012',
-    text2:   d ? '#8a9099' : '#5a6370',
-    text3:   d ? '#3e4650' : '#9aa0aa',
-    border:  d ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
-    // Status colors
-    green:   d ? '#00d68f' : '#00a86b',
-    amber:   d ? '#ffaa00' : '#d4880a',
-    red:     d ? '#ff4d4d' : '#d93030',
+    s1:    d ? '#1a2e1a' : '#78c455',
+    s2:    d ? '#152415' : '#68b045',
+    rough: d ? '#0d1a0d' : '#4a8c30',
+    sky1:  d ? '#07111e' : '#b8d8f0',
+    sky2:  d ? '#0d1e30' : '#daeeff',
+    gnd1:  d ? '#1a2e1a' : '#6db84a',
+    gnd2:  d ? '#152415' : '#60a840',
+    text:  d ? '#f0ede8' : '#0e1012',
+    text2: d ? '#6a7580' : '#6a7580',
+    text3: d ? '#3a4550' : '#aab0b8',
+    green: d ? '#00d68f' : '#00a86b',
+    amber: d ? '#ffaa00' : '#d4880a',
+    red:   d ? '#ff4d4d' : '#d93030',
   };
 }
 
@@ -62,69 +52,56 @@ function kpiColor(id, v) {
   return t.red;
 }
 
-// ── Drawing helpers ────────────────────────────────────────────────────────
+// ── Backgrounds ────────────────────────────────────────────────────────────
 
-// Full top-down fairway (used for face angle + club path)
-function fillTopDown(ctx, w, h) {
+function fillFullFairway(ctx, w, h) {
   const t = T();
-  // Rough background
-  ctx.fillStyle = t.rough; ctx.fillRect(0, 0, w, h);
-  // Fairway stripe across center
-  const fw = Math.round(w * 0.55), fx = Math.round((w - fw) / 2);
-  const sw = 20;
-  for (let i = 0; i * sw < fw; i++) {
-    ctx.fillStyle = i % 2 === 0 ? t.stripe1 : t.stripe2;
-    ctx.fillRect(fx + i * sw, 0, sw, h);
+  // Full-width fairway stripes
+  const sw = 28;
+  for (let i = 0; i * sw < w; i++) {
+    ctx.fillStyle = i % 2 === 0 ? t.s1 : t.s2;
+    ctx.fillRect(i * sw, 0, sw, h);
   }
-  // Rough edge fade lines
-  ctx.strokeStyle = dk() ? '#243824' : '#55a030'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(fx, 0); ctx.lineTo(fx, h); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(fx + fw, 0); ctx.lineTo(fx + fw, h); ctx.stroke();
 }
 
-// Side view: sky top, ground bottom
 function fillSideView(ctx, w, h, gy) {
   const t = T();
-  // Sky
   const sky = ctx.createLinearGradient(0, 0, 0, gy);
   sky.addColorStop(0, t.sky1); sky.addColorStop(1, t.sky2);
   ctx.fillStyle = sky; ctx.fillRect(0, 0, w, gy);
-  // Ground stripes
-  const sw = 20;
+  const sw = 28;
   for (let i = 0; i * sw < w; i++) {
     ctx.fillStyle = i % 2 === 0 ? t.gnd1 : t.gnd2;
     ctx.fillRect(i * sw, gy, sw, h - gy);
   }
-  // Ground edge
-  ctx.strokeStyle = dk() ? '#2a5a2a' : '#55a030'; ctx.lineWidth = 2;
+  ctx.strokeStyle = dk() ? '#2a5a2a' : '#55a030';
+  ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
-  // Shadow strip under ground edge
-  const gs = ctx.createLinearGradient(0, gy, 0, gy + 18);
-  gs.addColorStop(0, 'rgba(0,0,0,0.25)'); gs.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = gs; ctx.fillRect(0, gy, w, 18);
+  const gs = ctx.createLinearGradient(0, gy, 0, gy + 20);
+  gs.addColorStop(0, 'rgba(0,0,0,0.3)'); gs.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gs; ctx.fillRect(0, gy, w, 20);
 }
 
-// Golf ball with gloss
+// ── Primitives ─────────────────────────────────────────────────────────────
+
 function drawBall(ctx, x, y, r) {
-  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.05, x, y, r);
-  g.addColorStop(0, '#ffffff'); g.addColorStop(0.55, '#eeeeee'); g.addColorStop(1, '#cccccc');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  const g = ctx.createRadialGradient(x - r*0.3, y - r*0.35, r*0.05, x, y, r);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, '#eeeeee'); g.addColorStop(1, '#cccccc');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
 }
 
-// Glowing colored line
-function glowLine(ctx, x1, y1, x2, y2, color, w) {
+function glowLine(ctx, x1, y1, x2, y2, color, lw) {
   ctx.lineCap = 'round';
-  ctx.strokeStyle = color; ctx.lineWidth = w + 8; ctx.globalAlpha = 0.07;
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  ctx.lineWidth = w + 2; ctx.globalAlpha = 0.14;
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  ctx.lineWidth = w; ctx.globalAlpha = 1;
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = lw + 10; ctx.globalAlpha = 0.06;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.lineWidth = lw + 3; ctx.globalAlpha = 0.14;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.lineWidth = lw; ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
 }
 
-// Arrowhead
 function arrowHead(ctx, ex, ey, angle, color, size) {
   ctx.fillStyle = color; ctx.globalAlpha = 1;
   ctx.save(); ctx.translate(ex, ey); ctx.rotate(angle);
@@ -132,55 +109,37 @@ function arrowHead(ctx, ex, ey, angle, color, size) {
   ctx.closePath(); ctx.fill(); ctx.restore();
 }
 
-// Top-down flag (viewed from above — just a pin dot)
-function drawTopPin(ctx, x, y) {
-  const t = T();
-  // Pin shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(x + 2, y + 2, 4, 2, 0, 0, Math.PI * 2); ctx.fill();
-  // Pin circle
-  ctx.fillStyle = t.text; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ff4d4d'; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
-  // Label
-  ctx.fillStyle = t.text2;
-  ctx.font = `500 9px 'DM Mono', monospace`;
-  ctx.textAlign = 'center'; ctx.fillText('FLAG', x, y - 10);
-}
-
-// Side-view flag
 function drawSideFlag(ctx, x, y) {
-  ctx.fillStyle = dk() ? '#c8a830' : '#8a6800'; ctx.fillRect(x - 1, y, 1.5, 26);
+  ctx.fillStyle = dk() ? '#c8a830' : '#8a6800';
+  ctx.fillRect(x-1, y, 1.5, 28);
   ctx.fillStyle = '#ff4d4d';
-  ctx.beginPath(); ctx.moveTo(x+1,y); ctx.lineTo(x+16,y+8); ctx.lineTo(x+1,y+16); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+1,y); ctx.lineTo(x+18,y+9); ctx.lineTo(x+1,y+18); ctx.fill();
 }
 
-// Mono label
 function monoLabel(ctx, text, x, y, color, size, align) {
-  ctx.font = `500 ${size || 9}px 'DM Mono', monospace`;
-  ctx.fillStyle = color; ctx.textAlign = align || 'center';
-  ctx.fillText(text, x, y);
+  ctx.font = `500 ${size||9}px 'DM Mono', monospace`;
+  ctx.fillStyle = color; ctx.textAlign = align||'center';
+  ctx.globalAlpha = 1; ctx.fillText(text, x, y);
 }
 
-// Condensed bold label
 function boldLabel(ctx, text, x, y, color, size, align) {
-  ctx.font = `700 ${size || 12}px 'Barlow Condensed', sans-serif`;
-  ctx.fillStyle = color; ctx.textAlign = align || 'center';
-  ctx.fillText(text, x, y);
+  ctx.font = `700 ${size||12}px 'Barlow Condensed', sans-serif`;
+  ctx.fillStyle = color; ctx.textAlign = align||'center';
+  ctx.globalAlpha = 1; ctx.fillText(text, x, y);
 }
 
-// ── Animation engine ───────────────────────────────────────────────────────
+// ── Animation ──────────────────────────────────────────────────────────────
 
 const animState = {};
 const prevAngles = {};
 
-function animateDraw(canvasId, fromVal, toVal, drawFn) {
+function animateDraw(canvasId, from, to, drawFn) {
   if (animState[canvasId]) cancelAnimationFrame(animState[canvasId]);
-  const start = performance.now();
-  const duration = 260;
+  const start = performance.now(), dur = 260;
   function step(now) {
-    const t = Math.min((now - start) / duration, 1);
-    const ease = 1 - Math.pow(1 - t, 3); // ease out cubic
-    drawFn(fromVal + (toVal - fromVal) * ease, t >= 1);
+    const t = Math.min((now - start) / dur, 1);
+    const ease = 1 - Math.pow(1-t, 3);
+    drawFn(from + (to - from) * ease, t >= 1);
     if (t < 1) animState[canvasId] = requestAnimationFrame(step);
     else delete animState[canvasId];
   }
@@ -193,16 +152,16 @@ function drawVizs() {
   const C = CLUBS[club];
   const panels = [];
   if (C.inputs.find(i => i.id === 'face'))
-    panels.push({ id: 'vface', did: 'vdface', title: 'Face angle · top view', fn: () => triggerFace('vface', 'vdface') });
+    panels.push({ id:'vface', did:'vdface', title:'Face angle · top view', fn:()=>triggerFace('vface','vdface') });
   if (C.inputs.find(i => i.id === 'path'))
-    panels.push({ id: 'vpath', did: 'vdpath', title: 'Club path · top view', fn: () => triggerPath('vpath', 'vdpath') });
+    panels.push({ id:'vpath', did:'vdpath', title:'Club path · top view', fn:()=>triggerPath('vpath','vdpath') });
   if (C.inputs.find(i => i.id === 'attack'))
-    panels.push({ id: 'vattack', did: 'vdattack', title: 'Attack angle · side view', fn: () => triggerAttack('vattack', 'vdattack') });
+    panels.push({ id:'vattack', did:'vdattack', title:'Attack angle · side view', fn:()=>triggerAttack('vattack','vdattack') });
 
   document.getElementById('vgrid').innerHTML = panels.map(p => `
     <div class="vc-wrap">
       <div class="vc-header"><span class="vc-title">${p.title}</span></div>
-      <canvas class="cv" id="${p.id}" height="210"></canvas>
+      <canvas class="cv" id="${p.id}" height="220"></canvas>
       <div class="vc-desc" id="${p.did}"></div>
     </div>`).join('');
 
@@ -210,328 +169,362 @@ function drawVizs() {
 }
 
 function triggerFace(cid, did) {
-  const you = getVal('face') || 0, ideal = idealMid('face');
+  const you = getVal('face')||0, ideal = idealMid('face');
   const prev = prevAngles[cid] !== undefined ? prevAngles[cid] : you;
   prevAngles[cid] = you;
   animateDraw(cid, prev, you, (cur, done) => drawFace(cid, did, cur, ideal, done));
 }
 function triggerPath(cid, did) {
-  const you = getVal('path') || 0, ideal = idealMid('path');
+  const you = getVal('path')||0, ideal = idealMid('path');
   const prev = prevAngles[cid] !== undefined ? prevAngles[cid] : you;
   prevAngles[cid] = you;
   animateDraw(cid, prev, you, (cur, done) => drawPath(cid, did, cur, ideal, done));
 }
 function triggerAttack(cid, did) {
-  const you = getVal('attack') || 0, ideal = idealMid('attack');
+  const you = getVal('attack')||0, ideal = idealMid('attack');
   const prev = prevAngles[cid] !== undefined ? prevAngles[cid] : you;
   prevAngles[cid] = you;
   animateDraw(cid, prev, you, (cur, done) => drawAttack(cid, did, cur, ideal, done));
 }
 
-// ── Face angle — TOP DOWN ──────────────────────────────────────────────────
-// Bird's eye view. All green. Ball at bottom, flag at top, fairway between.
-// Clubface rotates at ball position. Arrow shows where ball starts.
+// ── FACE ANGLE — top down ──────────────────────────────────────────────────
+// Layout:
+//   Top 15%  : flag area + "TARGET" label
+//   Mid 70%  : flight arrow zone
+//   Ball at 78% height, center-x
+//   Clubface drawn at ball, rotated by face angle
+//   Labels in left/right margins, never overlapping diagram
 
 function drawFace(cid, did, you, ideal, updateDesc) {
-  const r = sc(cid, 210); if (!r) return;
+  const r = sc(cid, 220); if (!r) return;
   const { ctx, w, h } = r;
   const t = T();
 
-  // Pure top-down fairway
-  fillTopDown(ctx, w, h);
+  // Full-width green
+  fillFullFairway(ctx, w, h);
+
+  // Dark vignette on left/right edges to frame the scene
+  const vig = ctx.createLinearGradient(0, 0, w, 0);
+  vig.addColorStop(0,    'rgba(0,0,0,0.45)');
+  vig.addColorStop(0.18, 'rgba(0,0,0,0)');
+  vig.addColorStop(0.82, 'rgba(0,0,0,0)');
+  vig.addColorStop(1,    'rgba(0,0,0,0.45)');
+  ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
 
   const cx = w / 2;
-  // Ball sits at bottom 30%, flag at top
-  const ballY = h * 0.72;
-  const flagY = h * 0.12;
+  const ballY = h * 0.76;
+  const flagY = h * 0.10;
+  const fc = kpiColor('face', you);
+  const frad = you * Math.PI / 180;
 
-  // Target line (dashed, running toward flag)
-  ctx.strokeStyle = t.text3; ctx.lineWidth = 1; ctx.setLineDash([6, 5]);
-  ctx.beginPath(); ctx.moveTo(cx, ballY - 10); ctx.lineTo(cx, flagY + 12); ctx.stroke();
+  // ── Target line ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.setLineDash([6,5]);
+  ctx.beginPath(); ctx.moveTo(cx, flagY+18); ctx.lineTo(cx, ballY-14); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Flag (top-down pin)
-  drawTopPin(ctx, cx, flagY);
+  // ── Flag (top-down: just pin + flag triangle, viewed from above) ──
+  // Pin as a small circle with a red triangle to the right
+  ctx.fillStyle = dk() ? '#e0e0de' : '#2a2a28';
+  ctx.beginPath(); ctx.arc(cx, flagY, 3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ff4d4d';
+  // Flag triangle pointing right (from above, the flag extends to one side)
+  ctx.beginPath(); ctx.moveTo(cx+3,flagY-2); ctx.lineTo(cx+16,flagY); ctx.lineTo(cx+3,flagY+7); ctx.fill();
+  monoLabel(ctx, 'TARGET', cx, flagY-10, t.text2, 9);
 
-  // Distance markers on target line
-  for (let i = 1; i <= 3; i++) {
-    const my = ballY - (ballY - flagY - 12) * (i / 4);
-    ctx.fillStyle = t.text3; ctx.globalAlpha = 0.4;
-    ctx.beginPath(); ctx.arc(cx, my, 1.5, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-
-  // ── Ideal face ghost ──
+  // ── Ideal clubface ghost (very subtle) ──
   const irad = ideal * Math.PI / 180;
-  ctx.save(); ctx.translate(cx, ballY); ctx.rotate(irad); ctx.globalAlpha = 0.18;
+  ctx.save(); ctx.translate(cx, ballY); ctx.rotate(irad); ctx.globalAlpha = 0.15;
   ctx.fillStyle = t.green;
-  ctx.beginPath(); ctx.roundRect(-36, -9, 72, 18, 3); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-w*0.3, -8, w*0.6, 16, 3); ctx.fill();
   ctx.restore(); ctx.globalAlpha = 1;
 
-  // ── Your clubface ──
-  const frad = you * Math.PI / 180;
-  const fc = kpiColor('face', you);
-
-  // Club shadow
-  ctx.save(); ctx.translate(cx, ballY + 3); ctx.rotate(frad); ctx.globalAlpha = 0.2;
-  ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.roundRect(-36, -9, 72, 18, 3); ctx.fill();
-  ctx.restore(); ctx.globalAlpha = 1;
-
-  // Club body
+  // ── Your clubface — full width so it's clearly visible ──
   ctx.save(); ctx.translate(cx, ballY); ctx.rotate(frad);
-  ctx.fillStyle = dk() ? '#2c3238' : '#7a7e88';
-  ctx.beginPath(); ctx.roundRect(-36, -9, 72, 18, 3); ctx.fill();
-  // Face edge (the hitting surface — top of the rotated rect)
-  ctx.shadowColor = fc; ctx.shadowBlur = dk() ? 8 : 4;
+  const faceW = w * 0.58; // wide enough to clearly see
+  // Shadow
+  ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.roundRect(-faceW/2+3, -8+4, faceW, 16, 3); ctx.fill();
+  ctx.globalAlpha = 1;
+  // Body
+  ctx.fillStyle = dk() ? '#2c3640' : '#6a7080';
+  ctx.beginPath(); ctx.roundRect(-faceW/2, -8, faceW, 16, 3); ctx.fill();
+  // Top edge = the actual face (glowing)
+  ctx.shadowColor = fc; ctx.shadowBlur = dk() ? 10 : 5;
   ctx.fillStyle = fc;
-  ctx.beginPath(); ctx.roundRect(-36, -9, 72, 6, [3, 3, 0, 0]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-faceW/2, -8, faceW, 7, [3,3,0,0]); ctx.fill();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = fc; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-36, -9); ctx.lineTo(36, -9); ctx.stroke();
+  // Bright face line
+  ctx.strokeStyle = fc; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-faceW/2, -8); ctx.lineTo(faceW/2, -8); ctx.stroke();
   ctx.restore();
 
-  // Ball
-  drawBall(ctx, cx, ballY, 9);
+  // ── Ball on top of clubface ──
+  drawBall(ctx, cx, ballY, 10);
 
   // ── Ball flight arrow ──
-  // Arrow direction = face angle (where face points = where ball starts)
-  const arrLen = ballY - flagY - 30;
-  const bx = cx + Math.sin(frad) * arrLen * 0.85;
-  const by = ballY - Math.cos(frad) * arrLen * 0.85;
+  const arrLen = ballY - flagY - 28;
+  const tipX = cx + Math.sin(frad) * arrLen * 0.82;
+  const tipY = ballY - Math.cos(frad) * arrLen * 0.82;
 
   // Trail dots
-  for (let i = 1; i <= 4; i++) {
-    const tt = i / 5;
-    ctx.fillStyle = fc; ctx.globalAlpha = tt * 0.45;
-    ctx.beginPath();
-    ctx.arc(cx + Math.sin(frad)*arrLen*0.85*tt, ballY - Math.cos(frad)*arrLen*0.85*tt, 2.5*tt, 0, Math.PI*2);
-    ctx.fill();
+  for (let i = 1; i <= 5; i++) {
+    const tt = i/6;
+    ctx.fillStyle = fc; ctx.globalAlpha = tt * 0.5;
+    ctx.beginPath(); ctx.arc(
+      cx + Math.sin(frad)*arrLen*0.82*tt,
+      ballY - Math.cos(frad)*arrLen*0.82*tt,
+      2.5*tt, 0, Math.PI*2
+    ); ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // Dashed arrow line
-  ctx.strokeStyle = fc; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.globalAlpha = 0.85;
-  ctx.beginPath(); ctx.moveTo(cx, ballY - 10); ctx.lineTo(bx, by); ctx.stroke();
+  // Dashed line
+  ctx.strokeStyle = fc; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.globalAlpha = 0.9;
+  ctx.beginPath(); ctx.moveTo(cx, ballY-12); ctx.lineTo(tipX, tipY); ctx.stroke();
   ctx.setLineDash([]); ctx.globalAlpha = 1;
-  arrowHead(ctx, bx, by, Math.atan2(by - (ballY - 10), bx - cx), fc, 9);
+  arrowHead(ctx, tipX, tipY, Math.atan2(tipY-(ballY-12), tipX-cx), fc, 10);
 
   // ── Angle arc ──
   if (Math.abs(you) > 0.5) {
-    ctx.strokeStyle = fc; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.4;
-    ctx.beginPath();
-    ctx.arc(cx, ballY, 44, -Math.PI / 2, frad - Math.PI / 2, you < 0);
+    ctx.strokeStyle = fc; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.35;
+    ctx.beginPath(); ctx.arc(cx, ballY, 52, -Math.PI/2, frad-Math.PI/2, you<0);
     ctx.stroke(); ctx.globalAlpha = 1;
   }
 
-  // ── Labels ──
-  // "YOU" label near arrow tip
-  const labX = cx + Math.sin(frad) * (arrLen * 0.5);
-  const labY = ballY - Math.cos(frad) * (arrLen * 0.5);
-  const offset = you >= 0 ? 28 : -28;
-  boldLabel(ctx, `YOU  ${you > 0 ? '+' : ''}${Math.round(you)}°`, labX + offset, labY, fc, 11);
+  // ── Labels — placed in safe zones outside center diagram ──
+  // "YOU" label: placed in the quadrant the arrow is pointing toward
+  // but pushed to the left or right edge to avoid overlap
+  const labelMargin = 18;
+  const youLabelX = you >= 0 ? w - labelMargin : labelMargin;
+  const youLabelAlign = you >= 0 ? 'right' : 'left';
+  const youLabelY = ballY - arrLen * 0.45;
 
-  // "TARGET" label near ideal line
-  ctx.globalAlpha = 0.45;
-  boldLabel(ctx, `TARGET  ~${ideal}°`, cx + (ideal >= 0 ? -44 : 44), flagY + 26, t.green, 10);
+  // Background pill for legibility
+  ctx.font = `700 13px 'Barlow Condensed', sans-serif`;
+  const youText = `YOU  ${you > 0 ? '+' : ''}${Math.round(you)}°`;
+  const youW = ctx.measureText(youText).width + 16;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.globalAlpha = 0.7;
+  const pillX = you >= 0 ? youLabelX - youW : youLabelX;
+  ctx.beginPath(); ctx.roundRect(pillX, youLabelY - 13, youW, 20, 3); ctx.fill();
   ctx.globalAlpha = 1;
+  boldLabel(ctx, youText, youLabelX, youLabelY, fc, 13, youLabelAlign);
 
-  // ── Compass ── (tiny N arrow top-right for orientation)
-  const compassX = w - 22, compassY = 22;
-  ctx.fillStyle = t.text3; ctx.globalAlpha = 0.5;
-  ctx.font = `500 8px 'DM Mono', monospace`; ctx.textAlign = 'center';
-  ctx.fillText('▲ N', compassX, compassY + 4); ctx.globalAlpha = 1;
+  // "TARGET" label at the bottom, below clubface
+  const tgtText = `TARGET ~${Math.round(ideal)}°`;
+  ctx.font = `500 10px 'DM Mono', monospace`;
+  const tgtW = ctx.measureText(tgtText).width + 14;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.globalAlpha = 0.6;
+  ctx.beginPath(); ctx.roundRect(cx - tgtW/2, h - 28, tgtW, 18, 3); ctx.fill();
+  ctx.globalAlpha = 0.55; ctx.fillStyle = t.green;
+  ctx.font = `500 10px 'DM Mono', monospace`; ctx.textAlign = 'center';
+  ctx.fillText(tgtText, cx, h - 15); ctx.globalAlpha = 1;
 
   if (!updateDesc) return;
   const el = document.getElementById(did); if (!el) return;
   const diff = Math.abs(you - ideal);
-  el.innerHTML = `<b style="color:${fc}">Face: ${you > 0 ? '+' : ''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ~${ideal}°</b><br>${diff < 1 ? 'On target!' : diff < 4 ? 'Close — small adjustment needed.' : `Off by ${diff.toFixed(0)}° — ${you > ideal ? 'face open, needs to close' : 'face closed, open slightly'}.`}`;
+  el.innerHTML = `<b style="color:${fc}">Face: ${you>0?'+':''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ~${Math.round(ideal)}°</b><br>${diff<1?'On target!':diff<4?'Close — small adjustment needed.':`Off by ${diff.toFixed(0)}° — ${you>ideal?'face open, needs to close':'face closed, open slightly'}.`}`;
 }
 
-// ── Club path — TOP DOWN ───────────────────────────────────────────────────
-// Bird's eye view. Swing direction arrow through ball. Target line vertical.
+// ── CLUB PATH — top down ───────────────────────────────────────────────────
+// Full-width green. Target line runs vertically through center.
+// Swing path arrow runs diagonally through ball.
+// Ball at center. Labels in margins.
 
 function drawPath(cid, did, you, ideal, updateDesc) {
-  const r = sc(cid, 210); if (!r) return;
+  const r = sc(cid, 220); if (!r) return;
   const { ctx, w, h } = r;
   const t = T();
 
-  fillTopDown(ctx, w, h);
+  fillFullFairway(ctx, w, h);
 
-  const cx = w / 2, cy = h * 0.5;
+  // Vignette edges
+  const vig = ctx.createLinearGradient(0, 0, w, 0);
+  vig.addColorStop(0, 'rgba(0,0,0,0.4)'); vig.addColorStop(0.2, 'rgba(0,0,0,0)');
+  vig.addColorStop(0.8, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.4)');
+  ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
 
-  // Target line (vertical dashed)
-  ctx.strokeStyle = t.text3; ctx.lineWidth = 1; ctx.setLineDash([7, 6]);
-  ctx.beginPath(); ctx.moveTo(cx, 16); ctx.lineTo(cx, h - 16); ctx.stroke();
+  const cx = w/2, cy = h*0.5;
+  const pc = kpiColor('path', you);
+  const inp = CLUBS[club].inputs.find(i => i.id === 'path');
+  const idealRange = inp ? inp.ideal : [-5,5];
+
+  // ── Target line (vertical center) ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5; ctx.setLineDash([8,6]);
+  ctx.beginPath(); ctx.moveTo(cx, 14); ctx.lineTo(cx, h-14); ctx.stroke();
   ctx.setLineDash([]);
 
-  // "IN" / "OUT" labels
-  monoLabel(ctx, 'INSIDE', cx - 38, 28, t.text3, 8, 'right');
-  monoLabel(ctx, 'OUTSIDE', cx + 8, 28, t.text3, 8, 'left');
+  // IN / OUT labels (at mid height, left and right of target line)
+  monoLabel(ctx, '← INSIDE', cx-10, cy, t.text3, 9, 'right');
+  monoLabel(ctx, 'OUTSIDE →', cx+10, cy, t.text3, 9, 'left');
 
   // Flag at top
-  drawTopPin(ctx, cx, 18);
+  // Top-down pin: small circle + triangle
+  ctx.fillStyle = dk() ? '#e0e0de' : '#2a2a28';
+  ctx.beginPath(); ctx.arc(cx, 20, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ff4d4d';
+  ctx.beginPath(); ctx.moveTo(cx+3,18); ctx.lineTo(cx+17,20); ctx.lineTo(cx+3,27); ctx.fill();
+  monoLabel(ctx, 'TARGET', cx, 11, t.text2, 9);
 
-  const plen = h * 0.38;
+  const plen = h * 0.42;
+  const irad = ideal * Math.PI / 180;
 
   // ── Ideal path ghost ──
-  const irad = ideal * Math.PI / 180;
-  const isx = cx - Math.sin(irad) * plen, isy = cy + Math.cos(irad) * plen;
-  const iex = cx + Math.sin(irad) * plen, iey = cy - Math.cos(irad) * plen;
+  const isx = cx - Math.sin(irad)*plen, isy = cy + Math.cos(irad)*plen;
+  const iex = cx + Math.sin(irad)*plen, iey = cy - Math.cos(irad)*plen;
 
-  ctx.strokeStyle = t.green; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.globalAlpha = 0.08;
-  ctx.beginPath(); ctx.moveTo(isx, isy); ctx.lineTo(iex, iey); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = t.green; ctx.lineWidth = 14; ctx.lineCap='round'; ctx.globalAlpha = 0.07;
+  ctx.beginPath(); ctx.moveTo(isx,isy); ctx.lineTo(iex,iey); ctx.stroke(); ctx.globalAlpha = 1;
 
-  ctx.strokeStyle = t.green; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.globalAlpha = 0.4;
-  ctx.beginPath(); ctx.moveTo(isx, isy); ctx.lineTo(iex, iey); ctx.stroke();
+  ctx.strokeStyle = t.green; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]); ctx.globalAlpha = 0.38;
+  ctx.beginPath(); ctx.moveTo(isx,isy); ctx.lineTo(iex,iey); ctx.stroke();
   ctx.setLineDash([]); ctx.globalAlpha = 1;
-
-  // Ideal arrow (ghost)
-  arrowHead(ctx, iex, iey, Math.atan2(iey - isy, iex - isx), t.green, 8);
-  ctx.globalAlpha = 0.4;
-  monoLabel(ctx, 'TARGET PATH', iex + (ideal >= 0 ? 10 : -10), iey - 8, t.green, 8, ideal >= 0 ? 'left' : 'right');
+  arrowHead(ctx, iex, iey, Math.atan2(iey-isy, iex-isx), t.green, 8);
+  ctx.globalAlpha = 0.38;
+  monoLabel(ctx, 'IDEAL', iex+(ideal>=0?10:-10), iey-8, t.green, 8, ideal>=0?'left':'right');
   ctx.globalAlpha = 1;
 
   // ── Your path ──
-  const inp = CLUBS[club].inputs.find(i => i.id === 'path');
-  const idealRange = inp ? inp.ideal : [-5, 5];
   const prad = you * Math.PI / 180;
-  const sx = cx - Math.sin(prad) * plen, sy = cy + Math.cos(prad) * plen;
-  const ex = cx + Math.sin(prad) * plen, ey = cy - Math.cos(prad) * plen;
-  const pc = kpiColor('path', you);
+  const sx = cx - Math.sin(prad)*plen, sy = cy + Math.cos(prad)*plen;
+  const ex = cx + Math.sin(prad)*plen, ey = cy - Math.cos(prad)*plen;
 
   glowLine(ctx, sx, sy, ex, ey, pc, 3.5);
-  arrowHead(ctx, ex, ey, Math.atan2(ey - sy, ex - sx), pc, 10);
+  arrowHead(ctx, ex, ey, Math.atan2(ey-sy, ex-sx), pc, 11);
 
-  // Ball at center
-  drawBall(ctx, cx, cy, 10);
+  // ── Ball at center ──
+  drawBall(ctx, cx, cy, 11);
 
-  // ── Labels ──
-  boldLabel(ctx, `YOU  ${you > 0 ? '+' : ''}${Math.round(you)}°`,
-    ex + (you >= 0 ? 12 : -12), ey - 10, pc, 11, you >= 0 ? 'left' : 'right');
-
-  // Angle arc
+  // ── Angle arc ──
   if (Math.abs(you) > 0.5) {
     ctx.strokeStyle = pc; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.35;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 48, -Math.PI / 2, prad - Math.PI / 2, you < 0);
+    ctx.beginPath(); ctx.arc(cx, cy, 52, -Math.PI/2, prad-Math.PI/2, you<0);
     ctx.stroke(); ctx.globalAlpha = 1;
-    // Angle text on arc
-    const arcMid = prad / 2 - Math.PI / 2;
-    monoLabel(ctx, `${Math.abs(Math.round(you))}°`, cx + Math.cos(arcMid) * 60, cy + Math.sin(arcMid) * 60, pc, 9);
+    const arcMid = prad/2 - Math.PI/2;
+    monoLabel(ctx, `${Math.abs(Math.round(you))}°`, cx+Math.cos(arcMid)*64, cy+Math.sin(arcMid)*64, pc, 9);
   }
+
+  // ── "YOU" label — in margin, not overlapping arrow ──
+  const youText = `YOU  ${you>0?'+':''}${Math.round(you)}°`;
+  ctx.font = `700 13px 'Barlow Condensed', sans-serif`;
+  const youW = ctx.measureText(youText).width + 16;
+  const ylx = you >= 0 ? w - 16 : 16;
+  const yly = ey - 6;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.globalAlpha = 0.7;
+  ctx.beginPath(); ctx.roundRect(you>=0?ylx-youW:ylx, yly-13, youW, 20, 3); ctx.fill();
+  ctx.globalAlpha = 1;
+  boldLabel(ctx, youText, ylx, yly, pc, 13, you>=0?'right':'left');
 
   if (!updateDesc) return;
   const el = document.getElementById(did); if (!el) return;
   const diff = Math.abs(you - ideal);
-  el.innerHTML = `<b style="color:${pc}">Path: ${you > 0 ? '+' : ''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ~${ideal > 0 ? '+' : ''}${ideal}°</b><br>${diff < 2 ? 'On target!' : you < idealRange[0] ? 'Out-to-in — classic slice path.' : you > idealRange[1] ? 'Very in-to-out — hook risk.' : 'Path is in range.'}`;
+  el.innerHTML = `<b style="color:${pc}">Path: ${you>0?'+':''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ~${Math.round(ideal)>0?'+':''}${Math.round(ideal)}°</b><br>${diff<2?'On target!':you<idealRange[0]?'Out-to-in — classic slice path.':you>idealRange[1]?'Very in-to-out — hook risk.':'Path is in range.'}`;
 }
 
-// ── Attack angle — SIDE VIEW ───────────────────────────────────────────────
-// Viewed from the side. Sky above, green ground below.
-// Club shaft arrives at ball from upper-left (downward) or lower-left (upward).
+// ── ATTACK ANGLE — side view ───────────────────────────────────────────────
+// Sky above, green ground below. Club shaft arrives at ball from upper-left
+// (downward) or lower-left (upward). Full-width canvas.
 
 function drawAttack(cid, did, you, ideal, updateDesc) {
-  const r = sc(cid, 210); if (!r) return;
+  const r = sc(cid, 220); if (!r) return;
   const { ctx, w, h } = r;
   const t = T();
 
-  const gy = h * 0.65; // ground level
+  const gy = h * 0.64;
   fillSideView(ctx, w, h, gy);
 
-  const bx = w * 0.48, by = gy - 11;
+  const bx = w * 0.5, by = gy - 12;
+  const ac = kpiColor('attack', you);
+  const rad = you * Math.PI / 180;
+  const slen = Math.min(w * 0.55, 160);
 
-  // Ground level reference line
-  ctx.strokeStyle = t.text3; ctx.lineWidth = 1; ctx.setLineDash([6, 5]);
-  ctx.beginPath(); ctx.moveTo(bx - 110, by); ctx.lineTo(bx + 60, by); ctx.stroke();
+  // Ground level line
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1; ctx.setLineDash([6,5]);
+  ctx.beginPath(); ctx.moveTo(20, by); ctx.lineTo(w-20, by); ctx.stroke();
   ctx.setLineDash([]);
-  monoLabel(ctx, 'GROUND LEVEL', bx - 70, by - 6, t.text3, 8);
-
-  const slen = 130;
+  monoLabel(ctx, 'GROUND', w-22, by-6, t.text3, 8, 'right');
 
   // ── Ideal shaft ghost ──
   const irad = ideal * Math.PI / 180;
-  const isx = bx - Math.cos(irad) * slen;
-  const isy = by + Math.sin(irad) * slen;
-  ctx.strokeStyle = t.green; ctx.lineWidth = 3; ctx.globalAlpha = 0.2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(isx, isy); ctx.lineTo(bx - 10, by); ctx.stroke(); ctx.globalAlpha = 1;
-  monoLabel(ctx, 'TARGET', isx + 6, isy, t.green, 8, 'left');
+  const isx = bx - Math.cos(irad)*slen, isy = by + Math.sin(irad)*slen;
+  ctx.strokeStyle = t.green; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.2; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(isx, isy); ctx.lineTo(bx-12, by); ctx.stroke(); ctx.globalAlpha = 1;
+  // Small label at ideal shaft start
+  monoLabel(ctx, `IDEAL ${ideal>0?'+':''}${Math.round(ideal)}°`, isx, isy-10, t.green, 8, 'center');
   ctx.globalAlpha = 0.4; ctx.fillStyle = t.green;
-  ctx.beginPath(); ctx.arc(isx, isy, 3, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(isx, isy, 4, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
 
   // ── Your shaft ──
-  const ac = kpiColor('attack', you);
-  const rad = you * Math.PI / 180;
-  const sx = bx - Math.cos(rad) * slen, sy = by + Math.sin(rad) * slen;
+  const sx = bx - Math.cos(rad)*slen, sy = by + Math.sin(rad)*slen;
+  glowLine(ctx, sx, sy, bx-12, by, ac, 5);
 
-  glowLine(ctx, sx, sy, bx - 10, by, ac, 4);
+  // "FROM HERE" at shaft start
+  monoLabel(ctx, 'FROM HERE', sx, sy+16, t.text3, 8, 'center');
 
-  // "from here" label at shaft start
-  monoLabel(ctx, 'FROM HERE', sx, sy - 12, t.text3, 8);
-
-  // Clubhead at impact point
-  ctx.save(); ctx.translate(bx - 10, by); ctx.rotate(-rad + (you < 0 ? 0.14 : -0.14));
-  // Head body
-  ctx.fillStyle = dk() ? '#2c3238' : '#7a7e88';
-  ctx.beginPath(); ctx.roundRect(-7, -9, 24, 18, 3); ctx.fill();
-  // Face edge (left side of head = the face)
-  ctx.shadowColor = ac; ctx.shadowBlur = dk() ? 7 : 3;
+  // ── Clubhead ──
+  ctx.save(); ctx.translate(bx-12, by); ctx.rotate(-rad + (you<0?0.14:-0.14));
+  // Shadow
+  ctx.globalAlpha = 0.2; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.roundRect(-8, -10, 28, 20, 3); ctx.fill(); ctx.globalAlpha = 1;
+  // Body
+  ctx.fillStyle = dk() ? '#2c3640' : '#6a7080';
+  ctx.beginPath(); ctx.roundRect(-8, -10, 28, 20, 3); ctx.fill();
+  // Face edge (left side)
+  ctx.shadowColor = ac; ctx.shadowBlur = dk() ? 8 : 4;
   ctx.fillStyle = ac;
-  ctx.beginPath(); ctx.roundRect(-7, -9, 5, 18, [2, 0, 0, 2]); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-8, -10, 6, 20, [2,0,0,2]); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // Direction arrow (short, showing where club is going)
-  const arrLen = 58;
-  const aex = bx + Math.cos(rad) * arrLen, aey = by - Math.sin(rad) * arrLen;
-  ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.globalAlpha = 0.8;
+  // ── Direction arrow ──
+  const arrL = 60;
+  const aex = bx + Math.cos(rad)*arrL, aey = by - Math.sin(rad)*arrL;
+  ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.setLineDash([4,3]); ctx.globalAlpha = 0.8;
   ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(aex, aey); ctx.stroke();
   ctx.setLineDash([]); ctx.globalAlpha = 1;
-  arrowHead(ctx, aex, aey, Math.atan2(aey - by, aex - bx), ac, 9);
+  arrowHead(ctx, aex, aey, Math.atan2(aey-by, aex-bx), ac, 9);
 
-  // Angle arc at ball
+  // ── Angle arc ──
   if (Math.abs(you) > 0.5) {
-    ctx.strokeStyle = ac; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.4;
-    // Arc from horizontal (0) to the shaft angle
-    const arcStart = Math.PI; // pointing left
-    const arcEnd = Math.PI + rad;
-    ctx.beginPath();
-    ctx.arc(bx, by, 46, Math.min(arcStart, arcEnd), Math.max(arcStart, arcEnd));
-    ctx.stroke(); ctx.globalAlpha = 1;
-    // Angle label on arc
-    const arcMid = Math.PI + rad / 2;
-    monoLabel(ctx, `${you > 0 ? '+' : ''}${Math.round(you)}°`,
-      bx + Math.cos(arcMid) * 60, by + Math.sin(arcMid) * 60, ac, 9);
+    ctx.strokeStyle = ac; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.35;
+    // Arc from horizontal (pointing left = π) to shaft direction
+    const a1 = Math.PI, a2 = Math.PI + rad;
+    ctx.beginPath(); ctx.arc(bx, by, 50, Math.min(a1,a2), Math.max(a1,a2)); ctx.stroke();
+    ctx.globalAlpha = 1;
+    const arcMid = Math.PI + rad/2;
+    monoLabel(ctx, `${you>0?'+':''}${Math.round(you)}°`, bx+Math.cos(arcMid)*64, by+Math.sin(arcMid)*64, ac, 9);
   }
 
-  // Ball
-  drawBall(ctx, bx, by, 10);
+  // ── Ball ──
+  drawBall(ctx, bx, by, 11);
 
-  // ── Ground indicators ──
-
-  // Divot (negative attack = hitting down = correct for irons)
+  // ── Divot ──
   if (you < -2) {
-    const dx = bx + 26;
-    // Divot shape
+    const dx = bx + 30;
     ctx.fillStyle = dk() ? '#4a3010' : '#7a5520';
-    ctx.beginPath(); ctx.ellipse(dx, gy + 5, 22, 7, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(dx, gy+5, 24, 8, 0.1, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = dk() ? '#6a5030' : '#9a7540';
-    ctx.beginPath(); ctx.ellipse(dx, gy + 4, 14, 5, 0.1, 0, Math.PI * 2); ctx.fill();
-    monoLabel(ctx, 'DIVOT ✓', dx, gy + 20, t.green, 9);
+    ctx.beginPath(); ctx.ellipse(dx, gy+4, 16, 6, 0.1, 0, Math.PI*2); ctx.fill();
+    monoLabel(ctx, 'DIVOT ✓', dx, gy+22, t.green, 9);
   }
 
-  // Tee (driver hitting up)
+  // ── Tee ──
   if (you > 1 && club === 'driver') {
-    ctx.fillStyle = '#d4a840'; ctx.fillRect(bx - 2.5, gy - 24, 5, 24);
+    ctx.fillStyle = '#d4a840'; ctx.fillRect(bx-3, gy-26, 6, 26);
     ctx.fillStyle = '#e8c050';
-    ctx.beginPath(); ctx.ellipse(bx, gy - 24, 10, 6, 0, 0, Math.PI); ctx.fill();
-    monoLabel(ctx, 'TEE ✓', bx, gy + 20, t.amber, 9);
+    ctx.beginPath(); ctx.ellipse(bx, gy-26, 11, 6, 0, 0, Math.PI); ctx.fill();
+    monoLabel(ctx, 'TEE ✓', bx, gy+22, t.amber, 9);
   }
 
-  // ── YOU label ──
-  boldLabel(ctx, `YOU  ${you > 0 ? '+' : ''}${Math.round(you)}°`, sx + 8, sy + 14, ac, 11, 'left');
+  // ── "YOU" label — top-right area ──
+  const youText = `YOU  ${you>0?'+':''}${Math.round(you)}°`;
+  ctx.font = `700 13px 'Barlow Condensed', sans-serif`;
+  const youW = ctx.measureText(youText).width + 16;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.globalAlpha = 0.65;
+  ctx.beginPath(); ctx.roundRect(w-youW-14, 14, youW, 22, 3); ctx.fill();
+  ctx.globalAlpha = 1;
+  boldLabel(ctx, youText, w-22, 30, ac, 13, 'right');
 
   if (!updateDesc) return;
   const el = document.getElementById(did); if (!el) return;
-  el.innerHTML = `<b style="color:${ac}">Attack: ${you > 0 ? '+' : ''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${Math.abs(you - ideal) < 1 ? 'On target!' : you > -2 && club !== 'driver' ? 'Too level or upward — this is the scoop. Push toward negative.' : you > 4 && club === 'driver' ? 'Very upward — check tee height.' : 'Getting there — push further toward target.'}`;
+  el.innerHTML = `<b style="color:${ac}">Attack: ${you>0?'+':''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ${Math.round(ideal)>0?'+':''}${Math.round(ideal)}°</b><br>${Math.abs(you-ideal)<1?'On target!':you>-2&&club!=='driver'?'Too level or upward — this is the scoop. Push toward negative.':you>4&&club==='driver'?'Very upward — check tee height.':'Getting there — push further toward target.'}`;
 }
