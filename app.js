@@ -142,7 +142,6 @@ function render() {
 
   diagnose();
   renderShotShapeSection();
-  renderMiniSliders();
 }
 
 // ── Render mini sliders below vizs ────────────────────────────────────────
@@ -178,8 +177,8 @@ function onSlider(id, v, prefix) {
   }
   lastColor[id] = col;
 
-  // Update BOTH main and mini instances
-  ['main-', 'mini-'].forEach(pfx => {
+  // Update main, viz-embedded and mini instances
+  ['main-', 'viz-', 'mini-'].forEach(pfx => {
     const valEl = document.getElementById(pfx + 'val-' + id);
     if (valEl) { valEl.textContent = dispVal(inp, v); valEl.style.color = col; }
     const rangeEl = document.getElementById(pfx + 'range-' + id);

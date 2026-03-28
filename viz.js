@@ -152,7 +152,7 @@ function animateDraw(canvasId, fromVal, toVal, drawFn) {
 
 // ── Viz builder ────────────────────────────────────────────────────────────
 
-function drawVizs() {
+function drawVizsDELETE() {
   const C = CLUBS[club];
   const panels = [];
   if (C.inputs.find(i => i.id === 'face'))
@@ -453,4 +453,30 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   if (!updateDesc) return;
   const el = document.getElementById(did); if (!el) return;
   el.innerHTML = `<b style="color:${ac}">Your attack: ${you > 0 ? '+' : ''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${Math.abs(you - ideal) < 1 ? 'On target!' : you > -2 && club !== 'driver' ? 'Too level or upward — this is the scoop. Push toward negative.' : you > 4 && club === 'driver' ? 'Very upward — check tee height.' : 'Getting there — push further toward target.'}`;
+}
+
+// ── Replacement drawVizs with embedded sliders ─────────────────────────────
+function drawVizs() {
+  const C = CLUBS[club];
+  const panels = [];
+  if (C.inputs.find(i => i.id === 'face'))
+    panels.push({ id: 'vface', did: 'vdface', sid: 'face', title: 'Face angle \xb7 top view', fn: () => triggerFace('vface', 'vdface') });
+  if (C.inputs.find(i => i.id === 'path'))
+    panels.push({ id: 'vpath', did: 'vdpath', sid: 'path', title: 'Club path \xb7 top view', fn: () => triggerPath('vpath', 'vdpath') });
+  if (C.inputs.find(i => i.id === 'attack'))
+    panels.push({ id: 'vattack', did: 'vdattack', sid: 'attack', title: 'Attack angle \xb7 side view', fn: () => triggerAttack('vattack', 'vdattack') });
+
+  document.getElementById('vgrid').innerHTML = panels.map(p => {
+    const inp = C.inputs.find(i => i.id === p.sid);
+    const v = (vals[club] && vals[club][p.sid] !== undefined) ? vals[club][p.sid] : (inp ? inp.def : 0);
+    const sliderHTML = inp ? buildSlider(inp, v, 'viz-') : '';
+    return `<div class="vc-wrap">
+      <div class="vc-header"><span class="vc-title">${p.title}</span></div>
+      <canvas class="cv" id="${p.id}" height="200"></canvas>
+      <div class="vc-desc" id="${p.did}"></div>
+      <div class="viz-slider">${sliderHTML}</div>
+    </div>`;
+  }).join('');
+
+  setTimeout(() => panels.forEach(p => p.fn()), 40);
 }

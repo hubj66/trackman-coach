@@ -463,3 +463,23 @@ canvas.cv { display: block; width: 100%; }
 }
 
 .spacer { height: 18px; }
+
+/* ── Embedded viz slider ───────────────────────────────────────────────── */
+.viz-slider {
+  border-top: 0.5px solid var(--border);
+}
+.viz-slider .irow {
+  border-top: none;
+  border-bottom: none;
+  background: transparent;
+  padding: 10px 14px 8px;
+}
+.viz-slider .irow-lbl {
+  font-size: 12px;
+}
+.viz-slider .irow-val {
+  font-size: 14px;
+}
+.viz-slider .irow-labels {
+  font-size: 8px;
+}
