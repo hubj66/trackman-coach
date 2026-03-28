@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap');
 
 :root {
+  color-scheme: dark;
   --bg:       #0e1012;
   --surface:  #161819;
   --surface2: #1d2023;
@@ -25,20 +26,11 @@
   --cond:     'Barlow Condensed', sans-serif;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg:#f0f2f4; --surface:#fff; --surface2:#f5f6f8; --surface3:#eaecef; --surface4:#e0e3e8;
-    --text:#0e1012; --text2:#5a6370; --text3:#9aa0aa;
-    --border:rgba(0,0,0,0.08); --border2:rgba(0,0,0,0.14);
-    --green:#00a86b; --green-dim:#00a86b18;
-    --amber:#d4880a; --amber-dim:#d4880a18;
-    --red:#d93030; --red-dim:#d9303018;
-    --accent:#00a86b;
-  }
+
 }
 
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-html { font-size:16px; -webkit-text-size-adjust:100%; }
+html { font-size:16px; -webkit-text-size-adjust:100%; color-scheme:dark; }
 body {
   font-family:var(--sans);
   background:var(--bg); color:var(--text);
@@ -247,8 +239,7 @@ input[type=range]::-moz-range-thumb {
 .banner-bad { background:var(--red-dim); border-color:rgba(255,77,77,.2); color:var(--red); }
 .banner-ok { background:var(--amber-dim); border-color:rgba(255,170,0,.2); color:var(--amber); }
 .banner-good { background:var(--green-dim); border-color:rgba(0,214,143,.2); color:var(--green); }
-@media(prefers-color-scheme:light){
-  .banner-bad{color:#b02020} .banner-ok{color:#8a5a00} .banner-good{color:#007a50}
+ .banner-ok{color:#8a5a00} .banner-good{color:#007a50}
 }
 
 /* ── Tips ────────────────────────────────────────────────────────────────── */

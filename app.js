@@ -60,12 +60,11 @@ function toggleSub(id) {
 // ── Colors ─────────────────────────────────────────────────────────────────
 
 function getColorAdapted(inp, v) {
-  const light = matchMedia('(prefers-color-scheme: light)').matches;
   const [lo, hi] = inp.ideal;
-  if (v >= lo && v <= hi) return light ? '#00a86b' : '#00d68f';
+  if (v >= lo && v <= hi) return '#00d68f';
   const margin = Math.max((hi - lo) * 0.8, 2);
-  if (v >= lo - margin && v <= hi + margin) return light ? '#d4880a' : '#ffaa00';
-  return light ? '#d93030' : '#ff4d4d';
+  if (v >= lo - margin && v <= hi + margin) return '#ffaa00';
+  return '#ff4d4d';
 }
 function getColor(inp, v) { return getColorAdapted(inp, v); }
 
@@ -201,7 +200,7 @@ function onSlider(id, v, prefix) {
   const pct = fillPct(inp, v);
 
   if (lastColor[id] && lastColor[id] !== col) {
-    vibrate(col.includes('d68f') || col.includes('a86b') ? 25 : [8, 8, 8]);
+    vibrate(col === '#00d68f' ? 25 : [8, 8, 8]);
   }
   lastColor[id] = col;
 

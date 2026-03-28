@@ -19,8 +19,6 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 
 // viz.js — premium dark sports aesthetic canvas drawings
 
-function dk() { return !matchMedia('(prefers-color-scheme: light)').matches; }
-
 function sc(id, h) {
   const c = document.getElementById(id);
   if (!c) return null;
@@ -41,7 +39,6 @@ function idealMid(id) {
 
 // ── Theme colors ───────────────────────────────────────────────────────────
 function T() {
-  const d = dk();
   return {
     bg:      d ? '#0e1012' : '#f0f2f4',
     surface: d ? '#161819' : '#ffffff',
@@ -105,7 +102,7 @@ function drawSkyGround(ctx, w, h, groundRatio) {
   }
 
   // Ground edge line
-  ctx.strokeStyle = dk() ? '#2a5a2a' : '#55a030';
+  ctx.strokeStyle = '#2a5a2a';
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
 
@@ -117,7 +114,7 @@ function drawSkyGround(ctx, w, h, groundRatio) {
 
 function drawFlag(ctx, x, y) {
   const t = T();
-  ctx.fillStyle = dk() ? '#c8a830' : '#8a6800';
+  ctx.fillStyle = '#c8a830';
   ctx.fillRect(x - 1, y, 1.5, 26);
   ctx.fillStyle = '#ff4d4d';
   ctx.beginPath(); ctx.moveTo(x + 1, y); ctx.lineTo(x + 16, y + 8); ctx.lineTo(x + 1, y + 16); ctx.fill();
@@ -222,8 +219,8 @@ function drawFaceBoth(cid, did, you, ideal, updateDesc) {
   drawFairway(ctx, w, h);
   // Sky overlay
   const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
-  sky.addColorStop(0, dk() ? '#060c14' : '#c5e0f8');
-  sky.addColorStop(1, dk() ? 'rgba(14,22,32,0)' : 'rgba(197,224,248,0)');
+  sky.addColorStop(0, '#060c14');
+  sky.addColorStop(1, 'rgba(14,22,32,0)');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h * 0.55);
 
   // Fairway strip
@@ -260,10 +257,10 @@ function drawFaceBoth(cid, did, you, ideal, updateDesc) {
 
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(frad);
   // Club body
-  ctx.fillStyle = dk() ? '#2a2e32' : '#8a8e94';
+  ctx.fillStyle = '#2a2e32';
   ctx.beginPath(); ctx.roundRect(-34, -10, 68, 20, 3); ctx.fill();
   // Face edge glow
-  ctx.shadowColor = fc; ctx.shadowBlur = dk() ? 8 : 4;
+  ctx.shadowColor = fc; ctx.shadowBlur = 8;
   ctx.fillStyle = fc; ctx.fillRect(-34, -10, 68, 5);
   ctx.strokeStyle = fc; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(-34, -10); ctx.lineTo(34, -10); ctx.stroke();
@@ -412,9 +409,9 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
 
   // Clubhead
   ctx.save(); ctx.translate(bx - 8, by); ctx.rotate(-rad + (you < 0 ? 0.15 : -0.15));
-  ctx.fillStyle = dk() ? '#2a2e32' : '#7a7e84';
+  ctx.fillStyle = '#2a2e32';
   ctx.beginPath(); ctx.roundRect(-6, -8, 22, 16, 3); ctx.fill();
-  ctx.shadowColor = ac; ctx.shadowBlur = dk() ? 6 : 3;
+  ctx.shadowColor = ac; ctx.shadowBlur = 6;
   ctx.fillStyle = ac; ctx.beginPath(); ctx.roundRect(-6, -8, 5, 16, 2); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.restore();
@@ -445,9 +442,9 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   // Divot
   if (you < -2) {
     const gy = h * 0.68;
-    ctx.fillStyle = dk() ? '#4a3010' : '#7a5520';
+    ctx.fillStyle = '#4a3010';
     ctx.beginPath(); ctx.ellipse(bx + 22, gy + 4, 19, 7, 0.15, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = dk() ? '#6a5030' : '#9a7540';
+    ctx.fillStyle = '#6a5030';
     ctx.beginPath(); ctx.ellipse(bx + 22, gy + 3, 13, 5, 0.15, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = t.green;
     ctx.font = `500 9px 'DM Mono', monospace`; ctx.textAlign = 'center';

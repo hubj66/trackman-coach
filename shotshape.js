@@ -9,10 +9,9 @@ function getShotShape(face, path) {
   const curvesStrong = Math.abs(ftp) > 6;
 
   let name, color, desc;
-  const d = !matchMedia('(prefers-color-scheme: light)').matches;
-  const G = d ? '#00d68f' : '#00a86b';
-  const A = d ? '#ffaa00' : '#d4880a';
-  const R = d ? '#ff4d4d' : '#d93030';
+  const G = '#00d68f';
+  const A = '#ffaa00';
+  const R = '#ff4d4d';
 
   if      (startRight && curvesRight && curvesStrong)          { name = 'Slice';       color = R; desc = 'Starts right, curves hard right. Open face + out-to-in path.'; }
   else if (startRight && curvesRight)                          { name = 'Fade';         color = A; desc = 'Starts right, gentle curve right. Controlled if consistent.'; }
@@ -50,40 +49,39 @@ function _drawShotShape() {
   const ctx = c.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const d = !matchMedia('(prefers-color-scheme: light)').matches;
   const shape = getShotShape(face, path);
 
   // Fairway background with stripes
   const sw = 22;
-  const c1 = d ? '#1e3420' : '#78c455', c2 = d ? '#182818' : '#65b040';
+  const c1 = '#1e3420', c2 = '#182818';
   for (let i = 0; i * sw < w; i++) {
     ctx.fillStyle = i % 2 === 0 ? c1 : c2;
     ctx.fillRect(i * sw, 0, sw, h);
   }
 
   // Rough edges
-  ctx.fillStyle = d ? '#0e1e0e' : '#4a9030';
+  ctx.fillStyle = '#0e1e0e';
   ctx.fillRect(0, 0, w * 0.13, h);
   ctx.fillRect(w * 0.87, 0, w * 0.13, h);
 
   // Rough edge lines
-  ctx.strokeStyle = d ? '#2a4a2a' : '#3a7020'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#2a4a2a'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(w * 0.13, 0); ctx.lineTo(w * 0.13, h); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(w * 0.87, 0); ctx.lineTo(w * 0.87, h); ctx.stroke();
 
   // Target line
   const cx = w / 2;
-  ctx.strokeStyle = d ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
   ctx.lineWidth = 1.5; ctx.setLineDash([8, 7]);
   ctx.beginPath(); ctx.moveTo(cx, h - 30); ctx.lineTo(cx, 24); ctx.stroke(); ctx.setLineDash([]);
 
   // Hole at top
-  ctx.fillStyle = d ? '#1a1a18' : '#2a2a28';
+  ctx.fillStyle = '#1a1a18';
   ctx.beginPath(); ctx.arc(cx, 26, 9, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = d ? '#3a3a38' : '#5a5a58'; ctx.lineWidth = 1;
+  ctx.strokeStyle = '#3a3a38'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(cx, 26, 9, 0, Math.PI * 2); ctx.stroke();
   // Flag pin
-  ctx.fillStyle = d ? '#c8a830' : '#8a6800'; ctx.fillRect(cx - 0.75, 12, 1.5, 18);
+  ctx.fillStyle = '#c8a830'; ctx.fillRect(cx - 0.75, 12, 1.5, 18);
   ctx.fillStyle = '#ff4d4d';
   ctx.beginPath(); ctx.moveTo(cx + 1, 12); ctx.lineTo(cx + 14, 18); ctx.lineTo(cx + 1, 24); ctx.fill();
 
@@ -151,9 +149,9 @@ function _drawShotShape() {
   const ftpText = `FTP ${shape.ftp > 0 ? '+' : ''}${shape.ftp.toFixed(1)}°`;
   ctx.font = `500 9px 'DM Mono', monospace`;
   const fw2 = ctx.measureText(ftpText).width + 16;
-  ctx.fillStyle = d ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.globalAlpha = 1;
   ctx.beginPath(); ctx.roundRect(w - fw2 - 12, h - 40, fw2, 24, 3); ctx.fill();
-  ctx.fillStyle = d ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)';
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.textAlign = 'right';
   ctx.fillText(ftpText, w - 20, h - 24);
 
