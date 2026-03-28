@@ -40,8 +40,18 @@ function toggleAcc(id) {
   const isOpen = el.classList.contains('open');
   el.classList.toggle('open');
   if (!isOpen) {
-    if (id === 'viz') setTimeout(() => { Object.keys(prevAngles).forEach(k => delete prevAngles[k]); drawVizs(); }, 60);
-    if (id === 'shot') setTimeout(drawShotShape, 60);
+    // Wait for CSS transition + reflow before drawing canvases
+    if (id === 'viz') {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+        drawVizs();
+      }));
+    }
+    if (id === 'shot') {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (typeof _drawShotShape === 'function') _drawShotShape();
+      }));
+    }
   }
 }
 
@@ -184,13 +194,17 @@ function render() {
   // Draw vizs if viz accordion is open
   const vizAcc = document.getElementById('acc-viz');
   if (vizAcc?.classList.contains('open')) {
-    setTimeout(drawVizs, 60);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+      drawVizs();
+    }));
   }
-
   // Update shot shape if open
   const shotAcc = document.getElementById('acc-shot');
   if (shotAcc?.classList.contains('open')) {
-    setTimeout(drawShotShape, 60);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (typeof _drawShotShape === 'function') _drawShotShape();
+    }));
   }
 }
 
@@ -324,15 +338,16 @@ function drawShotShape() {
 
 render();
 
-// Auto-open viz + shot after render so canvases are visible and sized correctly
-setTimeout(() => {
+// Auto-open viz + shot once page fully loaded
+window.addEventListener('load', () => {
   openAcc('viz');
-  setTimeout(() => { Object.keys(prevAngles).forEach(k => delete prevAngles[k]); drawVizs(); }, 80);
+  Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+  drawVizs();
   const C = CLUBS[club];
   const hasFace = C.primary.find(i => i.id === 'face');
   const hasPath = C.primary.find(i => i.id === 'path');
   if (hasFace && hasPath && club !== 'putter') {
     openAcc('shot');
-    setTimeout(() => { if (typeof _drawShotShape === 'function') _drawShotShape(); }, 100);
+    if (typeof _drawShotShape === 'function') _drawShotShape();
   }
-}, 100);
+});

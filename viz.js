@@ -169,25 +169,7 @@ function animateDraw(canvasId, fromVal, toVal, drawFn) {
 
 // ── Viz builder ────────────────────────────────────────────────────────────
 
-function drawVizsDELETE() {
-  const C = CLUBS[club]; const allInps = getAllInputs(club);
-  const panels = [];
-  if (C.primary.find(i => i.id === 'face'))
-    panels.push({ id: 'vface', did: 'vdface', title: 'Face angle · top view', fn: () => triggerFace('vface', 'vdface') });
-  if (C.primary.find(i => i.id === 'path'))
-    panels.push({ id: 'vpath', did: 'vdpath', title: 'Club path · top view', fn: () => triggerPath('vpath', 'vdpath') });
-  if (C.primary.find(i => i.id === 'attack'))
-    panels.push({ id: 'vattack', did: 'vdattack', title: 'Attack angle · side view', fn: () => triggerAttack('vattack', 'vdattack') });
 
-  document.getElementById('vgrid').innerHTML = panels.map(p => `
-    <div class="vc-wrap">
-      <div class="vc-header"><span class="vc-title">${p.title}</span></div>
-      <canvas class="cv" id="${p.id}" height="200"></canvas>
-      <div class="vc-desc" id="${p.did}"></div>
-    </div>`).join('');
-
-  setTimeout(() => panels.forEach(p => p.fn()), 40);
-}
 
 function triggerFace(cid, did) {
   const you = getVal('face') || 0, ideal = idealMid('face');
