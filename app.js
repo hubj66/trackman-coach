@@ -15,7 +15,7 @@ function toggleAccordion() {
   if (!body) return;
   vibrate(12);
   if (accOpen) {
-    body.style.maxHeight = body.scrollHeight + 'px';
+    body.style.maxHeight = '800px'; // large enough for any number of sliders
     body.style.opacity = '1';
     if (arrow) arrow.style.transform = 'rotate(90deg)';
     if (toggle) toggle.classList.add('open');
@@ -142,6 +142,7 @@ function render() {
 
   diagnose();
   renderShotShapeSection();
+  renderMiniSliders();
 }
 
 // ── Render mini sliders below vizs ────────────────────────────────────────
@@ -150,12 +151,9 @@ function renderMiniSliders() {
   const C = CLUBS[club];
   const el = document.getElementById('mini-sliders');
   if (!el) return;
-  // Only show sliders for KPIs that have visualizations
-  const vizIds = C.inputs
-    .filter(i => ['face','path','attack'].includes(i.id))
-    .filter(i => C.inputs.find(x => x.id === i.id));
-  if (!vizIds.length) { el.innerHTML = ''; return; }
-  el.innerHTML = vizIds.map(inp => {
+  const vizInputs = C.inputs.filter(i => ['face', 'path', 'attack'].includes(i.id));
+  if (!vizInputs.length) { el.innerHTML = ''; return; }
+  el.innerHTML = vizInputs.map(inp => {
     const v = vals[club] && vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
     return buildSlider(inp, v, 'mini-');
   }).join('');
@@ -229,7 +227,6 @@ function setTips(tips) {
     </div>`).join('');
   drawVizs();
   renderShotShapeSection();
-  renderMiniSliders();
 }
 
 // ── Drill request ──────────────────────────────────────────────────────────
