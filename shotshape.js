@@ -160,7 +160,7 @@ function _drawShotShape() {
   // Description
   const el = document.getElementById('shotshape-desc');
   if (el) {
-    el.innerHTML = `<b style="color:${shape.color}">${shape.name}</b> — ${shape.desc}<br><span style="font-size:11px;opacity:0.55">Face to path ${shape.ftp > 0 ? '+' : ''}${shape.ftp.toFixed(1)}° · Start dir ${shape.startDir > 0 ? '+' : ''}${shape.startDir.toFixed(1)}°</span>`;
+    el.innerHTML = `<b style="color:${shape.color}">${shape.name}</b> — ${shape.desc}<br><span class="vc-desc-sub">Face-to-path ${shape.ftp > 0 ? '+' : ''}${shape.ftp.toFixed(1)}° &nbsp;·&nbsp; Start dir ${shape.startDir > 0 ? '+' : ''}${shape.startDir.toFixed(1)}°</span>`;
   }
 }
 

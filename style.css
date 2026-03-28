@@ -277,11 +277,27 @@ input[type=range]::-moz-range-thumb {
   background:var(--surface); border:0.5px solid var(--border);
   border-radius:var(--radius); overflow:hidden;
 }
-.vc-header { padding:11px 14px 0; display:flex; align-items:center; }
-.vc-title { font-family:var(--mono); font-size:9px; font-weight:500; text-transform:uppercase; letter-spacing:.1em; color:var(--text3); }
+.vc-header { padding:12px 14px 8px; display:flex; align-items:center; justify-content:space-between; }
+.vc-title {
+  font-family:var(--sans); font-size:13px; font-weight:600;
+  color:var(--text); letter-spacing:-.1px;
+}
+.vc-title span {
+  font-family:var(--mono); font-size:9px; font-weight:400;
+  color:var(--text3); letter-spacing:.06em; text-transform:uppercase;
+  margin-left:8px;
+}
 canvas.cv { display:block; width:100%; }
-.vc-desc { font-size:12px; color:var(--text2); padding:8px 14px 12px; line-height:1.55; border-top:0.5px solid var(--border); }
+.vc-desc {
+  font-size:13px; color:var(--text2);
+  padding:10px 14px 13px; line-height:1.6;
+  border-top:0.5px solid var(--border);
+}
 .vc-desc b { color:var(--text); font-weight:600; }
+.vc-desc-sub {
+  font-family:var(--mono); font-size:10px;
+  color:var(--text3); letter-spacing:.04em;
+}
 
 /* ── CTA ─────────────────────────────────────────────────────────────────── */
 .cta-wrap { padding:14px 18px; padding-bottom:calc(14px + var(--safe-bottom)); }

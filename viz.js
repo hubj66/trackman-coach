@@ -480,11 +480,11 @@ function drawVizs() {
   const C = CLUBS[club]; const allInps = getAllInputs(club);
   const panels = [];
   if (C.primary.find(i => i.id === 'face'))
-    panels.push({ id: 'vface', did: 'vdface', sid: 'face', title: 'Face angle \xb7 top view', fn: () => triggerFace('vface', 'vdface') });
+    panels.push({ id: 'vface', did: 'vdface', sid: 'face', title: 'Face angle<span>TOP VIEW</span>', fn: () => triggerFace('vface', 'vdface') });
   if (C.primary.find(i => i.id === 'path'))
-    panels.push({ id: 'vpath', did: 'vdpath', sid: 'path', title: 'Club path \xb7 top view', fn: () => triggerPath('vpath', 'vdpath') });
+    panels.push({ id: 'vpath', did: 'vdpath', sid: 'path', title: 'Club path<span>TOP VIEW</span>', fn: () => triggerPath('vpath', 'vdpath') });
   if (C.primary.find(i => i.id === 'attack'))
-    panels.push({ id: 'vattack', did: 'vdattack', sid: 'attack', title: 'Attack angle \xb7 side view', fn: () => triggerAttack('vattack', 'vdattack') });
+    panels.push({ id: 'vattack', did: 'vdattack', sid: 'attack', title: 'Attack angle<span>SIDE VIEW</span>', fn: () => triggerAttack('vattack', 'vdattack') });
 
   document.getElementById('vgrid').innerHTML = panels.map(p => {
     const inp = allInps.find(i => i.id === p.sid);
