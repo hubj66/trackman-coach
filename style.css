@@ -244,13 +244,20 @@ body {
   letter-spacing: -.02em;
 }
 
-/* Custom range slider */
+/* Custom range slider — single track, no double line */
 input[type=range] {
   -webkit-appearance: none; appearance: none;
-  width: 100%; height: 2px;
-  border-radius: 1px;
-  background: var(--surface4);
+  width: 100%; height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--track-color, var(--green)) 0%,
+    var(--track-color, var(--green)) var(--track-pct, 50%),
+    var(--surface4) var(--track-pct, 50%),
+    var(--surface4) 100%
+  );
   outline: none; cursor: pointer; margin: 0;
+  transition: background .15s;
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
@@ -271,18 +278,6 @@ input[type=range]::-moz-range-thumb {
   background: var(--text);
   border: none;
   cursor: pointer;
-}
-
-.track-wrap { position: relative; margin-top: 10px; }
-.track-bg {
-  height: 2px; border-radius: 1px;
-  background: var(--surface4);
-  position: relative; overflow: hidden;
-}
-.track-fill {
-  position: absolute; left: 0; top: 0; height: 100%;
-  border-radius: 1px;
-  transition: width .1s, background .2s;
 }
 
 .irow-labels {

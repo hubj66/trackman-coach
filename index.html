@@ -28,6 +28,7 @@
 
 <div class="main">
 
+  <!-- KPI targets -->
   <div class="section" style="padding-top:18px">
     <div class="sec-label">Target KPIs</div>
     <div class="kgrid" id="kgrid"></div>
@@ -37,6 +38,7 @@
 
   <div class="divider" style="margin:10px 0"></div>
 
+  <!-- Main input sliders -->
   <div class="section">
     <div class="sec-label">Your numbers — enter from Trackman</div>
   </div>
@@ -55,17 +57,26 @@
     </div>
   </div>
 
+  <!-- Diagnosis -->
   <div class="spacer"></div>
   <div class="section"><div class="sec-label">Diagnosis</div></div>
   <div class="banner banner-ok" id="banner">Move the sliders to your Trackman numbers.</div>
 
+  <!-- Practice priorities -->
   <div class="section" style="padding-top:14px"><div class="sec-label">Practice priorities</div></div>
   <div class="tip-list" id="tiplist"></div>
 
+  <!-- Visualizations -->
   <div class="spacer"></div>
   <div class="section"><div class="sec-label">Visualizations</div></div>
   <div class="vgrid" id="vgrid"></div>
 
+  <!-- Mini sliders — linked to main sliders, for quick edits near the diagrams -->
+  <div class="spacer" style="height:8px"></div>
+  <div class="section"><div class="sec-label">Adjust values</div></div>
+  <div class="input-list" id="mini-sliders"></div>
+
+  <!-- CTA -->
   <div class="spacer"></div>
   <div class="cta-wrap">
     <button class="ask-btn" onclick="doAsk()">

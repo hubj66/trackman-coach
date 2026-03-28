@@ -1,4 +1,4 @@
-// app.js — main app logic, state, UI rendering
+// app.js — main app logic
 
 let club = 'driver';
 const vals = {};
@@ -13,17 +13,8 @@ function sel(id, el) {
   render();
 }
 
-// ── Color helpers ──────────────────────────────────────────────────────────
+// ── Colors ─────────────────────────────────────────────────────────────────
 
-function getColor(inp, v) {
-  const [lo, hi] = inp.ideal;
-  if (v >= lo && v <= hi) return '#00d68f';
-  const margin = Math.max((hi - lo) * 0.8, 2);
-  if (v >= lo - margin && v <= hi + margin) return '#ffaa00';
-  return '#ff4d4d';
-}
-
-// Light mode overrides
 function getColorAdapted(inp, v) {
   const light = matchMedia('(prefers-color-scheme: light)').matches;
   const [lo, hi] = inp.ideal;
@@ -32,6 +23,9 @@ function getColorAdapted(inp, v) {
   if (v >= lo - margin && v <= hi + margin) return light ? '#d4880a' : '#ffaa00';
   return light ? '#d93030' : '#ff4d4d';
 }
+
+// expose for viz.js kpiColor
+function getColor(inp, v) { return getColorAdapted(inp, v); }
 
 function fillPct(inp, v) {
   return Math.round((v - inp.min) / (inp.max - inp.min) * 100);
@@ -44,8 +38,30 @@ function dispVal(inp, v) {
 
 // ── Vibration ──────────────────────────────────────────────────────────────
 
-function vibrate(ms) {
-  if (navigator.vibrate) navigator.vibrate(ms);
+function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+// ── Slider HTML builder (shared by main + mini) ────────────────────────────
+
+function buildSlider(inp, v, prefix) {
+  const col = getColorAdapted(inp, v);
+  const pct = fillPct(inp, v);
+  const idealStr = `ideal ${inp.ideal[0]}${inp.unit.trim()} → ${inp.ideal[1]}${inp.unit.trim()}`;
+  return `<div class="irow" id="${prefix}row-${inp.id}">
+    <div class="irow-top">
+      <span class="irow-lbl">${inp.l}</span>
+      <span class="irow-val" id="${prefix}val-${inp.id}" style="color:${col}">${dispVal(inp, v)}</span>
+    </div>
+    <input type="range"
+      id="${prefix}range-${inp.id}"
+      min="${inp.min}" max="${inp.max}" value="${v}" step="${inp.step || 1}"
+      style="--track-color:${col};--track-pct:${pct}%"
+      oninput="onSlider('${inp.id}', +this.value, '${prefix}')">
+    <div class="irow-labels">
+      <span>${inp.min}${inp.unit.trim()}</span>
+      <span class="ideal-lbl" style="color:${col}">${idealStr}</span>
+      <span>${inp.max}${inp.unit.trim()}</span>
+    </div>
+  </div>`;
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────
@@ -59,7 +75,7 @@ function badgeToClass(bt) {
 function render() {
   const C = CLUBS[club];
 
-  // KPI cards with side accent class
+  // KPI cards
   document.getElementById('kgrid').innerHTML = C.kpis.map(k => `
     <div class="kcard ${badgeToClass(k.bt)}">
       <div class="kcard-lbl">${k.l}</div>
@@ -73,68 +89,74 @@ function render() {
     `<div class="focus-item"><span class="dot ${f.c}"></span><span>${f.t}</span></div>`
   ).join('');
 
-  // Sliders
+  // Main sliders
   if (!vals[club]) vals[club] = {};
   document.getElementById('inputgrid').innerHTML = C.inputs.map(inp => {
     const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
-    const col = getColorAdapted(inp, v);
-    const pct = fillPct(inp, v);
-    const idealStr = `ideal ${inp.ideal[0]}${inp.unit.trim()} → ${inp.ideal[1]}${inp.unit.trim()}`;
-    return `<div class="irow">
-      <div class="irow-top">
-        <span class="irow-lbl">${inp.l}</span>
-        <span class="irow-val" id="iv-${inp.id}" style="color:${col}">${dispVal(inp, v)}</span>
-      </div>
-      <input type="range" min="${inp.min}" max="${inp.max}" value="${v}" step="${inp.step || 1}"
-        oninput="onSlider('${inp.id}', +this.value)"
-        onchange="onSliderEnd('${inp.id}', +this.value)">
-      <div class="track-wrap">
-        <div class="track-bg">
-          <div class="track-fill" id="sf-${inp.id}" style="width:${pct}%;background:${col}"></div>
-        </div>
-      </div>
-      <div class="irow-labels">
-        <span>${inp.min}${inp.unit.trim()}</span>
-        <span class="ideal-lbl" style="color:${col}">${idealStr}</span>
-        <span>${inp.max}${inp.unit.trim()}</span>
-      </div>
-    </div>`;
+    return buildSlider(inp, v, 'main-');
   }).join('');
 
   diagnose();
   renderShotShapeSection();
 }
 
-// ── Slider ─────────────────────────────────────────────────────────────────
+// ── Render mini sliders below vizs ────────────────────────────────────────
+
+function renderMiniSliders() {
+  const C = CLUBS[club];
+  const el = document.getElementById('mini-sliders');
+  if (!el) return;
+  // Only show sliders for KPIs that have visualizations
+  const vizIds = C.inputs
+    .filter(i => ['face','path','attack'].includes(i.id))
+    .filter(i => C.inputs.find(x => x.id === i.id));
+  if (!vizIds.length) { el.innerHTML = ''; return; }
+  el.innerHTML = vizIds.map(inp => {
+    const v = vals[club] && vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
+    return buildSlider(inp, v, 'mini-');
+  }).join('');
+}
+
+// ── Slider update ──────────────────────────────────────────────────────────
 
 let lastColor = {};
 
-function onSlider(id, v) {
+function onSlider(id, v, prefix) {
   if (!vals[club]) vals[club] = {};
   vals[club][id] = v;
+
   const inp = CLUBS[club].inputs.find(i => i.id === id);
   if (!inp) return;
   const col = getColorAdapted(inp, v);
+  const pct = fillPct(inp, v);
 
+  // Vibrate on zone crossing
   if (lastColor[id] && lastColor[id] !== col) {
-    if (col.includes('d68f') || col.includes('a86b')) vibrate(25);
-    else vibrate([8, 8, 8]);
+    vibrate(col.includes('d68f') || col.includes('a86b') ? 25 : [8,8,8]);
   }
   lastColor[id] = col;
 
-  const el = document.getElementById('iv-' + id);
-  if (el) { el.textContent = dispVal(inp, v); el.style.color = col; }
-  const sf = document.getElementById('sf-' + id);
-  if (sf) { sf.style.width = fillPct(inp, v) + '%'; sf.style.background = col; }
+  // Update BOTH main and mini instances
+  ['main-', 'mini-'].forEach(pfx => {
+    const valEl = document.getElementById(pfx + 'val-' + id);
+    if (valEl) { valEl.textContent = dispVal(inp, v); valEl.style.color = col; }
+    const rangeEl = document.getElementById(pfx + 'range-' + id);
+    if (rangeEl) {
+      rangeEl.value = v;
+      rangeEl.style.setProperty('--track-color', col);
+      rangeEl.style.setProperty('--track-pct', pct + '%');
+    }
+    const lbl = document.getElementById(pfx + 'row-' + id)?.querySelector('.ideal-lbl');
+    if (lbl) lbl.style.color = col;
+  });
 
+  // Live update shot shape and visualizations
   if (id === 'face' || id === 'path') drawShotShape();
-  diagnose();
-}
-
-function onSliderEnd(id) {
   if (id === 'face') triggerFace('vface', 'vdface');
   if (id === 'path') triggerPath('vpath', 'vdpath');
   if (id === 'attack') triggerAttack('vattack', 'vdattack');
+
+  diagnose();
 }
 
 // ── Value getter ───────────────────────────────────────────────────────────
@@ -163,6 +185,7 @@ function setTips(tips) {
     </div>`).join('');
   drawVizs();
   renderShotShapeSection();
+  renderMiniSliders();
 }
 
 // ── Drill request ──────────────────────────────────────────────────────────
