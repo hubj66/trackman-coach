@@ -97,7 +97,7 @@ function _drawShotShape() {
   const endY = 44;
 
   // Glow
-  ctx.shadowColor = shape.color; ctx.shadowBlur = d ? 16 : 8;
+  ctx.shadowColor = shape.color; ctx.shadowBlur = 16;
   ctx.strokeStyle = shape.color; ctx.lineWidth = 12; ctx.globalAlpha = 0.08; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(startX, startY);
   ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY); ctx.stroke();
@@ -119,7 +119,7 @@ function _drawShotShape() {
   ctx.globalAlpha = 1;
 
   // Landing zone glow
-  ctx.shadowColor = shape.color; ctx.shadowBlur = d ? 12 : 6;
+  ctx.shadowColor = shape.color; ctx.shadowBlur = 12;
   ctx.fillStyle = shape.color; ctx.globalAlpha = 0.2;
   ctx.beginPath(); ctx.arc(endX, endY + 6, 18, 0, Math.PI * 2); ctx.fill();
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
