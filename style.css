@@ -214,13 +214,12 @@ input[type=range]::-moz-range-thumb {
 }
 .irow-labels {
   display:flex; justify-content:space-between; align-items:center;
-  font-family:var(--mono); font-size:9px; color:var(--text3);
-  margin-top:7px; letter-spacing:.03em; opacity:0.6;
+  font-family:var(--mono); font-size:10px; color:var(--text2);
+  margin-top:8px; letter-spacing:.02em;
 }
 .irow-labels .ideal-lbl {
-  font-weight:500; opacity:1;
-  background:var(--surface3); padding:1px 6px; border-radius:3px;
-  font-size:8px; letter-spacing:.04em;
+  font-size:10px; font-weight:500;
+  color:var(--text2); letter-spacing:.02em;
 }
 
 /* ── Viz slider embedded ─────────────────────────────────────────────────── */

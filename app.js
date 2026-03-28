@@ -12,18 +12,23 @@ function sel(id, el) {
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
 
-// Auto-open viz and shot shape on startup so user sees them
+// Auto-open viz + shot on startup after everything is rendered
 setTimeout(() => {
+  // Open viz
   openAcc('viz');
-  setTimeout(drawVizs, 100);
+  setTimeout(() => {
+    Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+    drawVizs();
+  }, 80);
+  // Open shot shape if applicable
   const C = CLUBS[club];
   const hasFace = C.primary.find(i => i.id === 'face');
   const hasPath = C.primary.find(i => i.id === 'path');
   if (hasFace && hasPath && club !== 'putter') {
     openAcc('shot');
-    setTimeout(() => _drawShotShape && _drawShotShape(), 120);
+    setTimeout(() => { if (typeof _drawShotShape === 'function') _drawShotShape(); }, 100);
   }
-}, 60);
+}, 100);
 }
 
 // ── Accordion ──────────────────────────────────────────────────────────────
@@ -55,6 +60,9 @@ function toggleSub(id) {
   vibrate(10);
   head.classList.toggle('open');
   body.classList.toggle('open');
+  // Clear any inline styles left over from old code so CSS class wins
+  body.style.maxHeight = '';
+  body.style.opacity = '';
 }
 
 // ── Colors ─────────────────────────────────────────────────────────────────
@@ -163,12 +171,12 @@ function render() {
   document.getElementById('acc-shot').style.display =
     (hasFace && hasPath && club !== 'putter') ? 'block' : 'none';
 
-  // Close sub-accordions on club switch
+  // Close sub-accordions on club switch - use class only, no inline styles
   ['secondary', 'advanced'].forEach(id => {
     const head = document.getElementById('sub-head-' + id);
     const body = document.getElementById('sub-body-' + id);
     if (head) head.classList.remove('open');
-    if (body) { body.classList.remove('open'); body.style.maxHeight = '0'; body.style.opacity = '0'; }
+    if (body) { body.classList.remove('open'); body.style.maxHeight = ''; body.style.opacity = ''; }
   });
 
   diagnose();
@@ -315,3 +323,16 @@ function drawShotShape() {
 // ── Init ───────────────────────────────────────────────────────────────────
 
 render();
+
+// Auto-open viz + shot after render so canvases are visible and sized correctly
+setTimeout(() => {
+  openAcc('viz');
+  setTimeout(() => { Object.keys(prevAngles).forEach(k => delete prevAngles[k]); drawVizs(); }, 80);
+  const C = CLUBS[club];
+  const hasFace = C.primary.find(i => i.id === 'face');
+  const hasPath = C.primary.find(i => i.id === 'path');
+  if (hasFace && hasPath && club !== 'putter') {
+    openAcc('shot');
+    setTimeout(() => { if (typeof _drawShotShape === 'function') _drawShotShape(); }, 100);
+  }
+}, 100);
