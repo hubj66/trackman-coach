@@ -3,10 +3,35 @@
 let club = 'driver';
 const vals = {};
 
+// ── Accordion ──────────────────────────────────────────────────────────────
+
+let accOpen = false;
+
+function toggleAccordion() {
+  accOpen = !accOpen;
+  const body = document.getElementById('acc-body');
+  const arrow = document.getElementById('acc-arrow');
+  const toggle = document.getElementById('acc-toggle');
+  if (!body) return;
+  vibrate(12);
+  if (accOpen) {
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.style.opacity = '1';
+    if (arrow) arrow.style.transform = 'rotate(90deg)';
+    if (toggle) toggle.classList.add('open');
+  } else {
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+    if (arrow) arrow.style.transform = 'rotate(0deg)';
+    if (toggle) toggle.classList.remove('open');
+  }
+}
+
 // ── Club selector ──────────────────────────────────────────────────────────
 
 function sel(id, el) {
   club = id;
+  accOpen = false;
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
@@ -89,12 +114,31 @@ function render() {
     `<div class="focus-item"><span class="dot ${f.c}"></span><span>${f.t}</span></div>`
   ).join('');
 
-  // Main sliders
+  // Split inputs: primary (shown always) vs secondary (accordion)
   if (!vals[club]) vals[club] = {};
-  document.getElementById('inputgrid').innerHTML = C.inputs.map(inp => {
+  const primaryIds = ['face', 'path', 'attack'];
+  const primary = C.inputs.filter(i => primaryIds.includes(i.id));
+  const secondary = C.inputs.filter(i => !primaryIds.includes(i.id));
+
+  const primaryHTML = primary.map(inp => {
     const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
     return buildSlider(inp, v, 'main-');
   }).join('');
+
+  const secondaryHTML = secondary.length ? `
+    <div class="accordion-toggle" id="acc-toggle" onclick="toggleAccordion()">
+      <span class="acc-label">More metrics</span>
+      <span class="acc-count">${secondary.length}</span>
+      <span class="acc-arrow" id="acc-arrow">›</span>
+    </div>
+    <div class="accordion-body" id="acc-body">
+      ${secondary.map(inp => {
+        const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
+        return buildSlider(inp, v, 'main-');
+      }).join('')}
+    </div>` : '';
+
+  document.getElementById('inputgrid').innerHTML = primaryHTML + secondaryHTML;
 
   diagnose();
   renderShotShapeSection();
