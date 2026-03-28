@@ -41,7 +41,9 @@ function _drawShotShape() {
   const c = document.getElementById('shotshape-canvas');
   if (!c) return;
   const dpr = Math.min(window.devicePixelRatio || 2, 3);
-  const w = c.parentElement.clientWidth;
+  const parentW = c.parentElement.clientWidth;
+  // If parent is hidden (clientWidth = 0), use fallback width
+  const w = parentW > 0 ? parentW : window.innerWidth - 36;
   const h = 230;
   c.width = w * dpr; c.height = h * dpr;
   c.style.width = w + 'px'; c.style.height = h + 'px';

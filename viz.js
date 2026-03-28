@@ -6,7 +6,8 @@ function sc(id, h) {
   const c = document.getElementById(id);
   if (!c) return null;
   const dpr = Math.min(window.devicePixelRatio || 2, 3);
-  const w = c.parentElement.clientWidth;
+  const parentW = c.parentElement.clientWidth;
+  const w = parentW > 0 ? parentW : window.innerWidth - 36;
   c.width = w * dpr; c.height = h * dpr;
   c.style.width = w + 'px'; c.style.height = h + 'px';
   const ctx = c.getContext('2d');

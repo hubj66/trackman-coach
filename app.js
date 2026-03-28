@@ -11,6 +11,19 @@ function sel(id, el) {
   el.classList.add('on');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
+
+// Auto-open viz and shot shape on startup so user sees them
+setTimeout(() => {
+  openAcc('viz');
+  setTimeout(drawVizs, 100);
+  const C = CLUBS[club];
+  const hasFace = C.primary.find(i => i.id === 'face');
+  const hasPath = C.primary.find(i => i.id === 'path');
+  if (hasFace && hasPath && club !== 'putter') {
+    openAcc('shot');
+    setTimeout(() => _drawShotShape && _drawShotShape(), 120);
+  }
+}, 60);
 }
 
 // ── Accordion ──────────────────────────────────────────────────────────────
@@ -27,7 +40,7 @@ function toggleAcc(id) {
     body.style.opacity = '0';
   } else {
     el.classList.add('open');
-    body.style.maxHeight = '800px';
+    body.style.maxHeight = '2000px';
     body.style.opacity = '1';
     // Draw vizs when viz accordion opens
     if (id === 'viz') setTimeout(() => { Object.keys(prevAngles).forEach(k => delete prevAngles[k]); drawVizs(); }, 60);
@@ -40,7 +53,7 @@ function openAcc(id) {
   const body = document.getElementById('acc-body-' + id);
   if (!el || !body || el.classList.contains('open')) return;
   el.classList.add('open');
-  body.style.maxHeight = '800px';
+  body.style.maxHeight = '2000px';
   body.style.opacity = '1';
 }
 
