@@ -203,17 +203,27 @@ function drawFace(cid, did, you, ideal, updateDesc) {
   // Full-width green
   fillFullFairway(ctx, w, h);
 
-  // Dark vignette on left/right edges to frame the scene
-  const vig = ctx.createLinearGradient(0, 0, w, 0);
-  vig.addColorStop(0,    'rgba(0,0,0,0.45)');
-  vig.addColorStop(0.18, 'rgba(0,0,0,0)');
-  vig.addColorStop(0.82, 'rgba(0,0,0,0)');
-  vig.addColorStop(1,    'rgba(0,0,0,0.45)');
-  ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
+  // Fade top and bottom edges into card background color
+  const d = dk();
+  const edgeColor = d ? '#161819' : '#ffffff';
+  const vigV = ctx.createLinearGradient(0, 0, 0, h);
+  vigV.addColorStop(0,    edgeColor);
+  vigV.addColorStop(0.12, 'rgba(0,0,0,0)');
+  vigV.addColorStop(0.88, 'rgba(0,0,0,0)');
+  vigV.addColorStop(1,    edgeColor);
+  ctx.fillStyle = vigV; ctx.fillRect(0, 0, w, h);
+
+  // Fade left and right edges into card background
+  const vigH = ctx.createLinearGradient(0, 0, w, 0);
+  vigH.addColorStop(0,    edgeColor);
+  vigH.addColorStop(0.12, 'rgba(0,0,0,0)');
+  vigH.addColorStop(0.88, 'rgba(0,0,0,0)');
+  vigH.addColorStop(1,    edgeColor);
+  ctx.fillStyle = vigH; ctx.fillRect(0, 0, w, h);
 
   const cx = w / 2;
   const ballY = h * 0.76;
-  const flagY = h * 0.10;
+  const flagY = h * 0.13;
   const fc = kpiColor('face', you);
   const frad = you * Math.PI / 180;
 
@@ -222,11 +232,12 @@ function drawFace(cid, did, you, ideal, updateDesc) {
   ctx.beginPath(); ctx.moveTo(cx, flagY+18); ctx.lineTo(cx, ballY-14); ctx.stroke();
   ctx.setLineDash([]);
 
-  // ── Flag (top-down: pin circle + red triangle, no text label here) ──
+  // ── Flag — pin + triangle, label above ──
   ctx.fillStyle = dk() ? '#e0e0de' : '#2a2a28';
   ctx.beginPath(); ctx.arc(cx, flagY, 3, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = '#ff4d4d';
   ctx.beginPath(); ctx.moveTo(cx+3,flagY-2); ctx.lineTo(cx+16,flagY); ctx.lineTo(cx+3,flagY+7); ctx.fill();
+  monoLabel(ctx, 'FLAG / TARGET', cx, flagY - 10, T().text3, 8);
 
   // ── Ideal clubface ghost (very subtle) ──
   const irad = ideal * Math.PI / 180;
@@ -288,37 +299,25 @@ function drawFace(cid, did, you, ideal, updateDesc) {
     ctx.stroke(); ctx.globalAlpha = 1;
   }
 
-  // ── Labels — placed in safe zones outside center diagram ──
-  // "YOU" label: placed in the quadrant the arrow is pointing toward
-  // but pushed to the left or right edge to avoid overlap
-  const labelMargin = 18;
-  const youLabelX = you >= 0 ? w - labelMargin : labelMargin;
-  const youLabelAlign = you >= 0 ? 'right' : 'left';
-  const youLabelY = ballY - arrLen * 0.45;
-
-  // Background pill for legibility
-  ctx.font = `700 13px 'Barlow Condensed', sans-serif`;
+  // ── Labels — YOU in top-right corner, never over the diagram ──
   const youText = `YOU  ${you > 0 ? '+' : ''}${Math.round(you)}°`;
+  ctx.font = `700 13px 'Barlow Condensed', sans-serif`;
   const youW = ctx.measureText(youText).width + 16;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.globalAlpha = 0.7;
-  const pillX = you >= 0 ? youLabelX - youW : youLabelX;
-  ctx.beginPath(); ctx.roundRect(pillX, youLabelY - 13, youW, 20, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.globalAlpha = 0.65;
+  ctx.beginPath(); ctx.roundRect(w - youW - 14, 14, youW, 22, 3); ctx.fill();
   ctx.globalAlpha = 1;
-  boldLabel(ctx, youText, youLabelX, youLabelY, fc, 13, youLabelAlign);
+  boldLabel(ctx, youText, w - 22, 30, fc, 13, 'right');
 
-  // Ideal ghost label — only show if meaningfully different from you
+  // Ideal label — only show when different from you, in top-left corner
   if (Math.abs(you - ideal) > 1) {
     const tgtText = `IDEAL ~${Math.round(ideal)}°`;
     ctx.font = `500 9px 'DM Mono', monospace`;
     const tgtW = ctx.measureText(tgtText).width + 12;
-    // Place on the opposite side from YOU label
-    const tgtX = you >= 0 ? 14 : w - 14;
-    const tgtAlign = you >= 0 ? 'left' : 'right';
     ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.globalAlpha = 0.6;
-    ctx.beginPath(); ctx.roundRect(you>=0?tgtX:tgtX-tgtW, youLabelY+18, tgtW, 16, 3); ctx.fill();
-    ctx.globalAlpha = 0.5; ctx.fillStyle = t.green;
-    ctx.font = `500 9px 'DM Mono', monospace`; ctx.textAlign = tgtAlign;
-    ctx.fillText(tgtText, tgtX, youLabelY+30); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.roundRect(14, 14, tgtW, 18, 3); ctx.fill();
+    ctx.globalAlpha = 0.55; ctx.fillStyle = T().green;
+    ctx.font = `500 9px 'DM Mono', monospace`; ctx.textAlign = 'left';
+    ctx.fillText(tgtText, 20, 27); ctx.globalAlpha = 1;
   }
 
   if (!updateDesc) return;
@@ -339,11 +338,16 @@ function drawPath(cid, did, you, ideal, updateDesc) {
 
   fillFullFairway(ctx, w, h);
 
-  // Vignette edges
-  const vig = ctx.createLinearGradient(0, 0, w, 0);
-  vig.addColorStop(0, 'rgba(0,0,0,0.4)'); vig.addColorStop(0.2, 'rgba(0,0,0,0)');
-  vig.addColorStop(0.8, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.4)');
-  ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
+  // Fade all edges into card background for seamless look
+  const ec = dk() ? '#161819' : '#ffffff';
+  const vigH2 = ctx.createLinearGradient(0, 0, w, 0);
+  vigH2.addColorStop(0, ec); vigH2.addColorStop(0.12, 'rgba(0,0,0,0)');
+  vigH2.addColorStop(0.88, 'rgba(0,0,0,0)'); vigH2.addColorStop(1, ec);
+  ctx.fillStyle = vigH2; ctx.fillRect(0, 0, w, h);
+  const vigV2 = ctx.createLinearGradient(0, 0, 0, h);
+  vigV2.addColorStop(0, ec); vigV2.addColorStop(0.1, 'rgba(0,0,0,0)');
+  vigV2.addColorStop(0.9, 'rgba(0,0,0,0)'); vigV2.addColorStop(1, ec);
+  ctx.fillStyle = vigV2; ctx.fillRect(0, 0, w, h);
 
   const cx = w/2, cy = h*0.5;
   const pc = kpiColor('path', you);
@@ -428,6 +432,17 @@ function drawAttack(cid, did, you, ideal, updateDesc) {
 
   const gy = h * 0.64;
   fillSideView(ctx, w, h, gy);
+
+  // Fade left/right/top/bottom edges into card background
+  const ec2 = dk() ? '#161819' : '#ffffff';
+  const vigA = ctx.createLinearGradient(0, 0, w, 0);
+  vigA.addColorStop(0, ec2); vigA.addColorStop(0.1, 'rgba(0,0,0,0)');
+  vigA.addColorStop(0.9, 'rgba(0,0,0,0)'); vigA.addColorStop(1, ec2);
+  ctx.fillStyle = vigA; ctx.fillRect(0, 0, w, h);
+  const vigA2 = ctx.createLinearGradient(0, 0, 0, h);
+  vigA2.addColorStop(0, ec2); vigA2.addColorStop(0.08, 'rgba(0,0,0,0)');
+  vigA2.addColorStop(0.92, 'rgba(0,0,0,0)'); vigA2.addColorStop(1, ec2);
+  ctx.fillStyle = vigA2; ctx.fillRect(0, 0, w, h);
 
   const bx = w * 0.5, by = gy - 12;
   const ac = kpiColor('attack', you);
