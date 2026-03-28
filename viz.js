@@ -222,14 +222,11 @@ function drawFace(cid, did, you, ideal, updateDesc) {
   ctx.beginPath(); ctx.moveTo(cx, flagY+18); ctx.lineTo(cx, ballY-14); ctx.stroke();
   ctx.setLineDash([]);
 
-  // ── Flag (top-down: just pin + flag triangle, viewed from above) ──
-  // Pin as a small circle with a red triangle to the right
+  // ── Flag (top-down: pin circle + red triangle, no text label here) ──
   ctx.fillStyle = dk() ? '#e0e0de' : '#2a2a28';
   ctx.beginPath(); ctx.arc(cx, flagY, 3, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = '#ff4d4d';
-  // Flag triangle pointing right (from above, the flag extends to one side)
   ctx.beginPath(); ctx.moveTo(cx+3,flagY-2); ctx.lineTo(cx+16,flagY); ctx.lineTo(cx+3,flagY+7); ctx.fill();
-  monoLabel(ctx, 'TARGET', cx, flagY-10, t.text2, 9);
 
   // ── Ideal clubface ghost (very subtle) ──
   const irad = ideal * Math.PI / 180;
@@ -309,15 +306,20 @@ function drawFace(cid, did, you, ideal, updateDesc) {
   ctx.globalAlpha = 1;
   boldLabel(ctx, youText, youLabelX, youLabelY, fc, 13, youLabelAlign);
 
-  // "TARGET" label at the bottom, below clubface
-  const tgtText = `TARGET ~${Math.round(ideal)}°`;
-  ctx.font = `500 10px 'DM Mono', monospace`;
-  const tgtW = ctx.measureText(tgtText).width + 14;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.globalAlpha = 0.6;
-  ctx.beginPath(); ctx.roundRect(cx - tgtW/2, h - 28, tgtW, 18, 3); ctx.fill();
-  ctx.globalAlpha = 0.55; ctx.fillStyle = t.green;
-  ctx.font = `500 10px 'DM Mono', monospace`; ctx.textAlign = 'center';
-  ctx.fillText(tgtText, cx, h - 15); ctx.globalAlpha = 1;
+  // Ideal ghost label — only show if meaningfully different from you
+  if (Math.abs(you - ideal) > 1) {
+    const tgtText = `IDEAL ~${Math.round(ideal)}°`;
+    ctx.font = `500 9px 'DM Mono', monospace`;
+    const tgtW = ctx.measureText(tgtText).width + 12;
+    // Place on the opposite side from YOU label
+    const tgtX = you >= 0 ? 14 : w - 14;
+    const tgtAlign = you >= 0 ? 'left' : 'right';
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.roundRect(you>=0?tgtX:tgtX-tgtW, youLabelY+18, tgtW, 16, 3); ctx.fill();
+    ctx.globalAlpha = 0.5; ctx.fillStyle = t.green;
+    ctx.font = `500 9px 'DM Mono', monospace`; ctx.textAlign = tgtAlign;
+    ctx.fillText(tgtText, tgtX, youLabelY+30); ctx.globalAlpha = 1;
+  }
 
   if (!updateDesc) return;
   const el = document.getElementById(did); if (!el) return;
@@ -357,13 +359,11 @@ function drawPath(cid, did, you, ideal, updateDesc) {
   monoLabel(ctx, '← INSIDE', cx-10, cy, t.text3, 9, 'right');
   monoLabel(ctx, 'OUTSIDE →', cx+10, cy, t.text3, 9, 'left');
 
-  // Flag at top
-  // Top-down pin: small circle + triangle
+  // Flag at top — pin circle + red triangle only, no extra text
   ctx.fillStyle = dk() ? '#e0e0de' : '#2a2a28';
   ctx.beginPath(); ctx.arc(cx, 20, 3.5, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = '#ff4d4d';
   ctx.beginPath(); ctx.moveTo(cx+3,18); ctx.lineTo(cx+17,20); ctx.lineTo(cx+3,27); ctx.fill();
-  monoLabel(ctx, 'TARGET', cx, 11, t.text2, 9);
 
   const plen = h * 0.42;
   const irad = ideal * Math.PI / 180;
@@ -379,9 +379,6 @@ function drawPath(cid, did, you, ideal, updateDesc) {
   ctx.beginPath(); ctx.moveTo(isx,isy); ctx.lineTo(iex,iey); ctx.stroke();
   ctx.setLineDash([]); ctx.globalAlpha = 1;
   arrowHead(ctx, iex, iey, Math.atan2(iey-isy, iex-isx), t.green, 8);
-  ctx.globalAlpha = 0.38;
-  monoLabel(ctx, 'IDEAL', iex+(ideal>=0?10:-10), iey-8, t.green, 8, ideal>=0?'left':'right');
-  ctx.globalAlpha = 1;
 
   // ── Your path ──
   const prad = you * Math.PI / 180;
