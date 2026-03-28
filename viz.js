@@ -381,95 +381,189 @@ function drawPathBoth(cid, did, you, ideal, updateDesc) {
 // ── Attack angle ───────────────────────────────────────────────────────────
 
 function drawAttackBoth(cid, did, you, ideal, updateDesc) {
-  const r = sc(cid, 200); if (!r) return;
+  const r = sc(cid, 240); if (!r) return;
   const { ctx, w, h } = r; const t = T();
-
-  drawSkyGround(ctx, w, h, 0.68);
-
-  const bx = w * 0.5, by = h * 0.68 - 10;
-
-  // Ground level reference
-  ctx.strokeStyle = t.text3; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
-  ctx.beginPath(); ctx.moveTo(bx - 100, by); ctx.lineTo(bx + 50, by); ctx.stroke(); ctx.setLineDash([]);
-
-  const slen = 120;
-
-  // Ideal shaft (ghost)
-  const irad = ideal * Math.PI / 180;
-  const isx = bx - Math.cos(irad) * slen, isy = by + Math.sin(irad) * slen;
-  ctx.strokeStyle = t.green; ctx.lineWidth = 3; ctx.globalAlpha = 0.2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(isx, isy); ctx.lineTo(bx - 8, by); ctx.stroke(); ctx.globalAlpha = 1;
-
-  // Your shaft
   const ac = kpiColor('attack', you);
+  const isDriver = club === 'driver';
+
+  // ── Background ──
+  const gy = h * 0.67; // ground line Y
+  drawSkyGround(ctx, w, h, gy / h);
+
+  // ── Ball & tee position ──
+  const bx = w * 0.48, by = gy - 11;
+
+  // Always draw tee (driver hits up off tee, irons brush ground)
+  if (isDriver || you > 0) {
+    // Tee
+    ctx.fillStyle = '#c8963a';
+    ctx.beginPath();
+    ctx.moveTo(bx - 4, by); ctx.lineTo(bx + 4, by);
+    ctx.lineTo(bx + 2.5, by + 18); ctx.lineTo(bx - 2.5, by + 18);
+    ctx.closePath(); ctx.fill();
+    // Tee cup top
+    ctx.fillStyle = '#e8b050';
+    ctx.beginPath(); ctx.ellipse(bx, by, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ── Golfer silhouette (right-side, facing left) ──
+  const gx = bx + w * 0.26; // golfer stands right of ball
+  const gbase = gy;          // feet on ground
+
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Draw as a simple but recognisable golfer at address
+  // Scale factor
+  const gs = h * 0.0038;
+
+  function gp(ox, oy) { return [gx + ox * gs * 14, gbase - oy * gs * 14]; }
+
+  ctx.beginPath();
+  // Head
+  const [hx, hy] = gp(0, 13.5);
+  ctx.arc(hx, hy, gs * 9, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+
+  // Body (torso leaning forward at address)
+  ctx.beginPath();
+  const [sx2, sy2] = gp(-0.5, 12);   // neck
+  const [ex2, ey2] = gp(-2.5, 7);    // hips (leaned forward)
+  ctx.moveTo(sx2, sy2);
+  ctx.bezierCurveTo(sx2 - 5, sy2 + 15, ex2 + 8, ey2 - 10, ex2, ey2);
+  ctx.lineWidth = gs * 8;
+  ctx.stroke();
+
+  // Left leg (front)
+  ctx.beginPath();
+  const [lh1x, lh1y] = gp(-2.5, 7);
+  const [lk1x, lk1y] = gp(-3.5, 3.5);
+  const [lf1x, lf1y] = gp(-3, 0);
+  ctx.moveTo(lh1x, lh1y);
+  ctx.quadraticCurveTo(lk1x, lk1y, lf1x, lf1y);
+  ctx.lineWidth = gs * 6;
+  ctx.stroke();
+
+  // Right leg (back, slightly behind)
+  ctx.beginPath();
+  const [lh2x, lh2y] = gp(-2.5, 7);
+  const [lk2x, lk2y] = gp(-1.2, 3.5);
+  const [lf2x, lf2y] = gp(-0.8, 0);
+  ctx.moveTo(lh2x, lh2y);
+  ctx.quadraticCurveTo(lk2x, lk2y, lf2x, lf2y);
+  ctx.lineWidth = gs * 5.5;
+  ctx.stroke();
+
+  // Arms & club shaft (reaching down to ball)
+  ctx.beginPath();
+  const [ax, ay] = gp(-1, 10.5);   // shoulder
+  const [ax2b, ay2b] = gp(-7, 6);   // hands at ball position roughly
+  ctx.moveTo(ax, ay);
+  ctx.bezierCurveTo(ax - 10, ay + 20, ax2b + 10, ay2b - 10, bx - 8, by - 8);
+  ctx.lineWidth = gs * 5;
+  ctx.stroke();
+
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 1.5;
+
+  // ── Curved swing arc ──
+  // The club travels in a curved arc from back (upper left) through impact
+  // Control points create the characteristic downswing curve
   const rad = you * Math.PI / 180;
-  const sx = bx - Math.cos(rad) * slen, sy = by + Math.sin(rad) * slen;
+  const arcR = w * 0.52; // swing radius
 
-  drawGlowLine(ctx, sx, sy, bx - 8, by, ac, 4.5);
+  // Impact point (clubhead at ball)
+  const ix = bx - 8, iy = by;
 
-  // Clubhead
-  ctx.save(); ctx.translate(bx - 8, by); ctx.rotate(-rad + (you < 0 ? 0.15 : -0.15));
-  ctx.fillStyle = '#2a2e32';
-  ctx.beginPath(); ctx.roundRect(-6, -8, 22, 16, 3); ctx.fill();
-  ctx.shadowColor = ac; ctx.shadowBlur = 6;
-  ctx.fillStyle = ac; ctx.beginPath(); ctx.roundRect(-6, -8, 5, 16, 2); ctx.fill();
+  // Back of swing — upper left, further back for more arc
+  const backX = ix - arcR * 0.85;
+  const backY = iy - arcR * 0.55;
+
+  // Forward (follow through) — upper right
+  const fwdX = ix + arcR * 0.42;
+  const fwdY = iy - arcR * (0.18 + you * 0.018); // higher follow-through = more upward attack
+
+  // Control points for the bezier — make it arc naturally
+  const cp1x = ix - arcR * 0.55, cp1y = iy + Math.sin(rad) * arcR * 0.35 - 8;
+  const cp2x = ix + arcR * 0.18, cp2y = iy - Math.sin(rad) * arcR * 0.3;
+
+  // Glow
+  ctx.strokeStyle = ac; ctx.lineWidth = 12; ctx.globalAlpha = 0.07; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(backX, backY);
+  ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
+  ctx.stroke();
+
+  // Main arc
+  ctx.lineWidth = 3; ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(backX, backY);
+  ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
+  ctx.stroke();
+
+  // Arrow at follow-through end
+  const fwdAngle = Math.atan2(fwdY - cp2y, fwdX - cp2x);
+  drawArrow(ctx, fwdX, fwdY, fwdAngle, ac, 10);
+
+  // ── Ideal arc ghost ──
+  const irad = ideal * Math.PI / 180;
+  const icp1y = iy + Math.sin(irad) * arcR * 0.35 - 8;
+  const icp2y = iy - Math.sin(irad) * arcR * 0.3;
+  const ifwdY = iy - arcR * (0.18 + ideal * 0.018);
+
+  ctx.strokeStyle = '#00d68f'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.25;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(backX, backY);
+  ctx.bezierCurveTo(cp1x, icp1y, cp2x, icp2y, fwdX, ifwdY);
+  ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+  // ── Clubhead at impact ──
+  ctx.save(); ctx.translate(ix, iy); ctx.rotate(-rad + (you < 0 ? 0.12 : -0.12));
+  ctx.fillStyle = '#2c3238';
+  ctx.beginPath(); ctx.roundRect(-7, -9, 24, 18, 3); ctx.fill();
+  ctx.shadowColor = ac; ctx.shadowBlur = 8;
+  ctx.fillStyle = ac; ctx.beginPath(); ctx.roundRect(-7, -9, 5, 18, [2,0,0,2]); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // Direction arrow
-  const aex = bx + Math.cos(rad) * 54, aey = by - Math.sin(rad) * 54;
-  ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.globalAlpha = 0.75;
-  ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(aex, aey); ctx.stroke();
-  ctx.setLineDash([]); ctx.globalAlpha = 1;
-  drawArrow(ctx, aex, aey, Math.atan2(aey - by, aex - bx), ac, 9);
-
-  // Ball
+  // ── Ball on tee ──
   drawBall(ctx, bx, by, 9);
 
-  // Angle arc
-  if (Math.abs(you) > 0.5) {
-    ctx.strokeStyle = ac; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.4;
-    const a1 = -Math.PI, a2 = -Math.PI - rad;
-    ctx.beginPath(); ctx.arc(bx, by, 42, Math.min(a1, a2), Math.max(a1, a2)); ctx.stroke();
-    ctx.globalAlpha = 1;
-    const ma = (-Math.PI + -Math.PI - rad) / 2;
-    ctx.fillStyle = ac;
-    ctx.font = `700 10px 'DM Mono', monospace`;
-    ctx.textAlign = 'center';
-    ctx.fillText((you > 0 ? '+' : '') + Math.round(you) + '°', bx + Math.cos(ma) * 56, by + Math.sin(ma) * 56);
-  }
+  // ── Angle badge — top-left corner, big and clear ──
+  ctx.fillStyle = ac;
+  ctx.font = `700 28px 'Barlow Condensed', sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText((you > 0 ? '+' : '') + Math.round(you) + '°', 14, 38);
 
-  // Divot
+  ctx.font = `500 10px 'DM Mono', monospace`;
+  ctx.fillStyle = '#3a4550';
+  ctx.fillText('ATTACK ANGLE', 14, 52);
+
+  // Ideal badge — next to it
+  ctx.fillStyle = '#00d68f';
+  ctx.globalAlpha = 0.55;
+  ctx.font = `500 10px 'DM Mono', monospace`;
+  ctx.fillText(`IDEAL ${ideal > 0 ? '+' : ''}${ideal}°`, 14, 66);
+  ctx.globalAlpha = 1;
+
+  // ── Divot (irons hitting down) ──
   if (you < -2) {
-    const gy = h * 0.68;
-    ctx.fillStyle = '#4a3010';
-    ctx.beginPath(); ctx.ellipse(bx + 22, gy + 4, 19, 7, 0.15, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#6a5030';
-    ctx.beginPath(); ctx.ellipse(bx + 22, gy + 3, 13, 5, 0.15, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = t.green;
-    ctx.font = `500 9px 'DM Mono', monospace`; ctx.textAlign = 'center';
-    ctx.fillText('DIVOT ✓', bx + 22, gy + 18);
+    const dx = bx + 28;
+    ctx.fillStyle = '#3a2008';
+    ctx.beginPath(); ctx.ellipse(dx, gy + 5, 22, 7, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#5a3818';
+    ctx.beginPath(); ctx.ellipse(dx, gy + 4, 14, 5, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#00d68f'; ctx.globalAlpha = 0.7;
+    ctx.font = `600 9px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center';
+    ctx.fillText('DIVOT ✓', dx, gy + 20); ctx.globalAlpha = 1;
   }
-
-  // Tee
-  if (you > 1 && club === 'driver') {
-    const gy = h * 0.68;
-    ctx.fillStyle = '#d4a840'; ctx.fillRect(bx - 2, gy - 22, 5, 22);
-    ctx.fillStyle = '#e8c050';
-    ctx.beginPath(); ctx.ellipse(bx, gy - 22, 9, 5, 0, 0, Math.PI); ctx.fill();
-    ctx.fillStyle = t.amber;
-    ctx.font = `500 9px 'DM Mono', monospace`; ctx.textAlign = 'center';
-    ctx.fillText('TEE ✓', bx, gy + 18);
-  }
-
-  // From label
-  ctx.fillStyle = t.text3;
-  ctx.font = `400 9px 'DM Mono', monospace`; ctx.textAlign = 'center';
-  ctx.fillText('approaches from here', sx, sy - 11);
 
   if (!updateDesc) return;
   const el = document.getElementById(did); if (!el) return;
-  el.innerHTML = `<b style="color:${ac}">Your attack: ${you > 0 ? '+' : ''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${Math.abs(you - ideal) < 1 ? 'On target!' : you > -2 && club !== 'driver' ? 'Too level or upward — this is the scoop. Push toward negative.' : you > 4 && club === 'driver' ? 'Very upward — check tee height.' : 'Getting there — push further toward target.'}`;
+  const diff = Math.abs(you - ideal);
+  el.innerHTML = `<b style="color:${ac}">${you > 0 ? '+' : ''}${Math.round(you)}°</b> attack &nbsp;·&nbsp; <b style="color:#00d68f">target ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${diff < 1 ? 'On target!' : you > -2 && !isDriver ? 'Too level — hitting up. Classic scoop. Push toward negative.' : you > 4 && isDriver ? 'Very upward — check tee height and ball position.' : 'Getting there — keep pushing toward target.'}`;
 }
 
 // ── Replacement drawVizs with embedded sliders ─────────────────────────────

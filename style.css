@@ -213,11 +213,15 @@ input[type=range]::-moz-range-thumb {
   background:var(--text); border:none; cursor:pointer;
 }
 .irow-labels {
-  display:flex; justify-content:space-between;
+  display:flex; justify-content:space-between; align-items:center;
   font-family:var(--mono); font-size:9px; color:var(--text3);
-  margin-top:6px; letter-spacing:.04em;
+  margin-top:7px; letter-spacing:.03em; opacity:0.6;
 }
-.irow-labels .ideal-lbl { font-weight:500; }
+.irow-labels .ideal-lbl {
+  font-weight:500; opacity:1;
+  background:var(--surface3); padding:1px 6px; border-radius:3px;
+  font-size:8px; letter-spacing:.04em;
+}
 
 /* ── Viz slider embedded ─────────────────────────────────────────────────── */
 .viz-slider { border-top:0.5px solid var(--border); }
