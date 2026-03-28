@@ -1,41 +1,68 @@
-// app.js — main app logic
+// app.js — accordion-first architecture
 
 let club = 'driver';
 const vals = {};
-
-// ── Accordion ──────────────────────────────────────────────────────────────
-
-let accOpen = false;
-
-function toggleAccordion() {
-  accOpen = !accOpen;
-  const body = document.getElementById('acc-body');
-  const arrow = document.getElementById('acc-arrow');
-  const toggle = document.getElementById('acc-toggle');
-  if (!body) return;
-  vibrate(12);
-  if (accOpen) {
-    body.style.maxHeight = '800px'; // large enough for any number of sliders
-    body.style.opacity = '1';
-    if (arrow) arrow.style.transform = 'rotate(90deg)';
-    if (toggle) toggle.classList.add('open');
-  } else {
-    body.style.maxHeight = '0';
-    body.style.opacity = '0';
-    if (arrow) arrow.style.transform = 'rotate(0deg)';
-    if (toggle) toggle.classList.remove('open');
-  }
-}
 
 // ── Club selector ──────────────────────────────────────────────────────────
 
 function sel(id, el) {
   club = id;
-  accOpen = false;
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
+}
+
+// ── Accordion ──────────────────────────────────────────────────────────────
+
+function toggleAcc(id) {
+  const el = document.getElementById('acc-' + id);
+  const body = document.getElementById('acc-body-' + id);
+  if (!el || !body) return;
+  vibrate(10);
+  const isOpen = el.classList.contains('open');
+  if (isOpen) {
+    el.classList.remove('open');
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+  } else {
+    el.classList.add('open');
+    body.style.maxHeight = '800px';
+    body.style.opacity = '1';
+    // Draw vizs when viz accordion opens
+    if (id === 'viz') setTimeout(() => { Object.keys(prevAngles).forEach(k => delete prevAngles[k]); drawVizs(); }, 60);
+    if (id === 'shot') setTimeout(drawShotShape, 60);
+  }
+}
+
+function openAcc(id) {
+  const el = document.getElementById('acc-' + id);
+  const body = document.getElementById('acc-body-' + id);
+  if (!el || !body || el.classList.contains('open')) return;
+  el.classList.add('open');
+  body.style.maxHeight = '800px';
+  body.style.opacity = '1';
+}
+
+// ── Sub-accordion ──────────────────────────────────────────────────────────
+
+function toggleSub(id) {
+  const head = document.getElementById('sub-head-' + id);
+  const body = document.getElementById('sub-body-' + id);
+  if (!head || !body) return;
+  vibrate(10);
+  const isOpen = head.classList.contains('open');
+  if (isOpen) {
+    head.classList.remove('open');
+    body.classList.remove('open');
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+  } else {
+    head.classList.add('open');
+    body.classList.add('open');
+    body.style.maxHeight = '600px';
+    body.style.opacity = '1';
+  }
 }
 
 // ── Colors ─────────────────────────────────────────────────────────────────
@@ -48,24 +75,18 @@ function getColorAdapted(inp, v) {
   if (v >= lo - margin && v <= hi + margin) return light ? '#d4880a' : '#ffaa00';
   return light ? '#d93030' : '#ff4d4d';
 }
-
-// expose for viz.js kpiColor
 function getColor(inp, v) { return getColorAdapted(inp, v); }
 
 function fillPct(inp, v) {
   return Math.round((v - inp.min) / (inp.max - inp.min) * 100);
 }
-
 function dispVal(inp, v) {
   if (inp.scale) return (v / inp.scale).toFixed(inp.dp || 2) + inp.unit;
   return v + inp.unit;
 }
-
-// ── Vibration ──────────────────────────────────────────────────────────────
-
 function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
-// ── Slider HTML builder (shared by main + mini) ────────────────────────────
+// ── Slider builder ─────────────────────────────────────────────────────────
 
 function buildSlider(inp, v, prefix) {
   const col = getColorAdapted(inp, v);
@@ -76,11 +97,10 @@ function buildSlider(inp, v, prefix) {
       <span class="irow-lbl">${inp.l}</span>
       <span class="irow-val" id="${prefix}val-${inp.id}" style="color:${col}">${dispVal(inp, v)}</span>
     </div>
-    <input type="range"
-      id="${prefix}range-${inp.id}"
+    <input type="range" id="${prefix}range-${inp.id}"
       min="${inp.min}" max="${inp.max}" value="${v}" step="${inp.step || 1}"
       style="--track-color:${col};--track-pct:${pct}%"
-      oninput="onSlider('${inp.id}', +this.value, '${prefix}')">
+      oninput="onSlider('${inp.id}',+this.value,'${prefix}')">
     <div class="irow-labels">
       <span>${inp.min}${inp.unit.trim()}</span>
       <span class="ideal-lbl" style="color:${col}">${idealStr}</span>
@@ -92,13 +112,12 @@ function buildSlider(inp, v, prefix) {
 // ── Render ─────────────────────────────────────────────────────────────────
 
 function badgeToClass(bt) {
-  if (bt === 'Critical') return 'critical';
-  if (bt === 'Important') return 'important';
-  return 'watch';
+  return bt === 'Critical' ? 'critical' : bt === 'Important' ? 'important' : 'watch';
 }
 
 function render() {
   const C = CLUBS[club];
+  if (!vals[club]) vals[club] = {};
 
   // KPI cards
   document.getElementById('kgrid').innerHTML = C.kpis.map(k => `
@@ -113,49 +132,67 @@ function render() {
   document.getElementById('focusbox').innerHTML = C.focus.map(f =>
     `<div class="focus-item"><span class="dot ${f.c}"></span><span>${f.t}</span></div>`
   ).join('');
+  document.getElementById('kpi-sub').textContent = C.kpis.length + ' metrics';
 
-  // Split inputs: primary (shown always) vs secondary (accordion)
-  if (!vals[club]) vals[club] = {};
-  const primaryIds = ['face', 'path', 'attack'];
-  const primary = C.inputs.filter(i => primaryIds.includes(i.id));
-  const secondary = C.inputs.filter(i => !primaryIds.includes(i.id));
-
-  const primaryHTML = primary.map(inp => {
+  // Primary sliders
+  document.getElementById('primary-sliders').innerHTML = C.primary.map(inp => {
     const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
     return buildSlider(inp, v, 'main-');
   }).join('');
 
-  const secondaryHTML = secondary.length ? `
-    <div class="accordion-toggle" id="acc-toggle" onclick="toggleAccordion()">
-      <span class="acc-label">More metrics</span>
-      <span class="acc-count">${secondary.length}</span>
-      <span class="acc-arrow" id="acc-arrow">›</span>
-    </div>
-    <div class="accordion-body" id="acc-body">
-      ${secondary.map(inp => {
-        const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
-        return buildSlider(inp, v, 'main-');
-      }).join('')}
-    </div>` : '';
+  // Secondary sliders
+  const secEl = document.getElementById('secondary-section');
+  if (C.secondary && C.secondary.length) {
+    secEl.style.display = 'block';
+    document.getElementById('secondary-count').textContent = C.secondary.length;
+    document.getElementById('secondary-sliders').innerHTML = C.secondary.map(inp => {
+      const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
+      return buildSlider(inp, v, 'main-');
+    }).join('');
+  } else {
+    secEl.style.display = 'none';
+  }
 
-  document.getElementById('inputgrid').innerHTML = primaryHTML + secondaryHTML;
+  // Advanced sliders
+  const advEl = document.getElementById('advanced-section');
+  if (C.advanced && C.advanced.length) {
+    advEl.style.display = 'block';
+    document.getElementById('advanced-count').textContent = C.advanced.length;
+    document.getElementById('advanced-sliders').innerHTML = C.advanced.map(inp => {
+      const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
+      return buildSlider(inp, v, 'main-');
+    }).join('');
+  } else {
+    advEl.style.display = 'none';
+  }
+
+  // Shot shape accordion visibility
+  const hasFace = C.primary.find(i => i.id === 'face');
+  const hasPath = C.primary.find(i => i.id === 'path');
+  document.getElementById('acc-shot').style.display =
+    (hasFace && hasPath && club !== 'putter') ? 'block' : 'none';
+
+  // Close sub-accordions on club switch
+  ['secondary', 'advanced'].forEach(id => {
+    const head = document.getElementById('sub-head-' + id);
+    const body = document.getElementById('sub-body-' + id);
+    if (head) head.classList.remove('open');
+    if (body) { body.classList.remove('open'); body.style.maxHeight = '0'; body.style.opacity = '0'; }
+  });
 
   diagnose();
-  renderShotShapeSection();
-}
 
-// ── Render mini sliders below vizs ────────────────────────────────────────
+  // Draw vizs if viz accordion is open
+  const vizAcc = document.getElementById('acc-viz');
+  if (vizAcc?.classList.contains('open')) {
+    setTimeout(drawVizs, 60);
+  }
 
-function renderMiniSliders() {
-  const C = CLUBS[club];
-  const el = document.getElementById('mini-sliders');
-  if (!el) return;
-  const vizInputs = C.inputs.filter(i => ['face', 'path', 'attack'].includes(i.id));
-  if (!vizInputs.length) { el.innerHTML = ''; return; }
-  el.innerHTML = vizInputs.map(inp => {
-    const v = vals[club] && vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
-    return buildSlider(inp, v, 'mini-');
-  }).join('');
+  // Update shot shape if open
+  const shotAcc = document.getElementById('acc-shot');
+  if (shotAcc?.classList.contains('open')) {
+    setTimeout(drawShotShape, 60);
+  }
 }
 
 // ── Slider update ──────────────────────────────────────────────────────────
@@ -166,19 +203,18 @@ function onSlider(id, v, prefix) {
   if (!vals[club]) vals[club] = {};
   vals[club][id] = v;
 
-  const inp = CLUBS[club].inputs.find(i => i.id === id);
+  const inp = getAllInputs(club).find(i => i.id === id);
   if (!inp) return;
   const col = getColorAdapted(inp, v);
   const pct = fillPct(inp, v);
 
-  // Vibrate on zone crossing
   if (lastColor[id] && lastColor[id] !== col) {
-    vibrate(col.includes('d68f') || col.includes('a86b') ? 25 : [8,8,8]);
+    vibrate(col.includes('d68f') || col.includes('a86b') ? 25 : [8, 8, 8]);
   }
   lastColor[id] = col;
 
-  // Update main, viz-embedded and mini instances
-  ['main-', 'viz-', 'mini-'].forEach(pfx => {
+  // Update all instances of this slider (main- and viz-)
+  ['main-', 'viz-'].forEach(pfx => {
     const valEl = document.getElementById(pfx + 'val-' + id);
     if (valEl) { valEl.textContent = dispVal(inp, v); valEl.style.color = col; }
     const rangeEl = document.getElementById(pfx + 'range-' + id);
@@ -191,7 +227,7 @@ function onSlider(id, v, prefix) {
     if (lbl) lbl.style.color = col;
   });
 
-  // Live update shot shape and visualizations
+  // Live diagram updates
   if (id === 'face' || id === 'path') drawShotShape();
   if (id === 'face') triggerFace('vface', 'vdface');
   if (id === 'path') triggerPath('vpath', 'vdpath');
@@ -203,8 +239,7 @@ function onSlider(id, v, prefix) {
 // ── Value getter ───────────────────────────────────────────────────────────
 
 function getVal(id) {
-  const C = CLUBS[club];
-  const inp = C.inputs.find(i => i.id === id);
+  const inp = getAllInputs(club).find(i => i.id === id);
   if (!inp) return null;
   const v = vals[club] && vals[club][id] !== undefined ? vals[club][id] : inp.def;
   return inp.scale ? v / inp.scale : v;
@@ -215,6 +250,13 @@ function getVal(id) {
 function setBanner(msg, cls) {
   const b = document.getElementById('banner');
   b.innerHTML = msg; b.className = 'banner ' + cls;
+  // Update diagnosis accordion subtitle
+  const sub = document.getElementById('diag-sub');
+  if (sub) {
+    if (cls === 'banner-bad') sub.textContent = 'Faults detected';
+    else if (cls === 'banner-good') sub.textContent = 'Numbers look good';
+    else sub.textContent = 'Move sliders to diagnose';
+  }
 }
 
 function setTips(tips) {
@@ -224,8 +266,17 @@ function setTips(tips) {
       <span class="tip-num">${i + 1}</span>
       <span>${t}</span>
     </div>`).join('');
-  drawVizs();
-  renderShotShapeSection();
+
+  // Auto-open diagnosis accordion when there are tips
+  openAcc('diag');
+
+  // Draw vizs
+  const vizAcc = document.getElementById('acc-viz');
+  if (vizAcc?.classList.contains('open')) drawVizs();
+
+  // Shot shape
+  const shotAcc = document.getElementById('acc-shot');
+  if (shotAcc?.classList.contains('open')) drawShotShape();
 }
 
 // ── Drill request ──────────────────────────────────────────────────────────
@@ -234,7 +285,7 @@ function doAsk() {
   vibrate(20);
   const C = CLUBS[club];
   let msg = C.askTpl;
-  C.inputs.forEach(inp => {
+  getAllInputs(club).forEach(inp => {
     const v = vals[club] && vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
     msg = msg.replace('{' + inp.id + '}', dispVal(inp, v));
   });
@@ -257,6 +308,17 @@ function showToast(msg) {
   t.textContent = msg;
   t.style.opacity = '1';
   setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+// ── Shotshape wrapper ──────────────────────────────────────────────────────
+
+function drawShotShape() {
+  const C = CLUBS[club];
+  const hasFace = C.primary.find(i => i.id === 'face');
+  const hasPath = C.primary.find(i => i.id === 'path');
+  if (!hasFace || !hasPath || club === 'putter') return;
+  if (typeof renderShotShapeSection === 'function') renderShotShapeSection();
+  else if (typeof _drawShotShape === 'function') _drawShotShape();
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────

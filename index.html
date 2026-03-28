@@ -6,20 +6,17 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0e1012" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f0f2f4" media="(prefers-color-scheme: light)">
-<meta name="description" content="Trackman Coach — enter your numbers, get a diagnosis and practice priorities.">
 <title>Trackman Coach</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="header">
-  <div>
-    <div class="header-title">Trackman<span> Coach</span></div>
-  </div>
+  <div><div class="header-title">Trackman<span> Coach</span></div></div>
   <div class="header-sub">54 HCP · SESSION TOOL</div>
 </div>
 
-<div class="club-scroll" id="club-scroll">
+<div class="club-scroll">
   <div class="ctab on" onclick="sel('driver',this)">Driver</div>
   <div class="ctab" onclick="sel('irons',this)">Irons 6–9</div>
   <div class="ctab" onclick="sel('wedge',this)">Wedges</div>
@@ -28,51 +25,105 @@
 
 <div class="main">
 
-  <!-- KPI targets -->
-  <div class="section" style="padding-top:18px">
-    <div class="sec-label">Target KPIs</div>
-    <div class="kgrid" id="kgrid"></div>
-    <div class="sec-label">Focus order</div>
-    <div class="focus-box" id="focusbox"></div>
+  <!-- ① Target KPIs -->
+  <div class="acc" id="acc-kpis">
+    <div class="acc-head" onclick="toggleAcc('kpis')">
+      <div class="acc-icon">📋</div>
+      <div class="acc-title">Target KPIs</div>
+      <div class="acc-subtitle" id="kpi-sub">6 metrics</div>
+      <div class="acc-arrow">›</div>
+    </div>
+    <div class="acc-body" id="acc-body-kpis">
+      <div class="kgrid" id="kgrid"></div>
+      <div class="focus-list" id="focusbox"></div>
+    </div>
   </div>
 
-  <div class="divider" style="margin:10px 0"></div>
+  <!-- ② Your numbers -->
+  <div class="acc open" id="acc-numbers">
+    <div class="acc-head" onclick="toggleAcc('numbers')">
+      <div class="acc-icon">✏️</div>
+      <div class="acc-title">Your numbers</div>
+      <div class="acc-subtitle" id="numbers-sub">Enter from Trackman</div>
+      <div class="acc-arrow">›</div>
+    </div>
+    <div class="acc-body" id="acc-body-numbers" style="max-height:800px;opacity:1">
+      <!-- Primary sliders always visible -->
+      <div class="slider-list" id="primary-sliders"></div>
 
-  <!-- Main input sliders -->
-  <div class="section">
-    <div class="sec-label">Your numbers — enter from Trackman</div>
-  </div>
-  <div class="input-list" id="inputgrid"></div>
+      <!-- More metrics sub-accordion -->
+      <div id="secondary-section">
+        <div class="sub-acc-head" id="sub-head-secondary" onclick="toggleSub('secondary')">
+          <span class="sub-acc-label">More metrics</span>
+          <span class="sub-acc-count" id="secondary-count">3</span>
+          <span class="sub-acc-arrow">›</span>
+        </div>
+        <div class="sub-acc-body" id="sub-body-secondary">
+          <div class="slider-list" id="secondary-sliders"></div>
+        </div>
+      </div>
 
-  <!-- Shot shape predictor -->
-  <div id="shotshape-section" style="display:none">
-    <div class="spacer"></div>
-    <div class="section"><div class="sec-label">Predicted shot shape</div></div>
-    <div style="padding:0 18px">
-      <div class="vc-wrap">
-        <div class="vc-header"><span class="vc-title">Ball flight · top view</span></div>
-        <canvas class="cv" id="shotshape-canvas" height="230"></canvas>
-        <div class="vc-desc" id="shotshape-desc"></div>
+      <!-- Advanced sub-accordion -->
+      <div id="advanced-section">
+        <div class="sub-acc-head" id="sub-head-advanced" onclick="toggleSub('advanced')">
+          <span class="sub-acc-label">Advanced metrics</span>
+          <span class="sub-acc-count" id="advanced-count">3</span>
+          <span class="sub-acc-arrow">›</span>
+        </div>
+        <div class="sub-acc-body" id="sub-body-advanced">
+          <div class="slider-list" id="advanced-sliders"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Diagnosis -->
-  <div class="spacer"></div>
-  <div class="section"><div class="sec-label">Diagnosis</div></div>
-  <div class="banner banner-ok" id="banner">Move the sliders to your Trackman numbers.</div>
+  <!-- ③ Shot shape -->
+  <div class="acc" id="acc-shot" style="display:none">
+    <div class="acc-head" onclick="toggleAcc('shot')">
+      <div class="acc-icon">⛳</div>
+      <div class="acc-title">Shot shape</div>
+      <div class="acc-subtitle" id="shot-sub">Predicted ball flight</div>
+      <div class="acc-arrow">›</div>
+    </div>
+    <div class="acc-body" id="acc-body-shot">
+      <div class="shot-wrap">
+        <div class="vc-wrap">
+          <div class="vc-header"><span class="vc-title">Ball flight · top view</span></div>
+          <canvas class="cv" id="shotshape-canvas" height="230"></canvas>
+          <div class="vc-desc" id="shotshape-desc"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <!-- Practice priorities -->
-  <div class="section" style="padding-top:14px"><div class="sec-label">Practice priorities</div></div>
-  <div class="tip-list" id="tiplist"></div>
+  <!-- ④ Diagnosis -->
+  <div class="acc" id="acc-diag">
+    <div class="acc-head" onclick="toggleAcc('diag')">
+      <div class="acc-icon">🔍</div>
+      <div class="acc-title">Diagnosis</div>
+      <div class="acc-subtitle" id="diag-sub">Move sliders to get diagnosis</div>
+      <div class="acc-arrow">›</div>
+    </div>
+    <div class="acc-body" id="acc-body-diag">
+      <div class="acc-padding">
+        <div class="banner banner-ok" id="banner">Move sliders above to get a diagnosis.</div>
+      </div>
+      <div class="tip-list" id="tiplist"></div>
+    </div>
+  </div>
 
-  <!-- Visualizations -->
-  <div class="spacer"></div>
-  <div class="section"><div class="sec-label">Visualizations</div></div>
-  <div class="vgrid" id="vgrid"></div>
-
-  <!-- Mini sliders now embedded inside each viz card via viz.js -->
-  <div id="mini-sliders" style="display:none"></div>
+  <!-- ⑤ Visualizations -->
+  <div class="acc" id="acc-viz">
+    <div class="acc-head" onclick="toggleAcc('viz')">
+      <div class="acc-icon">📐</div>
+      <div class="acc-title">Visualizations</div>
+      <div class="acc-subtitle">Face · path · attack angle</div>
+      <div class="acc-arrow">›</div>
+    </div>
+    <div class="acc-body" id="acc-body-viz">
+      <div class="vgrid" id="vgrid"></div>
+    </div>
+  </div>
 
   <!-- CTA -->
   <div class="spacer"></div>

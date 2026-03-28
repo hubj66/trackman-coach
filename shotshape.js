@@ -34,7 +34,7 @@ function bezierPoint(p0, p1, p2, p3, t) {
   return (1-t)**3*p0 + 3*(1-t)**2*t*p1 + 3*(1-t)*t*t*p2 + t**3*p3;
 }
 
-function drawShotShape() {
+function _drawShotShape() {
   const face = getVal('face'), path = getVal('path');
   if (face === null || path === null) return;
 
@@ -172,5 +172,5 @@ function renderShotShapeSection() {
     el.style.display = 'none'; return;
   }
   el.style.display = 'block';
-  setTimeout(drawShotShape, 30);
+  setTimeout(_drawShotShape, 30);
 }

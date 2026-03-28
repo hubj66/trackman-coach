@@ -15,7 +15,7 @@ function sc(id, h) {
 }
 
 function idealMid(id) {
-  const inp = CLUBS[club].inputs.find(i => i.id === id);
+  const inp = getAllInputs(club).find(i => i.id === id);
   return inp ? (inp.ideal[0] + inp.ideal[1]) / 2 : 0;
 }
 
@@ -47,7 +47,7 @@ function T() {
 }
 
 function kpiColor(id, v) {
-  const inp = CLUBS[club].inputs.find(i => i.id === id);
+  const inp = getAllInputs(club).find(i => i.id === id);
   if (!inp) return T().green;
   const [lo, hi] = inp.ideal;
   if (v >= lo && v <= hi) return T().green;
@@ -153,13 +153,13 @@ function animateDraw(canvasId, fromVal, toVal, drawFn) {
 // ── Viz builder ────────────────────────────────────────────────────────────
 
 function drawVizsDELETE() {
-  const C = CLUBS[club];
+  const C = CLUBS[club]; const allInps = getAllInputs(club);
   const panels = [];
-  if (C.inputs.find(i => i.id === 'face'))
+  if (C.primary.find(i => i.id === 'face'))
     panels.push({ id: 'vface', did: 'vdface', title: 'Face angle · top view', fn: () => triggerFace('vface', 'vdface') });
-  if (C.inputs.find(i => i.id === 'path'))
+  if (C.primary.find(i => i.id === 'path'))
     panels.push({ id: 'vpath', did: 'vdpath', title: 'Club path · top view', fn: () => triggerPath('vpath', 'vdpath') });
-  if (C.inputs.find(i => i.id === 'attack'))
+  if (C.primary.find(i => i.id === 'attack'))
     panels.push({ id: 'vattack', did: 'vdattack', title: 'Attack angle · side view', fn: () => triggerAttack('vattack', 'vdattack') });
 
   document.getElementById('vgrid').innerHTML = panels.map(p => `
@@ -335,7 +335,7 @@ function drawPathBoth(cid, did, you, ideal, updateDesc) {
   ctx.setLineDash([]); ctx.globalAlpha = 1;
 
   // Your path
-  const inp = CLUBS[club].inputs.find(i => i.id === 'path');
+  const inp = getAllInputs(club).find(i => i.id === 'path');
   const idealRange = inp ? inp.ideal : [-5, 5];
   const prad = you * Math.PI / 180;
   const sx = cx - Math.sin(prad) * plen, sy = cy + Math.cos(prad) * plen * 0.44 + 8;
@@ -457,17 +457,17 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
 
 // ── Replacement drawVizs with embedded sliders ─────────────────────────────
 function drawVizs() {
-  const C = CLUBS[club];
+  const C = CLUBS[club]; const allInps = getAllInputs(club);
   const panels = [];
-  if (C.inputs.find(i => i.id === 'face'))
+  if (C.primary.find(i => i.id === 'face'))
     panels.push({ id: 'vface', did: 'vdface', sid: 'face', title: 'Face angle \xb7 top view', fn: () => triggerFace('vface', 'vdface') });
-  if (C.inputs.find(i => i.id === 'path'))
+  if (C.primary.find(i => i.id === 'path'))
     panels.push({ id: 'vpath', did: 'vdpath', sid: 'path', title: 'Club path \xb7 top view', fn: () => triggerPath('vpath', 'vdpath') });
-  if (C.inputs.find(i => i.id === 'attack'))
+  if (C.primary.find(i => i.id === 'attack'))
     panels.push({ id: 'vattack', did: 'vdattack', sid: 'attack', title: 'Attack angle \xb7 side view', fn: () => triggerAttack('vattack', 'vdattack') });
 
   document.getElementById('vgrid').innerHTML = panels.map(p => {
-    const inp = C.inputs.find(i => i.id === p.sid);
+    const inp = allInps.find(i => i.id === p.sid);
     const v = (vals[club] && vals[club][p.sid] !== undefined) ? vals[club][p.sid] : (inp ? inp.def : 0);
     const sliderHTML = inp ? buildSlider(inp, v, 'viz-') : '';
     return `<div class="vc-wrap">
