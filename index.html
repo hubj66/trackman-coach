@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1a1a18" media="(prefers-color-scheme: dark)">
 <meta name="description" content="Trackman Coach — enter your numbers, get a diagnosis and practice priorities.">
@@ -26,6 +25,8 @@
 </div>
 
 <div class="main">
+
+  <!-- KPI targets -->
   <div class="section" style="padding-top:14px">
     <div class="sec-label">Target KPIs</div>
     <div class="kgrid" id="kgrid"></div>
@@ -35,22 +36,39 @@
 
   <div class="divider"></div>
 
+  <!-- Input sliders -->
   <div class="section">
     <div class="sec-label">Your numbers — from Trackman</div>
   </div>
   <div class="input-list" id="inputgrid"></div>
 
+  <!-- Shot shape predictor -->
+  <div id="shotshape-section" style="display:none">
+    <div class="spacer"></div>
+    <div class="section"><div class="sec-label">Predicted shot shape</div></div>
+    <div style="padding:0 16px">
+      <div class="vc-wrap">
+        <canvas class="cv" id="shotshape-canvas" height="220"></canvas>
+        <div class="vc-desc" id="shotshape-desc" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diagnosis -->
   <div class="spacer"></div>
   <div class="section"><div class="sec-label">Diagnosis</div></div>
   <div class="banner banner-ok" id="banner">Move the sliders to your Trackman numbers to get a diagnosis.</div>
 
+  <!-- Practice priorities -->
   <div class="section"><div class="sec-label">Practice priorities</div></div>
   <div class="tip-list" id="tiplist"></div>
 
+  <!-- Visualizations -->
   <div class="spacer"></div>
   <div class="section"><div class="sec-label">Visualizations — you vs target</div></div>
   <div class="vgrid" id="vgrid"></div>
 
+  <!-- CTA -->
   <div class="spacer"></div>
   <div class="cta-wrap">
     <button class="ask-btn" onclick="doAsk()">
@@ -58,10 +76,12 @@
       <span>↗</span>
     </button>
   </div>
+
 </div>
 
 <script src="clubs.js"></script>
 <script src="viz.js"></script>
+<script src="shotshape.js"></script>
 <script src="engine.js"></script>
 <script src="app.js"></script>
 </body>

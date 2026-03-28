@@ -1,5 +1,5 @@
-// app.js — main app logic, state management and UI rendering
-// This file wires together clubs.js, engine.js and viz.js
+// app.js — main app logic, state, UI rendering
+// Wires together clubs.js, engine.js, viz.js and shotshape.js
 
 let club = 'driver';
 const vals = {};
@@ -10,6 +10,8 @@ function sel(id, el) {
   club = id;
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
+  // Clear stored previous angles so visualizations don't animate from wrong value
+  Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
 }
 
@@ -30,6 +32,12 @@ function fillPct(inp, v) {
 function dispVal(inp, v) {
   if (inp.scale) return (v / inp.scale).toFixed(inp.dp || 2) + inp.unit;
   return v + inp.unit;
+}
+
+// ── Android vibration feedback ─────────────────────────────────────────────
+
+function vibrate(ms) {
+  if (navigator.vibrate) navigator.vibrate(ms);
 }
 
 // ── Main render ────────────────────────────────────────────────────────────
@@ -64,7 +72,8 @@ function render() {
         <span class="irow-val" id="iv-${inp.id}" style="color:${col}">${dispVal(inp, v)}</span>
       </div>
       <input type="range" min="${inp.min}" max="${inp.max}" value="${v}" step="${inp.step || 1}"
-        oninput="onSlider('${inp.id}', +this.value)">
+        oninput="onSlider('${inp.id}', +this.value)"
+        onchange="onSliderEnd('${inp.id}', +this.value)">
       <div class="track-wrap">
         <div class="track-bg">
           <div class="track-fill" id="sf-${inp.id}" style="width:${pct}%;background:${col}"></div>
@@ -79,9 +88,12 @@ function render() {
   }).join('');
 
   diagnose();
+  renderShotShapeSection();
 }
 
 // ── Slider update ──────────────────────────────────────────────────────────
+
+let lastColor = {};
 
 function onSlider(id, v) {
   if (!vals[club]) vals[club] = {};
@@ -89,11 +101,31 @@ function onSlider(id, v) {
   const inp = CLUBS[club].inputs.find(i => i.id === id);
   if (!inp) return;
   const col = getColor(inp, v);
+
+  // Vibrate when crossing into green zone (entering ideal range)
+  if (lastColor[id] && lastColor[id] !== '#1D9E75' && col === '#1D9E75') {
+    vibrate(30); // short pulse = entered ideal zone
+  } else if (lastColor[id] && lastColor[id] === '#1D9E75' && col !== '#1D9E75') {
+    vibrate([10, 10, 10]); // double tap = left ideal zone
+  }
+  lastColor[id] = col;
+
   const el = document.getElementById('iv-' + id);
   if (el) { el.textContent = dispVal(inp, v); el.style.color = col; }
   const sf = document.getElementById('sf-' + id);
   if (sf) { sf.style.width = fillPct(inp, v) + '%'; sf.style.background = col; }
+
+  // Live update shot shape while dragging face or path
+  if (id === 'face' || id === 'path') drawShotShape();
+
   diagnose();
+}
+
+function onSliderEnd(id, v) {
+  // Animate visualizations only when user lifts finger (smoother UX)
+  if (id === 'face') triggerFace('vface', 'vdface');
+  if (id === 'path') triggerPath('vpath', 'vdpath');
+  if (id === 'attack') triggerAttack('vattack', 'vdattack');
 }
 
 // ── Value getter ───────────────────────────────────────────────────────────
@@ -122,11 +154,13 @@ function setTips(tips) {
       <span>${t}</span>
     </div>`).join('');
   drawVizs();
+  renderShotShapeSection();
 }
 
-// ── Drill request button ───────────────────────────────────────────────────
+// ── Drill request ──────────────────────────────────────────────────────────
 
 function doAsk() {
+  vibrate(20);
   const C = CLUBS[club];
   let msg = C.askTpl;
   C.inputs.forEach(inp => {
@@ -134,7 +168,6 @@ function doAsk() {
     msg = msg.replace('{' + inp.id + '}', dispVal(inp, v));
   });
 
-  // Use native share sheet on mobile (WhatsApp, iMessage, etc.)
   if (navigator.share) {
     navigator.share({ title: 'Trackman drill request', text: msg }).catch(() => {});
   } else if (navigator.clipboard) {
@@ -146,7 +179,7 @@ function doAsk() {
   }
 }
 
-// ── Toast notification ─────────────────────────────────────────────────────
+// ── Toast ──────────────────────────────────────────────────────────────────
 
 function showToast(msg) {
   let t = document.getElementById('toast');
