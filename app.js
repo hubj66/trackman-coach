@@ -30,19 +30,11 @@ setTimeout(() => {
 
 function toggleAcc(id) {
   const el = document.getElementById('acc-' + id);
-  const body = document.getElementById('acc-body-' + id);
-  if (!el || !body) return;
+  if (!el) return;
   vibrate(10);
   const isOpen = el.classList.contains('open');
-  if (isOpen) {
-    el.classList.remove('open');
-    body.style.maxHeight = '0';
-    body.style.opacity = '0';
-  } else {
-    el.classList.add('open');
-    body.style.maxHeight = '2000px';
-    body.style.opacity = '1';
-    // Draw vizs when viz accordion opens
+  el.classList.toggle('open');
+  if (!isOpen) {
     if (id === 'viz') setTimeout(() => { Object.keys(prevAngles).forEach(k => delete prevAngles[k]); drawVizs(); }, 60);
     if (id === 'shot') setTimeout(drawShotShape, 60);
   }
@@ -50,11 +42,8 @@ function toggleAcc(id) {
 
 function openAcc(id) {
   const el = document.getElementById('acc-' + id);
-  const body = document.getElementById('acc-body-' + id);
-  if (!el || !body || el.classList.contains('open')) return;
+  if (!el || el.classList.contains('open')) return;
   el.classList.add('open');
-  body.style.maxHeight = '2000px';
-  body.style.opacity = '1';
 }
 
 // ── Sub-accordion ──────────────────────────────────────────────────────────
@@ -64,18 +53,8 @@ function toggleSub(id) {
   const body = document.getElementById('sub-body-' + id);
   if (!head || !body) return;
   vibrate(10);
-  const isOpen = head.classList.contains('open');
-  if (isOpen) {
-    head.classList.remove('open');
-    body.classList.remove('open');
-    body.style.maxHeight = '0';
-    body.style.opacity = '0';
-  } else {
-    head.classList.add('open');
-    body.classList.add('open');
-    body.style.maxHeight = '600px';
-    body.style.opacity = '1';
-  }
+  head.classList.toggle('open');
+  body.classList.toggle('open');
 }
 
 // ── Colors ─────────────────────────────────────────────────────────────────

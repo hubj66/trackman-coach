@@ -1,3 +1,22 @@
+// roundRect polyfill for Firefox < 112
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    const radius = typeof r === 'number' ? r : (Array.isArray(r) ? r[0] : 0);
+    this.beginPath();
+    this.moveTo(x + radius, y);
+    this.lineTo(x + w - radius, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + radius);
+    this.lineTo(x + w, y + h - radius);
+    this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    this.lineTo(x + radius, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - radius);
+    this.lineTo(x, y + radius);
+    this.quadraticCurveTo(x, y, x + radius, y);
+    this.closePath();
+    return this;
+  };
+}
+
 // viz.js — premium dark sports aesthetic canvas drawings
 
 function dk() { return !matchMedia('(prefers-color-scheme: light)').matches; }

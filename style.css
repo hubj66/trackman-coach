@@ -42,7 +42,7 @@ html { font-size:16px; -webkit-text-size-adjust:100%; }
 body {
   font-family:var(--sans);
   background:var(--bg); color:var(--text);
-  min-height:100dvh; overscroll-behavior:none;
+  min-height:100vh; min-height:100dvh; overscroll-behavior:none;
   -webkit-font-smoothing:antialiased;
 }
 
@@ -127,9 +127,9 @@ body {
 .acc.open .acc-arrow { transform:rotate(90deg); color:var(--text2); }
 .acc-body {
   max-height:0; overflow:hidden; opacity:0;
-  transition:max-height .28s cubic-bezier(.4,0,.2,1), opacity .2s;
+  transition:max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s;
 }
-.acc.open .acc-body { opacity:1; }
+.acc.open .acc-body { max-height:2000px; opacity:1; }
 
 /* ── KPI grid ────────────────────────────────────────────────────────────── */
 .kgrid {
@@ -193,8 +193,8 @@ body {
 }
 .sub-acc-arrow { font-size:15px; color:var(--text3); transition:transform .2s; }
 .sub-acc-head.open .sub-acc-arrow { transform:rotate(90deg); }
-.sub-acc-body { max-height:0; overflow:hidden; opacity:0; transition:max-height .25s cubic-bezier(.4,0,.2,1), opacity .18s; }
-.sub-acc-body.open { opacity:1; }
+.sub-acc-body { max-height:0; overflow:hidden; opacity:0; transition:max-height .28s cubic-bezier(.4,0,.2,1), opacity .18s; }
+.sub-acc-body.open { max-height:1000px; opacity:1; }
 
 /* Range input — single track using CSS gradient */
 input[type=range] {
