@@ -19,6 +19,8 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 
 // viz.js — premium dark sports aesthetic canvas drawings
 
+const d = true; // dark mode always on
+
 function sc(id, h) {
   const c = document.getElementById(id);
   if (!c) return null;

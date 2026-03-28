@@ -27,8 +27,6 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-}
-
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
 html { font-size:16px; -webkit-text-size-adjust:100%; color-scheme:dark; }
 body {
@@ -242,8 +240,6 @@ input[type=range]::-moz-range-thumb {
 .banner-bad { background:var(--red-dim); border-color:rgba(255,77,77,.2); color:var(--red); }
 .banner-ok { background:var(--amber-dim); border-color:rgba(255,170,0,.2); color:var(--amber); }
 .banner-good { background:var(--green-dim); border-color:rgba(0,214,143,.2); color:var(--green); }
- .banner-ok{color:#8a5a00} .banner-good{color:#007a50}
-}
 
 /* ── Tips ────────────────────────────────────────────────────────────────── */
 .tip-list { display:flex; flex-direction:column; }
