@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a18" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Trackman Coach — enter your numbers, get a diagnosis and practice priorities.">
+<title>Trackman Coach</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">Trackman Coach</div>
+  <div class="header-sub">54 handicap · enter your numbers after each session</div>
+</div>
+
+<div class="club-scroll" id="club-scroll">
+  <div class="ctab on" onclick="sel('driver',this)">Driver</div>
+  <div class="ctab" onclick="sel('irons',this)">Irons 6–9</div>
+  <div class="ctab" onclick="sel('wedge',this)">Wedges</div>
+  <div class="ctab" onclick="sel('putter',this)">Putter</div>
+</div>
+
+<div class="main">
+  <div class="section" style="padding-top:14px">
+    <div class="sec-label">Target KPIs</div>
+    <div class="kgrid" id="kgrid"></div>
+    <div class="sec-label">Focus order at 54 hcp</div>
+    <div class="focus-box" id="focusbox"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="sec-label">Your numbers — from Trackman</div>
+  </div>
+  <div class="input-list" id="inputgrid"></div>
+
+  <div class="spacer"></div>
+  <div class="section"><div class="sec-label">Diagnosis</div></div>
+  <div class="banner banner-ok" id="banner">Move the sliders to your Trackman numbers to get a diagnosis.</div>
+
+  <div class="section"><div class="sec-label">Practice priorities</div></div>
+  <div class="tip-list" id="tiplist"></div>
+
+  <div class="spacer"></div>
+  <div class="section"><div class="sec-label">Visualizations — you vs target</div></div>
+  <div class="vgrid" id="vgrid"></div>
+
+  <div class="spacer"></div>
+  <div class="cta-wrap">
+    <button class="ask-btn" onclick="doAsk()">
+      Copy drill request for Claude
+      <span>↗</span>
+    </button>
+  </div>
+</div>
+
+<script src="clubs.js"></script>
+<script src="viz.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
