@@ -189,7 +189,12 @@ body {
 /* Range input — single track using CSS gradient */
 input[type=range] {
   -webkit-appearance:none; appearance:none;
-  width:100%; height:3px; border-radius:2px;
+  width:100%; height:28px;
+  background:transparent;
+  outline:none; cursor:pointer; margin:0;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height:3px; border-radius:2px;
   background:linear-gradient(
     to right,
     var(--track-color,var(--green)) 0%,
@@ -197,15 +202,26 @@ input[type=range] {
     var(--surface4) var(--track-pct,50%),
     var(--surface4) 100%
   );
-  outline:none; cursor:pointer; margin:0; transition:background .15s;
+  transition:background .15s;
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance:none; appearance:none;
   width:26px; height:26px; border-radius:50%;
   background:var(--text); border:none;
-  box-shadow:0 2px 8px rgba(0,0,0,0.4); cursor:pointer; transition:transform .1s;
+  box-shadow:0 2px 8px rgba(0,0,0,0.4); cursor:pointer;
+  transition:transform .1s; margin-top:-11.5px;
 }
 input[type=range]:active::-webkit-slider-thumb { transform:scale(1.15); }
+input[type=range]::-moz-range-track {
+  height:3px; border-radius:2px;
+  background:linear-gradient(
+    to right,
+    var(--track-color,var(--green)) 0%,
+    var(--track-color,var(--green)) var(--track-pct,50%),
+    var(--surface4) var(--track-pct,50%),
+    var(--surface4) 100%
+  );
+}
 input[type=range]::-moz-range-thumb {
   width:26px; height:26px; border-radius:50%;
   background:var(--text); border:none; cursor:pointer;
@@ -277,7 +293,7 @@ input[type=range]::-moz-range-thumb {
   color:var(--text3); letter-spacing:.06em; text-transform:uppercase;
   margin-left:8px;
 }
-canvas.cv { display:block; width:100%; }
+canvas.cv { display:block; width:100%; height:200px; }
 .vc-desc {
   font-size:13px; color:var(--text2);
   padding:10px 14px 13px; line-height:1.6;
