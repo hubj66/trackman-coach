@@ -25,7 +25,7 @@ function sc(id, h) {
   const c = document.getElementById(id);
   if (!c) return null;
   const dpr = Math.min(window.devicePixelRatio || 2, 3);
-  // Walk up to find first ancestor with a real width
+
   let ancestor = c.parentElement;
   let parentW = 0;
   while (ancestor && ancestor !== document.body) {
@@ -33,9 +33,13 @@ function sc(id, h) {
     if (parentW > 0) break;
     ancestor = ancestor.parentElement;
   }
+
   const w = parentW > 0 ? parentW - 28 : window.innerWidth - 36;
-  c.width = w * dpr; c.height = h * dpr;
-  c.style.width = w + 'px'; c.style.height = h + 'px';
+  c.width = w * dpr;
+  c.height = h * dpr;
+  c.style.width = w + 'px';
+  c.style.height = h + 'px';
+
   const ctx = c.getContext('2d');
   ctx.scale(dpr, dpr);
   return { ctx, w, h };
@@ -97,36 +101,41 @@ function drawSkyGround(ctx, w, h, groundRatio) {
   const t = T();
   const gy = h * groundRatio;
 
-  // Sky
   const sky = ctx.createLinearGradient(0, 0, 0, gy);
   sky.addColorStop(0, t.sky1);
   sky.addColorStop(1, t.sky2);
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, gy);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, gy);
 
-  // Ground stripes
   const sw = 20;
   for (let i = 0; i * sw < w; i++) {
     ctx.fillStyle = i % 2 === 0 ? t.gr1 : t.gr2;
     ctx.fillRect(i * sw, gy, sw, h - gy);
   }
 
-  // Ground edge line
   ctx.strokeStyle = '#2a5a2a';
   ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, gy);
+  ctx.lineTo(w, gy);
+  ctx.stroke();
 
-  // Ground shadow strip
   const gs = ctx.createLinearGradient(0, gy, 0, gy + 16);
-  gs.addColorStop(0, 'rgba(0,0,0,0.25)'); gs.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = gs; ctx.fillRect(0, gy, w, 16);
+  gs.addColorStop(0, 'rgba(0,0,0,0.25)');
+  gs.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gs;
+  ctx.fillRect(0, gy, w, 16);
 }
 
 function drawFlag(ctx, x, y) {
-  const t = T();
   ctx.fillStyle = '#c8a830';
   ctx.fillRect(x - 1, y, 1.5, 26);
   ctx.fillStyle = '#ff4d4d';
-  ctx.beginPath(); ctx.moveTo(x + 1, y); ctx.lineTo(x + 16, y + 8); ctx.lineTo(x + 1, y + 16); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + 1, y);
+  ctx.lineTo(x + 16, y + 8);
+  ctx.lineTo(x + 1, y + 16);
+  ctx.fill();
 }
 
 function drawBall(ctx, x, y, r) {
@@ -134,27 +143,55 @@ function drawBall(ctx, x, y, r) {
   g.addColorStop(0, '#ffffff');
   g.addColorStop(0.6, '#e8e8e8');
   g.addColorStop(1, '#cccccc');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 function drawGlowLine(ctx, x1, y1, x2, y2, color, width) {
-  // Glow layer
-  ctx.strokeStyle = color; ctx.lineWidth = width + 6; ctx.globalAlpha = 0.08; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  ctx.lineWidth = width + 2; ctx.globalAlpha = 0.15;
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  // Core line
-  ctx.lineWidth = width; ctx.globalAlpha = 1;
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width + 6;
+  ctx.globalAlpha = 0.08;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  ctx.lineWidth = width + 2;
+  ctx.globalAlpha = 0.15;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  ctx.lineWidth = width;
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
 }
 
 function drawArrow(ctx, ex, ey, angle, color, size) {
-  ctx.fillStyle = color; ctx.globalAlpha = 1;
-  ctx.save(); ctx.translate(ex, ey); ctx.rotate(angle);
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-size, -size * 0.5); ctx.lineTo(-size, size * 0.5);
-  ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 1;
+  ctx.save();
+  ctx.translate(ex, ey);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-size, -size * 0.5);
+  ctx.lineTo(-size, size * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 // ── Animation engine ───────────────────────────────────────────────────────
@@ -166,6 +203,7 @@ function animateDraw(canvasId, fromVal, toVal, drawFn) {
   if (animState[canvasId]) cancelAnimationFrame(animState[canvasId]);
   const start = performance.now();
   const duration = 280;
+
   function step(now) {
     const t = Math.min((now - start) / duration, 1);
     const ease = 1 - Math.pow(1 - t, 3);
@@ -173,27 +211,31 @@ function animateDraw(canvasId, fromVal, toVal, drawFn) {
     if (t < 1) animState[canvasId] = requestAnimationFrame(step);
     else delete animState[canvasId];
   }
+
   animState[canvasId] = requestAnimationFrame(step);
 }
 
-// ── Viz builder ────────────────────────────────────────────────────────────
-
-
+// ── Viz builder triggers ───────────────────────────────────────────────────
 
 function triggerFace(cid, did) {
-  const you = getVal('face') || 0, ideal = idealMid('face');
+  const you = getVal('face') || 0;
+  const ideal = idealMid('face');
   const prev = prevAngles[cid] !== undefined ? prevAngles[cid] : you;
   prevAngles[cid] = you;
   animateDraw(cid, prev, you, (cur, done) => drawFaceBoth(cid, did, cur, ideal, done));
 }
+
 function triggerPath(cid, did) {
-  const you = getVal('path') || 0, ideal = idealMid('path');
+  const you = getVal('path') || 0;
+  const ideal = idealMid('path');
   const prev = prevAngles[cid] !== undefined ? prevAngles[cid] : you;
   prevAngles[cid] = you;
   animateDraw(cid, prev, you, (cur, done) => drawPathBoth(cid, did, cur, ideal, done));
 }
+
 function triggerAttack(cid, did) {
-  const you = getVal('attack') || 0, ideal = idealMid('attack');
+  const you = getVal('attack') || 0;
+  const ideal = idealMid('attack');
   const prev = prevAngles[cid] !== undefined ? prevAngles[cid] : you;
   prevAngles[cid] = you;
   animateDraw(cid, prev, you, (cur, done) => drawAttackBoth(cid, did, cur, ideal, done));
@@ -202,101 +244,137 @@ function triggerAttack(cid, did) {
 // ── Face angle ─────────────────────────────────────────────────────────────
 
 function drawFaceBoth(cid, did, you, ideal, updateDesc) {
-  const r = sc(cid, 200); if (!r) return;
-  const { ctx, w, h } = r; const t = T();
+  const r = sc(cid, 200);
+  if (!r) return;
 
-  // Background
-  ctx.fillStyle = t.s2; ctx.fillRect(0, 0, w, h * 0.55);
+  const { ctx, w, h } = r;
+  const t = T();
+
+  ctx.fillStyle = t.s2;
+  ctx.fillRect(0, 0, w, h * 0.55);
   drawFairway(ctx, w, h);
-  // Sky overlay
+
   const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
   sky.addColorStop(0, '#060c14');
   sky.addColorStop(1, 'rgba(14,22,32,0)');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h * 0.55);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h * 0.55);
 
-  // Fairway strip
-  const fw = 100, fx = w / 2 - fw / 2;
+  const fw = 100;
+  const fx = w / 2 - fw / 2;
   for (let i = 0; i * 18 < fw; i++) {
     ctx.fillStyle = i % 2 === 0 ? t.stripe1 : t.stripe2;
     ctx.fillRect(fx + i * 18, 0, 18, h);
   }
 
-  const cx = w / 2, cy = h * 0.63;
+  const cx = w / 2;
+  const cy = h * 0.63;
 
-  // Target line
-  ctx.strokeStyle = t.text3; ctx.lineWidth = 1; ctx.setLineDash([6, 5]);
-  ctx.beginPath(); ctx.moveTo(cx, 20); ctx.lineTo(cx, cy - 20); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = t.text3;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.moveTo(cx, 20);
+  ctx.lineTo(cx, cy - 20);
+  ctx.stroke();
+  ctx.setLineDash([]);
 
-  // Flag
   drawFlag(ctx, cx, 20);
 
-  // "TARGET" label
   ctx.fillStyle = t.text3;
   ctx.font = `500 9px 'DM Mono', monospace`;
-  ctx.textAlign = 'center'; ctx.fillText('TARGET', cx, 16);
+  ctx.textAlign = 'center';
+  ctx.fillText('TARGET', cx, 16);
 
-  // Ideal clubface (ghost)
   const irad = ideal * Math.PI / 180;
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(irad); ctx.globalAlpha = 0.2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(irad);
+  ctx.globalAlpha = 0.2;
   ctx.fillStyle = t.green;
-  ctx.beginPath(); ctx.roundRect(-34, -10, 68, 20, 3); ctx.fill();
-  ctx.restore(); ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.roundRect(-34, -10, 68, 20, 3);
+  ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
 
-  // Your clubface
   const frad = you * Math.PI / 180;
   const fc = kpiColor('face', you);
 
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(frad);
-  // Club body
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(frad);
   ctx.fillStyle = '#2a2e32';
-  ctx.beginPath(); ctx.roundRect(-34, -10, 68, 20, 3); ctx.fill();
-  // Face edge glow
-  ctx.shadowColor = fc; ctx.shadowBlur = 8;
-  ctx.fillStyle = fc; ctx.fillRect(-34, -10, 68, 5);
-  ctx.strokeStyle = fc; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-34, -10); ctx.lineTo(34, -10); ctx.stroke();
+  ctx.beginPath();
+  ctx.roundRect(-34, -10, 68, 20, 3);
+  ctx.fill();
+  ctx.shadowColor = fc;
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = fc;
+  ctx.fillRect(-34, -10, 68, 5);
+  ctx.strokeStyle = fc;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-34, -10);
+  ctx.lineTo(34, -10);
+  ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // Ball
   drawBall(ctx, cx, cy, 8);
 
-  // Ball flight dots + arrow
-  const bd = frad * 0.88, bl = 70;
-  const bx = cx + Math.sin(bd) * bl, by = cy - Math.cos(bd) * bl;
+  const bd = frad * 0.88;
+  const bl = 70;
+  const bx = cx + Math.sin(bd) * bl;
+  const by = cy - Math.cos(bd) * bl;
   for (let i = 1; i <= 5; i++) {
     const tt = i / 6;
-    ctx.fillStyle = fc; ctx.globalAlpha = tt * 0.5;
-    ctx.beginPath(); ctx.arc(cx + Math.sin(bd) * bl * tt, cy - Math.cos(bd) * bl * tt, 2.5 * tt, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = fc;
+    ctx.globalAlpha = tt * 0.5;
+    ctx.beginPath();
+    ctx.arc(cx + Math.sin(bd) * bl * tt, cy - Math.cos(bd) * bl * tt, 2.5 * tt, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // Arrow line
-  ctx.strokeStyle = fc; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.globalAlpha = 0.8;
-  ctx.beginPath(); ctx.moveTo(cx, cy - 9); ctx.lineTo(bx, by); ctx.stroke();
-  ctx.setLineDash([]); ctx.globalAlpha = 1;
+  ctx.strokeStyle = fc;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 9);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
   drawArrow(ctx, bx, by, Math.atan2(by - (cy - 9), bx - cx), fc, 9);
 
-  // Angle arc
   if (Math.abs(you) > 1) {
-    ctx.strokeStyle = fc; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.5;
-    ctx.beginPath(); ctx.arc(cx, cy, 38, -Math.PI / 2, frad - Math.PI / 2, you < 0);
-    ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = fc;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 38, -Math.PI / 2, frad - Math.PI / 2, you < 0);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
-  // Labels
   ctx.font = `700 11px 'Barlow Condensed', sans-serif`;
-  ctx.textAlign = 'center'; ctx.letterSpacing = '0.05em';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '0.05em';
   ctx.fillStyle = fc;
   ctx.fillText('YOU  ' + (you > 0 ? '+' : '') + Math.round(you) + '°',
     cx + (you >= 0 ? 32 : -32), cy + (you >= 0 ? -22 : 22));
-  ctx.globalAlpha = 0.5; ctx.fillStyle = t.green;
+
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = t.green;
   ctx.fillText('TARGET  ~' + ideal + '°',
     cx + (ideal >= 0 ? -30 : 30), cy + (ideal >= 0 ? 22 : -22));
   ctx.globalAlpha = 1;
 
   if (!updateDesc) return;
-  const el = document.getElementById(did); if (!el) return;
+  const el = document.getElementById(did);
+  if (!el) return;
   const diff = Math.abs(you - ideal);
   el.innerHTML = `<b style="color:${fc}">Your face: ${you > 0 ? '+' : ''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ~${ideal}°</b><br>${diff < 1 ? 'On target!' : diff < 4 ? 'Close — small adjustment needed.' : `Off by ${diff.toFixed(0)}° — ${you > ideal ? 'face open, needs to close' : 'face closed, open slightly'}.`}`;
 }
@@ -304,67 +382,94 @@ function drawFaceBoth(cid, did, you, ideal, updateDesc) {
 // ── Club path ──────────────────────────────────────────────────────────────
 
 function drawPathBoth(cid, did, you, ideal, updateDesc) {
-  const r = sc(cid, 200); if (!r) return;
-  const { ctx, w, h } = r; const t = T();
+  const r = sc(cid, 200);
+  if (!r) return;
 
-  // Full green background
+  const { ctx, w, h } = r;
+  const t = T();
+
   drawFairway(ctx, w, h);
-  const fw = 110, fx = w / 2 - fw / 2;
+  const fw = 110;
+  const fx = w / 2 - fw / 2;
   for (let i = 0; i * 18 < fw; i++) {
     ctx.fillStyle = i % 2 === 0 ? t.stripe1 : t.stripe2;
     ctx.fillRect(fx + i * 18, 0, 18, h);
   }
 
-  const cx = w / 2, cy = h * 0.52;
+  const cx = w / 2;
+  const cy = h * 0.52;
 
-  // Target line
-  ctx.strokeStyle = t.text3; ctx.lineWidth = 1; ctx.setLineDash([7, 6]);
-  ctx.beginPath(); ctx.moveTo(cx, 14); ctx.lineTo(cx, h - 14); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = t.text3;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([7, 6]);
+  ctx.beginPath();
+  ctx.moveTo(cx, 14);
+  ctx.lineTo(cx, h - 14);
+  ctx.stroke();
+  ctx.setLineDash([]);
 
-  // In / Out labels
   ctx.font = `500 9px 'DM Mono', monospace`;
   ctx.fillStyle = t.text3;
-  ctx.textAlign = 'right'; ctx.fillText('INSIDE', cx - 7, cy - 50);
-  ctx.textAlign = 'left'; ctx.fillText('OUTSIDE', cx + 7, cy - 50);
+  ctx.textAlign = 'right';
+  ctx.fillText('INSIDE', cx - 7, cy - 50);
+  ctx.textAlign = 'left';
+  ctx.fillText('OUTSIDE', cx + 7, cy - 50);
 
-  // Flag
   drawFlag(ctx, cx, 14);
 
   const plen = 90;
 
-  // Ideal path
   const irad = ideal * Math.PI / 180;
-  const isx = cx - Math.sin(irad) * plen, isy = cy + Math.cos(irad) * plen * 0.44 + 8;
-  const iex = cx + Math.sin(irad) * plen, iey = cy - Math.cos(irad) * plen * 0.44 - 8;
-  ctx.strokeStyle = t.green; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.globalAlpha = 0.12;
-  ctx.beginPath(); ctx.moveTo(isx, isy); ctx.lineTo(iex, iey); ctx.stroke(); ctx.globalAlpha = 1;
-  ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.globalAlpha = 0.5;
-  ctx.beginPath(); ctx.moveTo(isx, isy); ctx.lineTo(iex, iey); ctx.stroke();
-  ctx.setLineDash([]); ctx.globalAlpha = 1;
+  const isx = cx - Math.sin(irad) * plen;
+  const isy = cy + Math.cos(irad) * plen * 0.44 + 8;
+  const iex = cx + Math.sin(irad) * plen;
+  const iey = cy - Math.cos(irad) * plen * 0.44 - 8;
+  ctx.strokeStyle = t.green;
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.12;
+  ctx.beginPath();
+  ctx.moveTo(isx, isy);
+  ctx.lineTo(iex, iey);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(isx, isy);
+  ctx.lineTo(iex, iey);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
 
-  // Your path
   const inp = getAllInputs(club).find(i => i.id === 'path');
   const idealRange = inp ? inp.ideal : [-5, 5];
   const prad = you * Math.PI / 180;
-  const sx = cx - Math.sin(prad) * plen, sy = cy + Math.cos(prad) * plen * 0.44 + 8;
-  const ex = cx + Math.sin(prad) * plen, ey = cy - Math.cos(prad) * plen * 0.44 - 8;
+  const sx = cx - Math.sin(prad) * plen;
+  const sy = cy + Math.cos(prad) * plen * 0.44 + 8;
+  const ex = cx + Math.sin(prad) * plen;
+  const ey = cy - Math.cos(prad) * plen * 0.44 - 8;
   const pc = kpiColor('path', you);
 
   drawGlowLine(ctx, sx, sy, ex, ey, pc, 3.5);
   drawArrow(ctx, ex, ey, Math.atan2(ey - sy, ex - sx), pc, 10);
 
-  // Ball
   drawBall(ctx, cx, cy, 9);
 
-  // Labels
   ctx.font = `700 11px 'Barlow Condensed', sans-serif`;
-  ctx.fillStyle = pc; ctx.textAlign = you >= 0 ? 'left' : 'right';
+  ctx.fillStyle = pc;
+  ctx.textAlign = you >= 0 ? 'left' : 'right';
   ctx.fillText('YOU  ' + (you > 0 ? '+' : '') + Math.round(you) + '°', ex + (you >= 0 ? 10 : -10), ey - 8);
-  ctx.globalAlpha = 0.5; ctx.fillStyle = t.green; ctx.textAlign = 'center';
-  ctx.fillText('TARGET', iex, iey - 10); ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = t.green;
+  ctx.textAlign = 'center';
+  ctx.fillText('TARGET', iex, iey - 10);
+  ctx.globalAlpha = 1;
 
   if (!updateDesc) return;
-  const el = document.getElementById(did); if (!el) return;
+  const el = document.getElementById(did);
+  if (!el) return;
   const diff = Math.abs(you - ideal);
   el.innerHTML = `<b style="color:${pc}">Your path: ${you > 0 ? '+' : ''}${Math.round(you)}°</b>&nbsp;&nbsp;<b style="color:${t.green}">Target: ~${ideal > 0 ? '+' : ''}${ideal}°</b><br>${diff < 2 ? 'On target!' : you < idealRange[0] ? 'Out-to-in — classic slice path.' : you > idealRange[1] ? 'Very in-to-out — hook risk.' : 'Path is in range.'}`;
 }
@@ -372,157 +477,196 @@ function drawPathBoth(cid, did, you, ideal, updateDesc) {
 // ── Attack angle ───────────────────────────────────────────────────────────
 
 function drawAttackBoth(cid, did, you, ideal, updateDesc) {
-  const r = sc(cid, 240); if (!r) return;
-  const { ctx, w, h } = r; const t = T();
+  const r = sc(cid, 240);
+  if (!r) return;
+
+  const { ctx, w, h } = r;
   const ac = kpiColor('attack', you);
   const isDriver = club === 'driver';
 
-  // ── Background ──
-  const gy = h * 0.67; // ground line Y
+  // Background
+  const gy = h * 0.67;
   drawSkyGround(ctx, w, h, gy / h);
 
-  // ── Ball & tee position ──
-  const bx = w * 0.48, by = gy - 11;
+  // Ball / tee area
+  const bx = w * 0.34;
+  const by = gy - 11;
 
-  // Always draw tee (driver hits up off tee, irons brush ground)
+  // Tee only when it makes visual sense
   if (isDriver || you > 0) {
-    // Tee
     ctx.fillStyle = '#c8963a';
     ctx.beginPath();
-    ctx.moveTo(bx - 4, by); ctx.lineTo(bx + 4, by);
-    ctx.lineTo(bx + 2.5, by + 18); ctx.lineTo(bx - 2.5, by + 18);
-    ctx.closePath(); ctx.fill();
-    // Tee cup top
+    ctx.moveTo(bx - 4, by);
+    ctx.lineTo(bx + 4, by);
+    ctx.lineTo(bx + 2.5, by + 18);
+    ctx.lineTo(bx - 2.5, by + 18);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.fillStyle = '#e8b050';
-    ctx.beginPath(); ctx.ellipse(bx, by, 7, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(bx, by, 7, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // ── Golfer silhouette (right-side, facing left) ──
-  const gx = bx + w * 0.26; // golfer stands right of ball
-  const gbase = gy;          // feet on ground
+  // Ball first anchor point
+  drawBall(ctx, bx, by, 9);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  // Contact guide behind the ball
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(bx - 40, gy + 2);
+  ctx.lineTo(bx + 42, gy + 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Golfer silhouette farther right so it is clearly behind the ball
+  const gx = w * 0.78;
+  const gbase = gy;
+  const gs = h * 0.0038;
+
+  function gp(ox, oy) {
+    return [gx + ox * gs * 14, gbase - oy * gs * 14];
+  }
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.09)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // Draw as a simple but recognisable golfer at address
-  // Scale factor
-  const gs = h * 0.0038;
-
-  function gp(ox, oy) { return [gx + ox * gs * 14, gbase - oy * gs * 14]; }
-
-  ctx.beginPath();
   // Head
-  const [hx, hy] = gp(0, 13.5);
-  ctx.arc(hx, hy, gs * 9, 0, Math.PI * 2);
-  ctx.fill(); ctx.stroke();
-
-  // Body (torso leaning forward at address)
+  const [hx, hy] = gp(0.2, 13.6);
   ctx.beginPath();
-  const [sx2, sy2] = gp(-0.5, 12);   // neck
-  const [ex2, ey2] = gp(-2.5, 7);    // hips (leaned forward)
-  ctx.moveTo(sx2, sy2);
-  ctx.bezierCurveTo(sx2 - 5, sy2 + 15, ex2 + 8, ey2 - 10, ex2, ey2);
+  ctx.arc(hx, hy, gs * 8.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Torso
+  const [neckX, neckY] = gp(-0.2, 12.2);
+  const [hipX, hipY] = gp(-3.2, 7.2);
+  ctx.beginPath();
+  ctx.moveTo(neckX, neckY);
+  ctx.bezierCurveTo(neckX - 4, neckY + 12, hipX + 8, hipY - 8, hipX, hipY);
   ctx.lineWidth = gs * 8;
   ctx.stroke();
 
-  // Left leg (front)
+  // Front leg
+  const [knee1X, knee1Y] = gp(-4.2, 3.8);
+  const [foot1X, foot1Y] = gp(-4.0, 0);
   ctx.beginPath();
-  const [lh1x, lh1y] = gp(-2.5, 7);
-  const [lk1x, lk1y] = gp(-3.5, 3.5);
-  const [lf1x, lf1y] = gp(-3, 0);
-  ctx.moveTo(lh1x, lh1y);
-  ctx.quadraticCurveTo(lk1x, lk1y, lf1x, lf1y);
+  ctx.moveTo(hipX, hipY);
+  ctx.quadraticCurveTo(knee1X, knee1Y, foot1X, foot1Y);
   ctx.lineWidth = gs * 6;
   ctx.stroke();
 
-  // Right leg (back, slightly behind)
+  // Back leg
+  const [knee2X, knee2Y] = gp(-2.1, 3.7);
+  const [foot2X, foot2Y] = gp(-1.4, 0);
   ctx.beginPath();
-  const [lh2x, lh2y] = gp(-2.5, 7);
-  const [lk2x, lk2y] = gp(-1.2, 3.5);
-  const [lf2x, lf2y] = gp(-0.8, 0);
-  ctx.moveTo(lh2x, lh2y);
-  ctx.quadraticCurveTo(lk2x, lk2y, lf2x, lf2y);
+  ctx.moveTo(hipX, hipY);
+  ctx.quadraticCurveTo(knee2X, knee2Y, foot2X, foot2Y);
   ctx.lineWidth = gs * 5.5;
   ctx.stroke();
 
-  // Arms & club shaft (reaching down to ball)
+  // Shoulders / arms to hands
+  const [shoulderX, shoulderY] = gp(-0.9, 10.5);
+  const handsX = bx + 22;
+  const handsY = by - 7;
   ctx.beginPath();
-  const [ax, ay] = gp(-1, 10.5);   // shoulder
-  const [ax2b, ay2b] = gp(-7, 6);   // hands at ball position roughly
-  ctx.moveTo(ax, ay);
-  ctx.bezierCurveTo(ax - 10, ay + 20, ax2b + 10, ay2b - 10, bx - 8, by - 8);
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.bezierCurveTo(shoulderX - 12, shoulderY + 18, handsX + 18, handsY - 10, handsX, handsY);
   ctx.lineWidth = gs * 5;
   ctx.stroke();
 
-  ctx.lineCap = 'round';
-  ctx.lineWidth = 1.5;
+  // Shaft from hands to clubhead, ending just behind the ball
+  const clubHeadX = bx - 10;
+  const clubHeadY = by + 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(handsX, handsY);
+  ctx.lineTo(clubHeadX, clubHeadY);
+  ctx.stroke();
 
-  // ── Curved swing arc ──
-  // The club travels in a curved arc from back (upper left) through impact
-  // Control points create the characteristic downswing curve
+  ctx.restore();
+
+  // Swing path — keep it behind the ball and finish after impact
   const rad = you * Math.PI / 180;
-  const arcR = w * 0.52; // swing radius
+  const arcR = w * 0.42;
+  const ix = clubHeadX;
+  const iy = clubHeadY;
 
-  // Impact point (clubhead at ball)
-  const ix = bx - 8, iy = by;
+  const backX = ix - arcR * 0.82;
+  const backY = iy - arcR * 0.48;
+  const fwdX = ix + arcR * 0.44;
+  const fwdY = iy - arcR * (0.14 + you * 0.02);
 
-  // Back of swing — upper left, further back for more arc
-  const backX = ix - arcR * 0.85;
-  const backY = iy - arcR * 0.55;
+  const cp1x = ix - arcR * 0.48;
+  const cp1y = iy + Math.sin(rad) * arcR * 0.34 - 10;
+  const cp2x = ix + arcR * 0.16;
+  const cp2y = iy - Math.sin(rad) * arcR * 0.28;
 
-  // Forward (follow through) — upper right
-  const fwdX = ix + arcR * 0.42;
-  const fwdY = iy - arcR * (0.18 + you * 0.018); // higher follow-through = more upward attack
-
-  // Control points for the bezier — make it arc naturally
-  const cp1x = ix - arcR * 0.55, cp1y = iy + Math.sin(rad) * arcR * 0.35 - 8;
-  const cp2x = ix + arcR * 0.18, cp2y = iy - Math.sin(rad) * arcR * 0.3;
-
-  // Glow
-  ctx.strokeStyle = ac; ctx.lineWidth = 12; ctx.globalAlpha = 0.07; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(backX, backY);
+  ctx.strokeStyle = ac;
+  ctx.lineWidth = 12;
+  ctx.globalAlpha = 0.07;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(backX, backY);
   ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
   ctx.stroke();
 
-  // Main arc
-  ctx.lineWidth = 3; ctx.globalAlpha = 1;
-  ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(backX, backY);
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.moveTo(backX, backY);
   ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
   ctx.stroke();
 
-  // Arrow at follow-through end
   const fwdAngle = Math.atan2(fwdY - cp2y, fwdX - cp2x);
   drawArrow(ctx, fwdX, fwdY, fwdAngle, ac, 10);
 
-  // ── Ideal arc ghost ──
+  // Ideal path ghost
   const irad = ideal * Math.PI / 180;
-  const icp1y = iy + Math.sin(irad) * arcR * 0.35 - 8;
-  const icp2y = iy - Math.sin(irad) * arcR * 0.3;
-  const ifwdY = iy - arcR * (0.18 + ideal * 0.018);
+  const icp1y = iy + Math.sin(irad) * arcR * 0.34 - 10;
+  const icp2y = iy - Math.sin(irad) * arcR * 0.28;
+  const ifwdY = iy - arcR * (0.14 + ideal * 0.02);
 
-  ctx.strokeStyle = '#00d68f'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = '#00d68f';
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.25;
   ctx.setLineDash([6, 5]);
-  ctx.beginPath(); ctx.moveTo(backX, backY);
+  ctx.beginPath();
+  ctx.moveTo(backX, backY);
   ctx.bezierCurveTo(cp1x, icp1y, cp2x, icp2y, fwdX, ifwdY);
-  ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
 
-  // ── Clubhead at impact ──
-  ctx.save(); ctx.translate(ix, iy); ctx.rotate(-rad + (you < 0 ? 0.12 : -0.12));
+  // Clubhead at impact stays behind the ball
+  ctx.save();
+  ctx.translate(ix, iy);
+  ctx.rotate(-rad + (you < 0 ? 0.12 : -0.12));
   ctx.fillStyle = '#2c3238';
-  ctx.beginPath(); ctx.roundRect(-7, -9, 24, 18, 3); ctx.fill();
-  ctx.shadowColor = ac; ctx.shadowBlur = 8;
-  ctx.fillStyle = ac; ctx.beginPath(); ctx.roundRect(-7, -9, 5, 18, [2,0,0,2]); ctx.fill();
+  ctx.beginPath();
+  ctx.roundRect(-7, -9, 24, 18, 3);
+  ctx.fill();
+  ctx.shadowColor = ac;
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = ac;
+  ctx.beginPath();
+  ctx.roundRect(-7, -9, 5, 18, [2, 0, 0, 2]);
+  ctx.fill();
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // ── Ball on tee ──
+  // Ball on top so nothing appears in front of it
   drawBall(ctx, bx, by, 9);
 
-  // ── Angle badge — top-left corner, big and clear ──
+  // Angle badge
   ctx.fillStyle = ac;
   ctx.font = `700 28px 'Barlow Condensed', sans-serif`;
   ctx.textAlign = 'left';
@@ -532,46 +676,87 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.fillStyle = '#3a4550';
   ctx.fillText('ATTACK ANGLE', 14, 52);
 
-  // Ideal badge — next to it
   ctx.fillStyle = '#00d68f';
   ctx.globalAlpha = 0.55;
   ctx.font = `500 10px 'DM Mono', monospace`;
   ctx.fillText(`IDEAL ${ideal > 0 ? '+' : ''}${ideal}°`, 14, 66);
   ctx.globalAlpha = 1;
 
-  // ── Divot (irons hitting down) ──
+  // Small impact label
+  ctx.font = `500 9px 'DM Mono', monospace`;
+  ctx.fillStyle = 'rgba(255,255,255,0.34)';
+  ctx.textAlign = 'center';
+  ctx.fillText('IMPACT', bx, gy + 18);
+
+  // Divot only for downward iron-style strike
   if (you < -2) {
     const dx = bx + 28;
     ctx.fillStyle = '#3a2008';
-    ctx.beginPath(); ctx.ellipse(dx, gy + 5, 22, 7, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(dx, gy + 5, 22, 7, 0.1, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#5a3818';
-    ctx.beginPath(); ctx.ellipse(dx, gy + 4, 14, 5, 0.1, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#00d68f'; ctx.globalAlpha = 0.7;
-    ctx.font = `600 9px 'Barlow Condensed', sans-serif`; ctx.textAlign = 'center';
-    ctx.fillText('DIVOT ✓', dx, gy + 20); ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.ellipse(dx, gy + 4, 14, 5, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#00d68f';
+    ctx.globalAlpha = 0.7;
+    ctx.font = `600 9px 'Barlow Condensed', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('DIVOT ✓', dx, gy + 20);
+    ctx.globalAlpha = 1;
   }
 
   if (!updateDesc) return;
-  const el = document.getElementById(did); if (!el) return;
+  const el = document.getElementById(did);
+  if (!el) return;
   const diff = Math.abs(you - ideal);
   el.innerHTML = `<b style="color:${ac}">${you > 0 ? '+' : ''}${Math.round(you)}°</b> attack &nbsp;·&nbsp; <b style="color:#00d68f">target ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${diff < 1 ? 'On target!' : you > -2 && !isDriver ? 'Too level — hitting up. Classic scoop. Push toward negative.' : you > 4 && isDriver ? 'Very upward — check tee height and ball position.' : 'Getting there — keep pushing toward target.'}`;
 }
 
 // ── Replacement drawVizs with embedded sliders ─────────────────────────────
 function drawVizs() {
-  const C = CLUBS[club]; const allInps = getAllInputs(club);
+  const C = CLUBS[club];
+  const allInps = getAllInputs(club);
   const panels = [];
-  if (C.primary.find(i => i.id === 'face'))
-    panels.push({ id: 'vface', did: 'vdface', sid: 'face', title: 'Face angle<span>TOP VIEW</span>', fn: () => triggerFace('vface', 'vdface') });
-  if (C.primary.find(i => i.id === 'path'))
-    panels.push({ id: 'vpath', did: 'vdpath', sid: 'path', title: 'Club path<span>TOP VIEW</span>', fn: () => triggerPath('vpath', 'vdpath') });
-  if (C.primary.find(i => i.id === 'attack'))
-    panels.push({ id: 'vattack', did: 'vdattack', sid: 'attack', title: 'Attack angle<span>SIDE VIEW</span>', fn: () => triggerAttack('vattack', 'vdattack') });
+
+  if (C.primary.find(i => i.id === 'face')) {
+    panels.push({
+      id: 'vface',
+      did: 'vdface',
+      sid: 'face',
+      title: 'Face angle<span>TOP VIEW</span>',
+      fn: () => triggerFace('vface', 'vdface')
+    });
+  }
+
+  if (C.primary.find(i => i.id === 'path')) {
+    panels.push({
+      id: 'vpath',
+      did: 'vdpath',
+      sid: 'path',
+      title: 'Club path<span>TOP VIEW</span>',
+      fn: () => triggerPath('vpath', 'vdpath')
+    });
+  }
+
+  if (C.primary.find(i => i.id === 'attack')) {
+    panels.push({
+      id: 'vattack',
+      did: 'vdattack',
+      sid: 'attack',
+      title: 'Attack angle<span>SIDE VIEW</span>',
+      fn: () => triggerAttack('vattack', 'vdattack')
+    });
+  }
 
   document.getElementById('vgrid').innerHTML = panels.map(p => {
     const inp = allInps.find(i => i.id === p.sid);
-    const v = (vals[club] && vals[club][p.sid] !== undefined) ? vals[club][p.sid] : (inp ? inp.def : 0);
+    const v = (vals[club] && vals[club][p.sid] !== undefined)
+      ? vals[club][p.sid]
+      : (inp ? inp.def : 0);
     const sliderHTML = inp ? buildSlider(inp, v, 'viz-') : '';
+
     return `<div class="vc-wrap">
       <div class="vc-header"><span class="vc-title">${p.title}</span></div>
       <canvas class="cv" id="${p.id}" height="200"></canvas>
@@ -580,6 +765,5 @@ function drawVizs() {
     </div>`;
   }).join('');
 
-  // Double rAF ensures browser has reflowed before we measure canvas width
   requestAnimationFrame(() => requestAnimationFrame(() => panels.forEach(p => p.fn())));
 }
