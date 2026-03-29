@@ -1,6 +1,7 @@
 // app.js — accordion-first architecture
 
 let club = 'driver';
+let rangeMode = 'realistic';
 const vals = {};
 let lastColor = {};
 
@@ -12,6 +13,39 @@ function sel(id, el) {
   if (el) el.classList.add('on');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
+}
+
+// ── Range mode ─────────────────────────────────────────────────────────────
+
+function setRangeMode(mode) {
+  if (mode !== 'realistic' && mode !== 'good') return;
+  rangeMode = mode;
+  applyRangeModeToClubs(rangeMode);
+  updateModeButtons();
+  Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+  render();
+}
+
+function updateModeButtons() {
+  const realisticBtn = document.getElementById('mode-realistic');
+  const goodBtn = document.getElementById('mode-good');
+
+  if (realisticBtn) realisticBtn.classList.toggle('on', rangeMode === 'realistic');
+  if (goodBtn) goodBtn.classList.toggle('on', rangeMode === 'good');
+}
+
+function getRangeLabel() {
+  return rangeMode === 'good' ? 'Good target' : 'Realistic';
+}
+
+function getIdealRange(inp) {
+  if (inp[rangeMode]) return inp[rangeMode];
+  if (inp.realistic) return inp.realistic;
+  return inp.ideal;
+}
+
+function getKpiDisplayValue(kpi) {
+  return kpi[rangeMode] || kpi.realistic || kpi.v || '';
 }
 
 // ── Accordion ──────────────────────────────────────────────────────────────
@@ -26,7 +60,6 @@ function toggleAcc(id) {
   el.classList.toggle('open');
 
   if (!isOpen) {
-    // Wait for CSS transition + reflow before drawing canvases
     if (id === 'viz') {
       requestAnimationFrame(() => requestAnimationFrame(() => {
         Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
@@ -46,7 +79,7 @@ function openAcc(id) {
   const el = document.getElementById('acc-' + id);
   if (!el || el.classList.contains('open')) return;
   el.classList.add('open');
-  // For numbers accordion, set a generous max-height to accommodate sub-accordions
+
   if (id === 'numbers') {
     const body = document.getElementById('acc-body-numbers');
     if (body) body.style.maxHeight = '4000px';
@@ -64,7 +97,6 @@ function toggleSub(id) {
   head.classList.toggle('open');
   body.classList.toggle('open');
 
-  // Clear any inline styles left over from old code so CSS class wins
   body.style.maxHeight = '';
   body.style.opacity = '';
 }
@@ -72,10 +104,12 @@ function toggleSub(id) {
 // ── Colors ─────────────────────────────────────────────────────────────────
 
 function getColorAdapted(inp, v) {
-  const [lo, hi] = inp.ideal;
+  const [lo, hi] = getIdealRange(inp);
   if (v >= lo && v <= hi) return '#00d68f';
+
   const margin = Math.max((hi - lo) * 0.8, 2);
   if (v >= lo - margin && v <= hi + margin) return '#ffaa00';
+
   return '#ff4d4d';
 }
 
@@ -92,6 +126,12 @@ function dispVal(inp, v) {
   return v + inp.unit;
 }
 
+function formatIdealValue(val, inp) {
+  if (inp.scale) return (val / inp.scale).toFixed(inp.dp || 2);
+  if (Number.isInteger(val)) return String(val);
+  return String(val);
+}
+
 function vibrate(ms) {
   if (navigator.vibrate) navigator.vibrate(ms);
 }
@@ -101,7 +141,8 @@ function vibrate(ms) {
 function buildSlider(inp, v, prefix) {
   const col = getColorAdapted(inp, v);
   const pct = fillPct(inp, v);
-  const idealStr = `ideal ${inp.ideal[0]}${inp.unit.trim()} → ${inp.ideal[1]}${inp.unit.trim()}`;
+  const ideal = getIdealRange(inp);
+  const idealStr = `${getRangeLabel().toLowerCase()} ${formatIdealValue(ideal[0], inp)}${inp.unit.trim()} → ${formatIdealValue(ideal[1], inp)}${inp.unit.trim()}`;
 
   return `<div class="irow" id="${prefix}row-${inp.id}">
     <div class="irow-top">
@@ -130,28 +171,25 @@ function render() {
   const C = CLUBS[club];
   if (!vals[club]) vals[club] = {};
 
-  // KPI cards
   document.getElementById('kgrid').innerHTML = C.kpis.map(k => `
     <div class="kcard ${badgeToClass(k.bt)}">
       <div class="kcard-lbl">${k.l}</div>
-      <div class="kcard-val">${k.v}</div>
+      <div class="kcard-val">${getKpiDisplayValue(k)}</div>
       <div class="kcard-desc">${k.d}</div>
       <div class="badge ${k.badge}">${k.bt}</div>
     </div>`).join('');
 
-  // Focus list
   document.getElementById('focusbox').innerHTML = C.focus.map(f =>
     `<div class="focus-item"><span class="dot ${f.c}"></span><span>${f.t}</span></div>`
   ).join('');
-  document.getElementById('kpi-sub').textContent = C.kpis.length + ' metrics';
 
-  // Primary sliders
+  document.getElementById('kpi-sub').textContent = `${C.kpis.length} metrics · ${getRangeLabel()}`;
+
   document.getElementById('primary-sliders').innerHTML = C.primary.map(inp => {
     const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
     return buildSlider(inp, v, 'main-');
   }).join('');
 
-  // Secondary sliders
   const secEl = document.getElementById('secondary-section');
   if (C.secondary && C.secondary.length) {
     secEl.style.display = 'block';
@@ -164,7 +202,6 @@ function render() {
     secEl.style.display = 'none';
   }
 
-  // Advanced sliders
   const advEl = document.getElementById('advanced-section');
   if (C.advanced && C.advanced.length) {
     advEl.style.display = 'block';
@@ -177,13 +214,11 @@ function render() {
     advEl.style.display = 'none';
   }
 
-  // Shot shape accordion visibility
   const hasFace = C.primary.find(i => i.id === 'face');
   const hasPath = C.primary.find(i => i.id === 'path');
   document.getElementById('acc-shot').style.display =
     (hasFace && hasPath && club !== 'putter') ? 'block' : 'none';
 
-  // Close sub-accordions on club switch - use class only, no inline styles
   ['secondary', 'advanced'].forEach(id => {
     const head = document.getElementById('sub-head-' + id);
     const body = document.getElementById('sub-body-' + id);
@@ -197,7 +232,6 @@ function render() {
 
   diagnose();
 
-  // Draw vizs if viz accordion is open
   const vizAcc = document.getElementById('acc-viz');
   if (vizAcc?.classList.contains('open')) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -206,7 +240,6 @@ function render() {
     }));
   }
 
-  // Update shot shape if open
   const shotAcc = document.getElementById('acc-shot');
   if (shotAcc?.classList.contains('open')) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -226,13 +259,14 @@ function onSlider(id, v, prefix) {
 
   const col = getColorAdapted(inp, v);
   const pct = fillPct(inp, v);
+  const ideal = getIdealRange(inp);
+  const idealStr = `${getRangeLabel().toLowerCase()} ${formatIdealValue(ideal[0], inp)}${inp.unit.trim()} → ${formatIdealValue(ideal[1], inp)}${inp.unit.trim()}`;
 
   if (lastColor[id] && lastColor[id] !== col) {
     vibrate(col === '#00d68f' ? 25 : [8, 8, 8]);
   }
   lastColor[id] = col;
 
-  // Update all instances of this slider (main- and viz-)
   ['main-', 'viz-'].forEach(pfx => {
     const valEl = document.getElementById(pfx + 'val-' + id);
     if (valEl) {
@@ -248,11 +282,12 @@ function onSlider(id, v, prefix) {
     }
 
     const lbl = document.getElementById(pfx + 'row-' + id)?.querySelector('.ideal-lbl');
-    if (lbl) lbl.style.color = col;
+    if (lbl) {
+      lbl.style.color = col;
+      lbl.textContent = idealStr;
+    }
   });
 
-  // Live diagram updates only — do not redraw the whole viz block here,
-  // otherwise the lower slider gets recreated while you drag it.
   if (id === 'face' || id === 'path') drawShotShape();
   if (id === 'face') triggerFace('vface', 'vdface');
   if (id === 'path') triggerPath('vpath', 'vdpath');
@@ -277,7 +312,6 @@ function setBanner(msg, cls) {
   b.innerHTML = msg;
   b.className = 'banner ' + cls;
 
-  // Update diagnosis accordion subtitle
   const sub = document.getElementById('diag-sub');
   if (sub) {
     if (cls === 'banner-bad') sub.textContent = 'Faults detected';
@@ -294,10 +328,8 @@ function setTips(tips) {
       <span>${t}</span>
     </div>`).join('');
 
-  // Auto-open diagnosis accordion when there are tips
   openAcc('diag');
 
-  // Keep the lower sliders stable. Only update the canvases already on screen.
   const vizAcc = document.getElementById('acc-viz');
   if (vizAcc?.classList.contains('open')) {
     if (document.getElementById('vface')) triggerFace('vface', 'vdface');
@@ -305,7 +337,6 @@ function setTips(tips) {
     if (document.getElementById('vattack')) triggerAttack('vattack', 'vdattack');
   }
 
-  // Shot shape
   const shotAcc = document.getElementById('acc-shot');
   if (shotAcc?.classList.contains('open')) drawShotShape();
 }
@@ -360,9 +391,10 @@ function drawShotShape() {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
+applyRangeModeToClubs(rangeMode);
+updateModeButtons();
 render();
 
-// Auto-open viz + shot once page fully loaded
 window.addEventListener('load', () => {
   openAcc('viz');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
