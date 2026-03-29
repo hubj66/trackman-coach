@@ -488,8 +488,8 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const gy = h * 0.67;
   drawSkyGround(ctx, w, h, gy / h);
 
-  // Ball slightly left of center
-  const bx = w * 0.38;
+  // Ball slightly left of the centered stance
+  const bx = w * 0.37;
   const by = gy - 11;
 
   // Tee
@@ -516,43 +516,44 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
-  ctx.moveTo(bx - 40, gy + 2);
-  ctx.lineTo(bx + 60, gy + 2);
+  ctx.moveTo(bx - 44, gy + 2);
+  ctx.lineTo(bx + 66, gy + 2);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Player centered around ball / right leg area
-  const px = bx + 6;
+  // ---- Mirrored posture ----
+  // Right leg on screen = front leg, nearly straight, centered
+  // Ball sits to the LEFT of that leg
+  const rightFootX = w * 0.45;
+  const rightFootY = gy;
 
-  const headX = px + 12;
-  const headY = gy - 104;
+  const rightKneeX = rightFootX - 2;
+  const rightKneeY = gy - 26;
 
-  const neckX = px + 5;
-  const neckY = gy - 95;
+  const hipX = rightFootX - 8;
+  const hipY = gy - 52;
 
-  const shoulderX = px + 1;
-  const shoulderY = gy - 82;
+  // Left leg on screen = back leg, diagonal
+  const leftKneeX = rightFootX - 26;
+  const leftKneeY = gy - 32;
+  const leftFootX = rightFootX - 42;
+  const leftFootY = gy;
 
-  const hipX = px - 2;
-  const hipY = gy - 50;
+  // Upper body bent slightly left
+  const shoulderX = hipX - 10;
+  const shoulderY = gy - 84;
 
-  // Right leg near center / ball area
-  const frontKneeX = bx + 4;
-  const frontKneeY = gy - 24;
-  const frontFootX = bx + 6;
-  const frontFootY = gy;
+  const neckX = shoulderX - 2;
+  const neckY = shoulderY - 10;
 
-  // Left leg goes left
-  const backKneeX = px + 22;
-  const backKneeY = gy - 28;
-  const backFootX = px + 34;
-  const backFootY = gy;
+  const headX = neckX - 2;
+  const headY = neckY - 12;
 
-  // Hands slightly right and above the ball
-  const handsX = bx + 20;
+  // Hands above and just to the right of the ball
+  const handsX = bx + 18;
   const handsY = by - 30;
 
-  // Shaft target = just behind ball
+  // Club target = just behind the ball
   const shaftTargetX = bx - 4;
   const shaftTargetY = by + 1;
 
@@ -574,38 +575,39 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.lineTo(shoulderX, shoulderY);
   ctx.stroke();
 
-  // Bent torso
+  // Torso leaning left
   ctx.lineWidth = 6;
   ctx.beginPath();
   ctx.moveTo(shoulderX, shoulderY);
-  ctx.quadraticCurveTo(px - 8, gy - 96, hipX, hipY);
+  ctx.quadraticCurveTo(hipX - 8, gy - 95, hipX, hipY);
   ctx.stroke();
 
-  // Front leg (weight side)
-  ctx.lineWidth = 5.5;
+  // Right leg on screen = front leg, more straight
+  ctx.lineWidth = 5.8;
   ctx.beginPath();
   ctx.moveTo(hipX, hipY);
-  ctx.quadraticCurveTo(frontKneeX, frontKneeY, frontFootX, frontFootY);
+  ctx.lineTo(rightKneeX, rightKneeY);
+  ctx.lineTo(rightFootX, rightFootY);
   ctx.stroke();
 
-  // Back leg
+  // Left leg on screen = back leg, diagonal
   ctx.lineWidth = 5;
   ctx.beginPath();
   ctx.moveTo(hipX, hipY);
-  ctx.quadraticCurveTo(backKneeX, backKneeY, backFootX, backFootY);
+  ctx.quadraticCurveTo(leftKneeX, leftKneeY, leftFootX, leftFootY);
   ctx.stroke();
 
-  // Left arm
+  // Front arm
   ctx.lineWidth = 4.5;
   ctx.beginPath();
-  ctx.moveTo(shoulderX - 2, shoulderY);
-  ctx.quadraticCurveTo(px - 12, gy - 90, handsX, handsY);
+  ctx.moveTo(shoulderX - 1, shoulderY);
+  ctx.quadraticCurveTo(shoulderX - 18, gy - 90, handsX, handsY);
   ctx.stroke();
 
-  // Right arm
+  // Back arm
   ctx.beginPath();
-  ctx.moveTo(shoulderX + 8, shoulderY - 2);
-  ctx.quadraticCurveTo(px + 2, gy - 88, handsX + 4, handsY - 2);
+  ctx.moveTo(shoulderX + 9, shoulderY - 2);
+  ctx.quadraticCurveTo(shoulderX - 6, gy - 86, handsX + 4, handsY - 2);
   ctx.stroke();
 
   ctx.restore();
