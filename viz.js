@@ -491,11 +491,9 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const gy = h * 0.67;
   drawSkyGround(ctx, w, h, gy / h);
 
-  // Ball left, golfer right
   const bx = w * 0.30;
   const by = gy - 11;
 
-  // Tee
   if (isDriver || you > 0) {
     ctx.fillStyle = '#c8963a';
     ctx.beginPath();
@@ -512,10 +510,8 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
     ctx.fill();
   }
 
-  // Base ball
   drawBall(ctx, bx, by, 9);
 
-  // Ground guide
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
@@ -525,50 +521,26 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Hands and club clearly to the right of the ball
-  const handsX = w * 0.72;
+  // Remove body silhouette. Show only hands + shaft + clubhead.
+  const handsX = w * 0.73;
   const handsY = gy - 92;
 
-  const clubHeadX = bx - 8;   // slightly behind the ball
+  const clubHeadX = bx - 8;
   const clubHeadY = by + 1;
 
-  // Minimal golfer silhouette on the right side
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.26)';
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // Head
+  // Hands
+  ctx.fillStyle = 'rgba(255,255,255,0.24)';
   ctx.beginPath();
-  ctx.arc(w * 0.72, gy - 126, 8, 0, Math.PI * 2);
+  ctx.arc(handsX, handsY, 5.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Torso
-  ctx.lineWidth = 5;
+  // Small forearm hint
+  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(w * 0.72, gy - 117);
-  ctx.lineTo(w * 0.69, gy - 78);
-  ctx.stroke();
-
-  // Front leg
-  ctx.lineWidth = 4.5;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.69, gy - 78);
-  ctx.lineTo(w * 0.66, gy - 18);
-  ctx.stroke();
-
-  // Back leg
-  ctx.beginPath();
-  ctx.moveTo(w * 0.69, gy - 78);
-  ctx.lineTo(w * 0.76, gy - 18);
-  ctx.stroke();
-
-  // Arm to hands
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.705, gy - 98);
-  ctx.quadraticCurveTo(w * 0.65, gy - 92, handsX, handsY);
+  ctx.moveTo(handsX + 26, handsY - 18);
+  ctx.lineTo(handsX + 6, handsY - 2);
   ctx.stroke();
 
   // Shaft
@@ -579,9 +551,6 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.lineTo(clubHeadX, clubHeadY);
   ctx.stroke();
 
-  ctx.restore();
-
-  // Swing path
   const rad = you * Math.PI / 180;
   const arcR = w * 0.40;
   const ix = clubHeadX;
@@ -616,7 +585,6 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const fwdAngle = Math.atan2(fwdY - cp2y, fwdX - cp2x);
   drawArrow(ctx, fwdX, fwdY, fwdAngle, ac, 10);
 
-  // Ideal ghost path
   const irad = ideal * Math.PI / 180;
   const icp1y = iy + Math.sin(irad) * arcR * 0.35 - 10;
   const icp2y = iy - Math.sin(irad) * arcR * 0.28;
@@ -633,7 +601,6 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  // Clubhead at impact
   ctx.save();
   ctx.translate(ix, iy);
   ctx.rotate(-rad + (you < 0 ? 0.12 : -0.12));
@@ -650,7 +617,6 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // Ball on top so nothing overlaps visually
   drawBall(ctx, bx, by, 9);
 
   ctx.fillStyle = ac;
