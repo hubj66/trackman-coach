@@ -521,33 +521,28 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Remove body silhouette. Show only hands + shaft + clubhead.
-  const handsX = w * 0.73;
+  // Only club
+  const handsX = w * 0.72;
   const handsY = gy - 92;
+
+  const shaftStartX = handsX;
+  const shaftStartY = handsY;
 
   const clubHeadX = bx - 8;
   const clubHeadY = by + 1;
 
-  // Hands
-  ctx.fillStyle = 'rgba(255,255,255,0.24)';
+  // Grip point
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.beginPath();
-  ctx.arc(handsX, handsY, 5.5, 0, Math.PI * 2);
+  ctx.arc(shaftStartX, shaftStartY, 4.5, 0, Math.PI * 2);
   ctx.fill();
-
-  // Small forearm hint
-  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(handsX + 26, handsY - 18);
-  ctx.lineTo(handsX + 6, handsY - 2);
-  ctx.stroke();
 
   // Shaft
   ctx.strokeStyle = 'rgba(255,255,255,0.34)';
   ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(handsX, handsY);
+  ctx.moveTo(shaftStartX, shaftStartY);
   ctx.lineTo(clubHeadX, clubHeadY);
   ctx.stroke();
 
