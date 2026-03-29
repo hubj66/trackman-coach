@@ -488,8 +488,12 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const gy = h * 0.67;
   drawSkyGround(ctx, w, h, gy / h);
 
-  // Ball slightly left of the centered stance
-  const bx = w * 0.37;
+  // Stance reference first
+  const rightFootX = w * 0.45;
+  const rightFootY = gy;
+
+  // Ball position: almost on front foot for driver, a bit inside for irons
+  const bx = rightFootX - (isDriver ? 2 : 10);
   const by = gy - 11;
 
   // Tee
@@ -523,10 +527,7 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
 
   // ---- Mirrored posture ----
   // Right leg on screen = front leg, nearly straight, centered
-  // Ball sits to the LEFT of that leg
-  const rightFootX = w * 0.45;
-  const rightFootY = gy;
-
+  // Ball sits just left / slightly inside that leg
   const rightKneeX = rightFootX - 2;
   const rightKneeY = gy - 26;
 
@@ -553,7 +554,7 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const handsX = bx + 18;
   const handsY = by - 30;
 
-  // Club target = just behind the ball
+  // Club target = just behind ball
   const shaftTargetX = bx - 4;
   const shaftTargetY = by + 1;
 
