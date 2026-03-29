@@ -20,6 +20,27 @@
     <div class="header-sub">54 HCP · SESSION TOOL</div>
   </div>
 
+  <div class="mode-wrap">
+    <div class="mode-toggle" role="tablist" aria-label="Target mode">
+      <button
+        id="mode-realistic"
+        class="mode-btn on"
+        type="button"
+        onclick="setRangeMode('realistic')"
+      >
+        Realistic Range
+      </button>
+      <button
+        id="mode-good"
+        class="mode-btn"
+        type="button"
+        onclick="setRangeMode('good')"
+      >
+        Good Target
+      </button>
+    </div>
+  </div>
+
   <div class="club-scroll">
     <div class="ctab on" onclick="sel('driver',this)">Driver</div>
     <div class="ctab" onclick="sel('irons',this)">Irons 6–9</div>
@@ -38,7 +59,7 @@
           </svg>
         </div>
         <div class="acc-title">Target KPIs</div>
-        <div class="acc-subtitle" id="kpi-sub">6 metrics</div>
+        <div class="acc-subtitle" id="kpi-sub">6 metrics · Realistic</div>
         <div class="acc-arrow">›</div>
       </div>
       <div class="acc-body" id="acc-body-kpis">
