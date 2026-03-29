@@ -47,7 +47,9 @@ function sc(id, h) {
 
 function idealMid(id) {
   const inp = getAllInputs(club).find(i => i.id === id);
-  return inp ? (inp.ideal[0] + inp.ideal[1]) / 2 : 0;
+  if (!inp) return 0;
+  const src = typeof getIdealRange === 'function' ? getIdealRange(inp) : inp.ideal;
+  return (src[0] + src[1]) / 2;
 }
 
 // ── Theme colors ───────────────────────────────────────────────────────────
@@ -79,7 +81,10 @@ function T() {
 function kpiColor(id, v) {
   const inp = getAllInputs(club).find(i => i.id === id);
   if (!inp) return T().green;
-  const [lo, hi] = inp.ideal;
+
+  const src = typeof getIdealRange === 'function' ? getIdealRange(inp) : inp.ideal;
+  const [lo, hi] = src;
+
   if (v >= lo && v <= hi) return T().green;
   const margin = Math.max((hi - lo) * 0.8, 2);
   if (v >= lo - margin && v <= hi + margin) return T().amber;
@@ -361,7 +366,6 @@ function drawFaceBoth(cid, did, you, ideal, updateDesc) {
 
   ctx.font = `700 11px 'Barlow Condensed', sans-serif`;
   ctx.textAlign = 'center';
-  ctx.letterSpacing = '0.05em';
   ctx.fillStyle = fc;
   ctx.fillText('YOU  ' + (you > 0 ? '+' : '') + Math.round(you) + '°',
     cx + (you >= 0 ? 32 : -32), cy + (you >= 0 ? -22 : 22));
@@ -444,7 +448,7 @@ function drawPathBoth(cid, did, you, ideal, updateDesc) {
   ctx.globalAlpha = 1;
 
   const inp = getAllInputs(club).find(i => i.id === 'path');
-  const idealRange = inp ? inp.ideal : [-5, 5];
+  const idealRange = typeof getIdealRange === 'function' ? getIdealRange(inp) : inp.ideal;
   const prad = you * Math.PI / 180;
   const sx = cx - Math.sin(prad) * plen;
   const sy = cy + Math.cos(prad) * plen * 0.44 + 8;
@@ -484,15 +488,14 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const ac = kpiColor('attack', you);
   const isDriver = club === 'driver';
 
-  // Background
   const gy = h * 0.67;
   drawSkyGround(ctx, w, h, gy / h);
 
-  // Ball / tee area
-  const bx = w * 0.34;
+  // Ball left, golfer right
+  const bx = w * 0.30;
   const by = gy - 11;
 
-  // Tee only when it makes visual sense
+  // Tee
   if (isDriver || you > 0) {
     ctx.fillStyle = '#c8963a';
     ctx.beginPath();
@@ -509,83 +512,67 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
     ctx.fill();
   }
 
-  // Ball first anchor point
+  // Base ball
   drawBall(ctx, bx, by, 9);
 
-  // Contact guide behind the ball
+  // Ground guide
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
-  ctx.moveTo(bx - 40, gy + 2);
-  ctx.lineTo(bx + 42, gy + 2);
+  ctx.moveTo(bx - 38, gy + 2);
+  ctx.lineTo(bx + 54, gy + 2);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Golfer silhouette farther right so it is clearly behind the ball
-  const gx = w * 0.78;
-  const gbase = gy;
-  const gs = h * 0.0038;
+  // Hands and club clearly to the right of the ball
+  const handsX = w * 0.72;
+  const handsY = gy - 92;
 
-  function gp(ox, oy) {
-    return [gx + ox * gs * 14, gbase - oy * gs * 14];
-  }
+  const clubHeadX = bx - 8;   // slightly behind the ball
+  const clubHeadY = by + 1;
 
+  // Minimal golfer silhouette on the right side
   ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.09)';
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.26)';
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
   // Head
-  const [hx, hy] = gp(0.2, 13.6);
   ctx.beginPath();
-  ctx.arc(hx, hy, gs * 8.8, 0, Math.PI * 2);
+  ctx.arc(w * 0.72, gy - 126, 8, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
 
   // Torso
-  const [neckX, neckY] = gp(-0.2, 12.2);
-  const [hipX, hipY] = gp(-3.2, 7.2);
+  ctx.lineWidth = 5;
   ctx.beginPath();
-  ctx.moveTo(neckX, neckY);
-  ctx.bezierCurveTo(neckX - 4, neckY + 12, hipX + 8, hipY - 8, hipX, hipY);
-  ctx.lineWidth = gs * 8;
+  ctx.moveTo(w * 0.72, gy - 117);
+  ctx.lineTo(w * 0.69, gy - 78);
   ctx.stroke();
 
   // Front leg
-  const [knee1X, knee1Y] = gp(-4.2, 3.8);
-  const [foot1X, foot1Y] = gp(-4.0, 0);
+  ctx.lineWidth = 4.5;
   ctx.beginPath();
-  ctx.moveTo(hipX, hipY);
-  ctx.quadraticCurveTo(knee1X, knee1Y, foot1X, foot1Y);
-  ctx.lineWidth = gs * 6;
+  ctx.moveTo(w * 0.69, gy - 78);
+  ctx.lineTo(w * 0.66, gy - 18);
   ctx.stroke();
 
   // Back leg
-  const [knee2X, knee2Y] = gp(-2.1, 3.7);
-  const [foot2X, foot2Y] = gp(-1.4, 0);
   ctx.beginPath();
-  ctx.moveTo(hipX, hipY);
-  ctx.quadraticCurveTo(knee2X, knee2Y, foot2X, foot2Y);
-  ctx.lineWidth = gs * 5.5;
+  ctx.moveTo(w * 0.69, gy - 78);
+  ctx.lineTo(w * 0.76, gy - 18);
   ctx.stroke();
 
-  // Shoulders / arms to hands
-  const [shoulderX, shoulderY] = gp(-0.9, 10.5);
-  const handsX = bx + 22;
-  const handsY = by - 7;
+  // Arm to hands
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(shoulderX, shoulderY);
-  ctx.bezierCurveTo(shoulderX - 12, shoulderY + 18, handsX + 18, handsY - 10, handsX, handsY);
-  ctx.lineWidth = gs * 5;
+  ctx.moveTo(w * 0.705, gy - 98);
+  ctx.quadraticCurveTo(w * 0.65, gy - 92, handsX, handsY);
   ctx.stroke();
 
-  // Shaft from hands to clubhead, ending just behind the ball
-  const clubHeadX = bx - 10;
-  const clubHeadY = by + 1;
-  ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+  // Shaft
+  ctx.strokeStyle = 'rgba(255,255,255,0.34)';
   ctx.lineWidth = 2.2;
   ctx.beginPath();
   ctx.moveTo(handsX, handsY);
@@ -594,20 +581,20 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
 
   ctx.restore();
 
-  // Swing path — keep it behind the ball and finish after impact
+  // Swing path
   const rad = you * Math.PI / 180;
-  const arcR = w * 0.42;
+  const arcR = w * 0.40;
   const ix = clubHeadX;
   const iy = clubHeadY;
 
-  const backX = ix - arcR * 0.82;
-  const backY = iy - arcR * 0.48;
-  const fwdX = ix + arcR * 0.44;
-  const fwdY = iy - arcR * (0.14 + you * 0.02);
+  const backX = ix - arcR * 0.86;
+  const backY = iy - arcR * 0.50;
+  const fwdX = ix + arcR * 0.48;
+  const fwdY = iy - arcR * (0.12 + you * 0.02);
 
-  const cp1x = ix - arcR * 0.48;
-  const cp1y = iy + Math.sin(rad) * arcR * 0.34 - 10;
-  const cp2x = ix + arcR * 0.16;
+  const cp1x = ix - arcR * 0.52;
+  const cp1y = iy + Math.sin(rad) * arcR * 0.35 - 10;
+  const cp2x = ix + arcR * 0.18;
   const cp2y = iy - Math.sin(rad) * arcR * 0.28;
 
   ctx.strokeStyle = ac;
@@ -629,11 +616,11 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const fwdAngle = Math.atan2(fwdY - cp2y, fwdX - cp2x);
   drawArrow(ctx, fwdX, fwdY, fwdAngle, ac, 10);
 
-  // Ideal path ghost
+  // Ideal ghost path
   const irad = ideal * Math.PI / 180;
-  const icp1y = iy + Math.sin(irad) * arcR * 0.34 - 10;
+  const icp1y = iy + Math.sin(irad) * arcR * 0.35 - 10;
   const icp2y = iy - Math.sin(irad) * arcR * 0.28;
-  const ifwdY = iy - arcR * (0.14 + ideal * 0.02);
+  const ifwdY = iy - arcR * (0.12 + ideal * 0.02);
 
   ctx.strokeStyle = '#00d68f';
   ctx.lineWidth = 1.5;
@@ -646,7 +633,7 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  // Clubhead at impact stays behind the ball
+  // Clubhead at impact
   ctx.save();
   ctx.translate(ix, iy);
   ctx.rotate(-rad + (you < 0 ? 0.12 : -0.12));
@@ -663,10 +650,9 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // Ball on top so nothing appears in front of it
+  // Ball on top so nothing overlaps visually
   drawBall(ctx, bx, by, 9);
 
-  // Angle badge
   ctx.fillStyle = ac;
   ctx.font = `700 28px 'Barlow Condensed', sans-serif`;
   ctx.textAlign = 'left';
@@ -677,18 +663,16 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.fillText('ATTACK ANGLE', 14, 52);
 
   ctx.fillStyle = '#00d68f';
-  ctx.globalAlpha = 0.55;
+  ctx.globalAlpha = 0.65;
   ctx.font = `500 10px 'DM Mono', monospace`;
   ctx.fillText(`IDEAL ${ideal > 0 ? '+' : ''}${ideal}°`, 14, 66);
   ctx.globalAlpha = 1;
 
-  // Small impact label
   ctx.font = `500 9px 'DM Mono', monospace`;
-  ctx.fillStyle = 'rgba(255,255,255,0.34)';
+  ctx.fillStyle = 'rgba(255,255,255,0.36)';
   ctx.textAlign = 'center';
   ctx.fillText('IMPACT', bx, gy + 18);
 
-  // Divot only for downward iron-style strike
   if (you < -2) {
     const dx = bx + 28;
     ctx.fillStyle = '#3a2008';
