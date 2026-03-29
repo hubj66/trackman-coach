@@ -488,9 +488,11 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const gy = h * 0.67;
   drawSkyGround(ctx, w, h, gy / h);
 
-  const bx = w * 0.30;
+  // Ball slightly left of center
+  const bx = w * 0.38;
   const by = gy - 11;
 
+  // Tee
   if (isDriver || you > 0) {
     ctx.fillStyle = '#c8963a';
     ctx.beginPath();
@@ -509,68 +511,48 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
 
   drawBall(ctx, bx, by, 9);
 
+  // Ground guide
   ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
-  ctx.moveTo(bx - 38, gy + 2);
-  ctx.lineTo(bx + 54, gy + 2);
+  ctx.moveTo(bx - 40, gy + 2);
+  ctx.lineTo(bx + 60, gy + 2);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Human silhouette closer to your reference image
-  const px = w * 0.72;
+  // Player centered around ball / right leg area
+  const px = bx + 6;
 
-  const headX = px + 10;
-  const headY = gy - 130;
+  const headX = px + 12;
+  const headY = gy - 104;
 
-  const neckX = px + 2;
-  const neckY = gy - 120;
+  const neckX = px + 5;
+  const neckY = gy - 95;
 
-  // Move player closer to ball
-  const px = w * 0.58;
-  
-  // Head
-  const headX = px + 6;
-  const headY = gy - 95;
-  
-  // Upper body
-  const shoulderX = px;
-  const shoulderY = gy - 78;
-  
-  // Hips
-  // Center the player around the ball/right leg area
-  const px = bx + 10;
-  
-  // Head
-  const headX = px + 8;
-  const headY = gy - 102;
-  
-  // Upper body
-  const shoulderX = px + 2;
+  const shoulderX = px + 1;
   const shoulderY = gy - 82;
-  
-  // Hips
+
   const hipX = px - 2;
   const hipY = gy - 50;
-  
-  // Right leg stays near center / ball area
-  const frontKneeX = bx + 2;
+
+  // Right leg near center / ball area
+  const frontKneeX = bx + 4;
   const frontKneeY = gy - 24;
-  const frontFootX = bx + 4;
+  const frontFootX = bx + 6;
   const frontFootY = gy;
-  
-  // Left leg goes out to the left
-  const backKneeX = px + 20;
+
+  // Left leg goes left
+  const backKneeX = px + 22;
   const backKneeY = gy - 28;
-  const backFootX = px + 30;
+  const backFootX = px + 34;
   const backFootY = gy;
-  
-  // Hands just above and a bit right of the ball
-  const handsX = bx + 18;
+
+  // Hands slightly right and above the ball
+  const handsX = bx + 20;
   const handsY = by - 30;
-  
-  // Club target
+
+  // Shaft target = just behind ball
   const shaftTargetX = bx - 4;
   const shaftTargetY = by + 1;
 
@@ -596,7 +578,7 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.lineWidth = 6;
   ctx.beginPath();
   ctx.moveTo(shoulderX, shoulderY);
-  ctx.quadraticCurveTo(px - 6, gy - 96, hipX, hipY);
+  ctx.quadraticCurveTo(px - 8, gy - 96, hipX, hipY);
   ctx.stroke();
 
   // Front leg (weight side)
@@ -617,13 +599,13 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.lineWidth = 4.5;
   ctx.beginPath();
   ctx.moveTo(shoulderX - 2, shoulderY);
-  ctx.quadraticCurveTo(px - 18, gy - 92, handsX, handsY);
+  ctx.quadraticCurveTo(px - 12, gy - 90, handsX, handsY);
   ctx.stroke();
 
   // Right arm
   ctx.beginPath();
   ctx.moveTo(shoulderX + 8, shoulderY - 2);
-  ctx.quadraticCurveTo(px - 8, gy - 88, handsX + 5, handsY - 2);
+  ctx.quadraticCurveTo(px + 2, gy - 88, handsX + 4, handsY - 2);
   ctx.stroke();
 
   ctx.restore();
@@ -652,6 +634,7 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const cp2x = ix + arcR * 0.18;
   const cp2y = iy - Math.sin(rad) * arcR * 0.28;
 
+  // Main swing path
   ctx.strokeStyle = ac;
   ctx.lineWidth = 12;
   ctx.globalAlpha = 0.07;
@@ -671,6 +654,7 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const fwdAngle = Math.atan2(fwdY - cp2y, fwdX - cp2x);
   drawArrow(ctx, fwdX, fwdY, fwdAngle, ac, 10);
 
+  // Ideal ghost path
   const irad = ideal * Math.PI / 180;
   const icp1y = iy + Math.sin(irad) * arcR * 0.35 - 10;
   const icp2y = iy - Math.sin(irad) * arcR * 0.28;
@@ -722,8 +706,10 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
 
   ctx.restore();
 
+  // Ball again on top
   drawBall(ctx, bx, by, 9);
 
+  // Labels
   ctx.fillStyle = ac;
   ctx.font = `700 28px 'Barlow Condensed', sans-serif`;
   ctx.textAlign = 'left';
