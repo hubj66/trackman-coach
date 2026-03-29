@@ -527,26 +527,38 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const neckX = px + 2;
   const neckY = gy - 120;
 
-  const hipX = px - 8;
-  const hipY = gy - 74;
-
-  const frontKneeX = px - 22;
-  const frontKneeY = gy - 38;
-  const frontFootX = px - 36;
+  // Move player closer to ball
+  const px = w * 0.58;
+  
+  // Head
+  const headX = px + 6;
+  const headY = gy - 95;
+  
+  // Upper body
+  const shoulderX = px;
+  const shoulderY = gy - 78;
+  
+  // Hips
+  const hipX = px - 4;
+  const hipY = gy - 48;
+  
+  // Legs (more compact stance)
+  const frontKneeX = px - 16;
+  const frontKneeY = gy - 22;
+  const frontFootX = px - 24;
   const frontFootY = gy;
-
-  const backKneeX = px + 18;
-  const backKneeY = gy - 42;
-  const backFootX = px + 30;
-  const backFootY = gy - 2;
-
-  const shoulderX = px + 0;
-  const shoulderY = gy - 108;
-
-  const handsX = px - 42;
-  const handsY = gy - 66;
-
-  const shaftTargetX = bx - 6;
+  
+  const backKneeX = px + 14;
+  const backKneeY = gy - 26;
+  const backFootX = px + 20;
+  const backFootY = gy;
+  
+  // Hands MUCH closer to ball (key fix)
+  const handsX = bx + 26;
+  const handsY = by - 32;
+  
+  // Club target
+  const shaftTargetX = bx - 4;
   const shaftTargetY = by + 1;
 
   ctx.save();
