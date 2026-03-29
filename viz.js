@@ -541,18 +541,18 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const leftFootY = gy;
 
   // Upper body bent slightly left
-  const shoulderX = hipX - 10;
-  const shoulderY = gy - 84;
+  const shoulderX = hipX - 4;
+  const shoulderY = gy - 82;
 
-  const neckX = shoulderX - 2;
+  const neckX = shoulderX - 1;
   const neckY = shoulderY - 10;
 
-  const headX = neckX - 2;
+  const headX = neckX - 1;
   const headY = neckY - 12;
 
-  // Hands above and just to the right of the ball
-  const handsX = bx + 18;
-  const handsY = by - 30;
+  // Hands a bit lower and slightly right of the ball
+  const handsX = bx + 16;
+  const handsY = by - 26;
 
   // Club target = just behind ball
   const shaftTargetX = bx - 4;
@@ -591,24 +591,58 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.lineTo(rightFootX, rightFootY);
   ctx.stroke();
 
-  // Left leg on screen = back leg, diagonal
+    ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillStyle = 'rgba(255,255,255,0.11)';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Head
+  ctx.beginPath();
+  ctx.arc(headX, headY, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Neck
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(neckX, neckY);
+  ctx.lineTo(shoulderX, shoulderY);
+  ctx.stroke();
+
+  // Torso: more upright, then slightly bent left
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.quadraticCurveTo(hipX - 2, gy - 76, hipX, hipY);
+  ctx.stroke();
+
+  // Right leg on screen = front leg, almost straight and centered
+  ctx.lineWidth = 5.8;
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.lineTo(rightKneeX, rightKneeY);
+  ctx.lineTo(rightFootX, rightFootY);
+  ctx.stroke();
+
+  // Left leg on screen = back leg, clearly diagonal
   ctx.lineWidth = 5;
   ctx.beginPath();
   ctx.moveTo(hipX, hipY);
-  ctx.quadraticCurveTo(leftKneeX, leftKneeY, leftFootX, leftFootY);
+  ctx.lineTo(leftKneeX, leftKneeY);
+  ctx.lineTo(leftFootX, leftFootY);
   ctx.stroke();
 
-  // Front arm
-  ctx.lineWidth = 4.5;
+  // Lead arm: more vertical from shoulder toward hands
+  ctx.lineWidth = 4.6;
   ctx.beginPath();
-  ctx.moveTo(shoulderX - 1, shoulderY);
-  ctx.quadraticCurveTo(shoulderX - 18, gy - 90, handsX, handsY);
+  ctx.moveTo(shoulderX - 2, shoulderY + 2);
+  ctx.lineTo(handsX - 2, handsY - 2);
   ctx.stroke();
 
-  // Back arm
+  // Trail arm: bent and tucked closer to body
   ctx.beginPath();
-  ctx.moveTo(shoulderX + 9, shoulderY - 2);
-  ctx.quadraticCurveTo(shoulderX - 6, gy - 86, handsX + 4, handsY - 2);
+  ctx.moveTo(shoulderX + 8, shoulderY);
+  ctx.quadraticCurveTo(shoulderX + 2, gy - 76, handsX + 4, handsY);
   ctx.stroke();
 
   ctx.restore();
