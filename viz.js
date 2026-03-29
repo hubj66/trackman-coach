@@ -25,8 +25,15 @@ function sc(id, h) {
   const c = document.getElementById(id);
   if (!c) return null;
   const dpr = Math.min(window.devicePixelRatio || 2, 3);
-  const parentW = c.parentElement.clientWidth;
-  const w = parentW > 0 ? parentW : window.innerWidth - 36;
+  // Walk up to find first ancestor with a real width
+  let ancestor = c.parentElement;
+  let parentW = 0;
+  while (ancestor && ancestor !== document.body) {
+    parentW = ancestor.clientWidth;
+    if (parentW > 0) break;
+    ancestor = ancestor.parentElement;
+  }
+  const w = parentW > 0 ? parentW - 28 : window.innerWidth - 36;
   c.width = w * dpr; c.height = h * dpr;
   c.style.width = w + 'px'; c.style.height = h + 'px';
   const ctx = c.getContext('2d');
@@ -573,5 +580,6 @@ function drawVizs() {
     </div>`;
   }).join('');
 
-  setTimeout(() => panels.forEach(p => p.fn()), 40);
+  // Double rAF ensures browser has reflowed before we measure canvas width
+  requestAnimationFrame(() => requestAnimationFrame(() => panels.forEach(p => p.fn())));
 }

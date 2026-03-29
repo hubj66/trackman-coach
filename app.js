@@ -46,6 +46,11 @@ function openAcc(id) {
   const el = document.getElementById('acc-' + id);
   if (!el || el.classList.contains('open')) return;
   el.classList.add('open');
+  // For numbers accordion, set a generous max-height to accommodate sub-accordions
+  if (id === 'numbers') {
+    const body = document.getElementById('acc-body-numbers');
+    if (body) body.style.maxHeight = '4000px';
+  }
 }
 
 // ── Sub-accordion ──────────────────────────────────────────────────────────
