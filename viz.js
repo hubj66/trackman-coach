@@ -66,13 +66,10 @@ function T() {
     green:   d ? '#00d68f' : '#00a86b',
     amber:   d ? '#ffaa00' : '#d4880a',
     red:     d ? '#ff4d4d' : '#d93030',
-    fairway: d ? '#1a2e1a' : '#6db84a',
-    rough:   d ? '#0e1e0e' : '#4a9030',
     stripe1: d ? '#1e3420' : '#78c455',
     stripe2: d ? '#182818' : '#65b040',
     sky1:    d ? '#060c14' : '#c5e0f8',
     sky2:    d ? '#0e1a28' : '#e8f4ff',
-    ground:  d ? '#1a2e1a' : '#6db84a',
     gr1:     d ? '#1e3420' : '#78c455',
     gr2:     d ? '#182818' : '#65b040',
   };
@@ -521,35 +518,34 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Only club
-  const handsX = w * 0.72;
-  const handsY = gy - 92;
+  // More realistic club-only setup for driver / side view
+  const gripX = isDriver ? w * 0.77 : w * 0.73;
+  const gripY = isDriver ? gy - 74 : gy - 88;
 
-  const shaftStartX = handsX;
-  const shaftStartY = handsY;
+  const shaftTargetX = bx - 6;
+  const shaftTargetY = by + 1;
 
-  const clubHeadX = bx - 8;
-  const clubHeadY = by + 1;
-
-  // Grip point
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.beginPath();
-  ctx.arc(shaftStartX, shaftStartY, 4.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Shaft
-  ctx.strokeStyle = 'rgba(255,255,255,0.34)';
-  ctx.lineWidth = 2.2;
+  // Grip cap
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 5;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(shaftStartX, shaftStartY);
-  ctx.lineTo(clubHeadX, clubHeadY);
+  ctx.moveTo(gripX + 8, gripY - 6);
+  ctx.lineTo(gripX - 8, gripY + 6);
+  ctx.stroke();
+
+  // Shaft
+  ctx.strokeStyle = 'rgba(255,255,255,0.36)';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(gripX, gripY);
+  ctx.lineTo(shaftTargetX, shaftTargetY);
   ctx.stroke();
 
   const rad = you * Math.PI / 180;
   const arcR = w * 0.40;
-  const ix = clubHeadX;
-  const iy = clubHeadY;
+  const ix = shaftTargetX;
+  const iy = shaftTargetY;
 
   const backX = ix - arcR * 0.86;
   const backY = iy - arcR * 0.50;
@@ -596,20 +592,39 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
+  // Clubhead: larger and more driver-like when driver selected
   ctx.save();
   ctx.translate(ix, iy);
-  ctx.rotate(-rad + (you < 0 ? 0.12 : -0.12));
-  ctx.fillStyle = '#2c3238';
-  ctx.beginPath();
-  ctx.roundRect(-7, -9, 24, 18, 3);
-  ctx.fill();
-  ctx.shadowColor = ac;
-  ctx.shadowBlur = 8;
-  ctx.fillStyle = ac;
-  ctx.beginPath();
-  ctx.roundRect(-7, -9, 5, 18, [2, 0, 0, 2]);
-  ctx.fill();
-  ctx.shadowBlur = 0;
+  ctx.rotate(isDriver ? (-0.10 - rad * 0.12) : (-rad + (you < 0 ? 0.12 : -0.12)));
+
+  if (isDriver) {
+    ctx.fillStyle = '#252b31';
+    ctx.beginPath();
+    ctx.roundRect(-9, -11, 28, 21, 7);
+    ctx.fill();
+
+    ctx.shadowColor = ac;
+    ctx.shadowBlur = 9;
+    ctx.fillStyle = ac;
+    ctx.beginPath();
+    ctx.roundRect(-9, -11, 6, 21, [4, 0, 0, 4]);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  } else {
+    ctx.fillStyle = '#2c3238';
+    ctx.beginPath();
+    ctx.roundRect(-7, -9, 24, 18, 3);
+    ctx.fill();
+
+    ctx.shadowColor = ac;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = ac;
+    ctx.beginPath();
+    ctx.roundRect(-7, -9, 5, 18, [2, 0, 0, 2]);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
   ctx.restore();
 
   drawBall(ctx, bx, by, 9);
