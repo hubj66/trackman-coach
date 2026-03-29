@@ -273,11 +273,39 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* ── Viz slider embedded ─────────────────────────────────────────────────── */
-.viz-slider { border-top:0.5px solid var(--border); }
-.viz-slider .irow { border-top:none; border-bottom:none; background:transparent; padding:10px 14px 8px; }
-.viz-slider .irow-lbl { font-size:12px; }
-.viz-slider .irow-val { font-size:14px; }
-.viz-slider .irow-labels { font-size:8px; }
+.viz-slider {
+  border-top:0.5px solid var(--border);
+  background:rgba(255,255,255,0.01);
+}
+.viz-slider .irow {
+  border-top:none;
+  border-bottom:none;
+  background:transparent;
+  padding:12px 16px 12px;
+}
+.viz-slider .irow-lbl {
+  font-size:14px;
+  color:var(--text);
+}
+.viz-slider .irow-val {
+  font-size:22px;
+  font-weight:500;
+}
+.viz-slider .irow-labels {
+  font-size:11px;
+  color:#aab2bc;
+  margin-top:10px;
+}
+.viz-slider .irow-labels .ideal-lbl {
+  font-size:11px;
+  font-weight:500;
+}
+.viz-slider input[type=range]::-webkit-slider-runnable-track {
+  height:4px;
+}
+.viz-slider input[type=range]::-moz-range-track {
+  height:4px;
+}
 
 /* ── Shot shape ──────────────────────────────────────────────────────────── */
 .shot-wrap { padding:0 18px 14px; }
