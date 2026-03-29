@@ -518,27 +518,97 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // More realistic club-only setup for driver / side view
-  const gripX = isDriver ? w * 0.77 : w * 0.73;
-  const gripY = isDriver ? gy - 74 : gy - 88;
+  // Human silhouette closer to your reference image
+  const px = w * 0.72;
+
+  const headX = px + 10;
+  const headY = gy - 130;
+
+  const neckX = px + 2;
+  const neckY = gy - 120;
+
+  const hipX = px - 8;
+  const hipY = gy - 74;
+
+  const frontKneeX = px - 22;
+  const frontKneeY = gy - 38;
+  const frontFootX = px - 36;
+  const frontFootY = gy;
+
+  const backKneeX = px + 18;
+  const backKneeY = gy - 42;
+  const backFootX = px + 30;
+  const backFootY = gy - 2;
+
+  const shoulderX = px + 0;
+  const shoulderY = gy - 108;
+
+  const handsX = px - 42;
+  const handsY = gy - 66;
 
   const shaftTargetX = bx - 6;
   const shaftTargetY = by + 1;
 
-  // Grip cap
-  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-  ctx.lineWidth = 5;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillStyle = 'rgba(255,255,255,0.11)';
   ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Head
   ctx.beginPath();
-  ctx.moveTo(gripX + 8, gripY - 6);
-  ctx.lineTo(gripX - 8, gripY + 6);
+  ctx.arc(headX, headY, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Neck / upper body
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(neckX, neckY);
+  ctx.lineTo(shoulderX, shoulderY);
   ctx.stroke();
 
-  // Shaft
-  ctx.strokeStyle = 'rgba(255,255,255,0.36)';
-  ctx.lineWidth = 2.2;
+  // Bent torso
+  ctx.lineWidth = 6;
   ctx.beginPath();
-  ctx.moveTo(gripX, gripY);
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.quadraticCurveTo(px - 6, gy - 96, hipX, hipY);
+  ctx.stroke();
+
+  // Front leg (weight side)
+  ctx.lineWidth = 5.5;
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.quadraticCurveTo(frontKneeX, frontKneeY, frontFootX, frontFootY);
+  ctx.stroke();
+
+  // Back leg
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.quadraticCurveTo(backKneeX, backKneeY, backFootX, backFootY);
+  ctx.stroke();
+
+  // Left arm
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(shoulderX - 2, shoulderY);
+  ctx.quadraticCurveTo(px - 18, gy - 92, handsX, handsY);
+  ctx.stroke();
+
+  // Right arm
+  ctx.beginPath();
+  ctx.moveTo(shoulderX + 8, shoulderY - 2);
+  ctx.quadraticCurveTo(px - 8, gy - 88, handsX + 5, handsY - 2);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // Shaft
+  ctx.strokeStyle = 'rgba(255,255,255,0.34)';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(handsX, handsY);
   ctx.lineTo(shaftTargetX, shaftTargetY);
   ctx.stroke();
 
@@ -592,10 +662,10 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  // Clubhead: larger and more driver-like when driver selected
+  // Clubhead
   ctx.save();
   ctx.translate(ix, iy);
-  ctx.rotate(isDriver ? (-0.10 - rad * 0.12) : (-rad + (you < 0 ? 0.12 : -0.12)));
+  ctx.rotate(isDriver ? (-0.12 - rad * 0.10) : (-rad + (you < 0 ? 0.12 : -0.12)));
 
   if (isDriver) {
     ctx.fillStyle = '#252b31';
