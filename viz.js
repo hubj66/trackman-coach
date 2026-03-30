@@ -488,13 +488,17 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const gy = h * 0.67;
   drawSkyGround(ctx, w, h, gy / h);
 
+  // ball
+  const bx = w * 0.5;
+  const by = gy - 11;
+  
   // Stance reference first
-  const rightFootX = w * 0.45;
+  const rightFootX = bx - 5
   const rightFootY = gy;
 
   // Ball position: almost on front foot for driver, a bit inside for irons
-  const bx = rightFootX - (isDriver ? 2 : 10);
-  const by = gy - 11;
+  // const bx = rightFootX - (isDriver ? 2 : 10);
+  // const by = gy - 11;
 
   // Tee
   if (isDriver || you > 0) {
