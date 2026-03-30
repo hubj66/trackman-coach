@@ -771,6 +771,7 @@ const el = document.getElementById(did);
 if (!el) return;
 const diff = Math.abs(you - ideal);
 el.innerHTML = `<b style="color:${ac}">${you > 0 ? '+' : ''}${Math.round(you)}°</b> attack &nbsp;·&nbsp; <b style="color:#00d68f">target ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${diff < 1 ? 'On target!' : you > -2 && !isDriver ? 'Too level — hitting up. Classic scoop. Push toward negative.' : you > 4 && isDriver ? 'Very upward — check tee height and ball position.' : 'Getting there — keep pushing toward target.'}`;
+}
 
 // ── Replacement drawVizs with embedded sliders ─────────────────────────────
 function drawVizs() {
