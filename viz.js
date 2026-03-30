@@ -479,295 +479,298 @@ function drawPathBoth(cid, did, you, ideal, updateDesc) {
 
 function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const r = sc(cid, 240);
-  if (!r) return;
+if (!r) return;
 
-  const { ctx, w, h } = r;
-  const ac = kpiColor('attack', you);
-  const isDriver = club === 'driver';
+const { ctx, w, h } = r;
+const ac = kpiColor('attack', you);
+const isDriver = club === 'driver';
 
-  const gy = h * 0.67;
-  drawSkyGround(ctx, w, h, gy / h);
+const gy = h * 0.67;
+drawSkyGround(ctx, w, h, gy / h);
 
-  // ball
-  const bx = w * 0.5;
-  const by = gy - 11;
-  
-  // Stance reference first
-  const rightFootX = bx - 5
-  const rightFootY = gy;
+// ball
+const bx = w * 0.5;
+const by = gy - 11;
 
-  // Ball position: almost on front foot for driver, a bit inside for irons
-  // const bx = rightFootX - (isDriver ? 2 : 10);
-  // const by = gy - 11;
+// stance reference first
+const rightFootX = bx - 5;
+const rightFootY = gy;
 
-  // Tee
-  if (isDriver || you > 0) {
-    ctx.fillStyle = '#c8963a';
-    ctx.beginPath();
-    ctx.moveTo(bx - 4, by);
-    ctx.lineTo(bx + 4, by);
-    ctx.lineTo(bx + 2.5, by + 18);
-    ctx.lineTo(bx - 2.5, by + 18);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#e8b050';
-    ctx.beginPath();
-    ctx.ellipse(bx, by, 7, 3.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  drawBall(ctx, bx, by, 9);
-
-  // Ground guide
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
+// Tee
+if (isDriver || you > 0) {
+  ctx.fillStyle = '#c8963a';
   ctx.beginPath();
-  ctx.moveTo(bx - 44, gy + 2);
-  ctx.lineTo(bx + 66, gy + 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // ---- Mirrored posture ----
-  // Right leg on screen = front leg, nearly straight, centered
-  // Ball sits just left / slightly inside that leg
-  const rightKneeX = rightFootX - 2;
-  const rightKneeY = gy - 26;
-
-  const hipX = rightFootX - 8;
-  const hipY = gy - 52;
-
-  // Left leg on screen = back leg, diagonal
-  const leftKneeX = rightFootX - 26;
-  const leftKneeY = gy - 32;
-  const leftFootX = rightFootX - 42;
-  const leftFootY = gy;
-
-  // Upper body bent slightly left
-  const shoulderX = hipX - 4;
-  const shoulderY = gy - 82;
-
-  const neckX = shoulderX - 1;
-  const neckY = shoulderY - 10;
-
-  const headX = neckX - 1;
-  const headY = neckY - 12;
-
-  // Hands a bit lower and slightly right of the ball
-  const handsX = bx + 16;
-  const handsY = by - 26;
-
-  // Club target = just behind ball
-  const shaftTargetX = bx - 4;
-  const shaftTargetY = by + 1;
-
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillStyle = 'rgba(255,255,255,0.11)';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-    ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillStyle = 'rgba(255,255,255,0.11)';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // Head
-  ctx.beginPath();
-  ctx.arc(headX, headY, 8, 0, Math.PI * 2);
+  ctx.moveTo(bx - 4, by);
+  ctx.lineTo(bx + 4, by);
+  ctx.lineTo(bx + 2.5, by + 18);
+  ctx.lineTo(bx - 2.5, by + 18);
+  ctx.closePath();
   ctx.fill();
 
-  // Neck
-  ctx.lineWidth = 4;
+  ctx.fillStyle = '#e8b050';
   ctx.beginPath();
-  ctx.moveTo(neckX, neckY);
-  ctx.lineTo(shoulderX, shoulderY);
-  ctx.stroke();
-
-  // Torso: more upright, then slightly bent left
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(shoulderX, shoulderY);
-  ctx.quadraticCurveTo(hipX - 2, gy - 76, hipX, hipY);
-  ctx.stroke();
-
-  // Right leg on screen = front leg, almost straight and centered
-  ctx.lineWidth = 5.8;
-  ctx.beginPath();
-  ctx.moveTo(hipX, hipY);
-  ctx.lineTo(rightKneeX, rightKneeY);
-  ctx.lineTo(rightFootX, rightFootY);
-  ctx.stroke();
-
-  // Left leg on screen = back leg, clearly diagonal
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(hipX, hipY);
-  ctx.lineTo(leftKneeX, leftKneeY);
-  ctx.lineTo(leftFootX, leftFootY);
-  ctx.stroke();
-
-  // Lead arm: more vertical from shoulder toward hands
-  ctx.lineWidth = 4.6;
-  ctx.beginPath();
-  ctx.moveTo(shoulderX - 2, shoulderY + 2);
-  ctx.lineTo(handsX - 2, handsY - 2);
-  ctx.stroke();
-
-  // Trail arm: bent and tucked closer to body
-  ctx.beginPath();
-  ctx.moveTo(shoulderX + 8, shoulderY);
-  ctx.quadraticCurveTo(shoulderX + 2, gy - 76, handsX + 4, handsY);
-  ctx.stroke();
-
-  ctx.restore();
-
-  // Shaft
-  ctx.strokeStyle = 'rgba(255,255,255,0.34)';
-  ctx.lineWidth = 2.2;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(handsX, handsY);
-  ctx.lineTo(shaftTargetX, shaftTargetY);
-  ctx.stroke();
-
-  const rad = you * Math.PI / 180;
-  const arcR = w * 0.40;
-  const ix = shaftTargetX;
-  const iy = shaftTargetY;
-
-  const backX = ix - arcR * 0.86;
-  const backY = iy - arcR * 0.50;
-  const fwdX = ix + arcR * 0.48;
-  const fwdY = iy - arcR * (0.12 + you * 0.02);
-
-  const cp1x = ix - arcR * 0.52;
-  const cp1y = iy + Math.sin(rad) * arcR * 0.35 - 10;
-  const cp2x = ix + arcR * 0.18;
-  const cp2y = iy - Math.sin(rad) * arcR * 0.28;
-
-  // Main swing path
-  ctx.strokeStyle = ac;
-  ctx.lineWidth = 12;
-  ctx.globalAlpha = 0.07;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(backX, backY);
-  ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
-  ctx.stroke();
-
-  ctx.lineWidth = 3;
-  ctx.globalAlpha = 1;
-  ctx.beginPath();
-  ctx.moveTo(backX, backY);
-  ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
-  ctx.stroke();
-
-  const fwdAngle = Math.atan2(fwdY - cp2y, fwdX - cp2x);
-  drawArrow(ctx, fwdX, fwdY, fwdAngle, ac, 10);
-
-  // Ideal ghost path
-  const irad = ideal * Math.PI / 180;
-  const icp1y = iy + Math.sin(irad) * arcR * 0.35 - 10;
-  const icp2y = iy - Math.sin(irad) * arcR * 0.28;
-  const ifwdY = iy - arcR * (0.12 + ideal * 0.02);
-
-  ctx.strokeStyle = '#00d68f';
-  ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.25;
-  ctx.setLineDash([6, 5]);
-  ctx.beginPath();
-  ctx.moveTo(backX, backY);
-  ctx.bezierCurveTo(cp1x, icp1y, cp2x, icp2y, fwdX, ifwdY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
-
-  // Clubhead
-  ctx.save();
-  ctx.translate(ix, iy);
-  ctx.rotate(isDriver ? (-0.12 - rad * 0.10) : (-rad + (you < 0 ? 0.12 : -0.12)));
-
-  if (isDriver) {
-    ctx.fillStyle = '#252b31';
-    ctx.beginPath();
-    ctx.roundRect(-9, -11, 28, 21, 7);
-    ctx.fill();
-
-    ctx.shadowColor = ac;
-    ctx.shadowBlur = 9;
-    ctx.fillStyle = ac;
-    ctx.beginPath();
-    ctx.roundRect(-9, -11, 6, 21, [4, 0, 0, 4]);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  } else {
-    ctx.fillStyle = '#2c3238';
-    ctx.beginPath();
-    ctx.roundRect(-7, -9, 24, 18, 3);
-    ctx.fill();
-
-    ctx.shadowColor = ac;
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = ac;
-    ctx.beginPath();
-    ctx.roundRect(-7, -9, 5, 18, [2, 0, 0, 2]);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
-
-  ctx.restore();
-
-  // Ball again on top
-  drawBall(ctx, bx, by, 9);
-
-  // Labels
-  ctx.fillStyle = ac;
-  ctx.font = `700 28px 'Barlow Condensed', sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.fillText((you > 0 ? '+' : '') + Math.round(you) + '°', 14, 38);
-
-  ctx.font = `500 10px 'DM Mono', monospace`;
-  ctx.fillStyle = '#3a4550';
-  ctx.fillText('ATTACK ANGLE', 14, 52);
-
-  ctx.fillStyle = '#00d68f';
-  ctx.globalAlpha = 0.65;
-  ctx.font = `500 10px 'DM Mono', monospace`;
-  ctx.fillText(`IDEAL ${ideal > 0 ? '+' : ''}${ideal}°`, 14, 66);
-  ctx.globalAlpha = 1;
-
-  ctx.font = `500 9px 'DM Mono', monospace`;
-  ctx.fillStyle = 'rgba(255,255,255,0.36)';
-  ctx.textAlign = 'center';
-  ctx.fillText('IMPACT', bx, gy + 18);
-
-  if (you < -2) {
-    const dx = bx + 28;
-    ctx.fillStyle = '#3a2008';
-    ctx.beginPath();
-    ctx.ellipse(dx, gy + 5, 22, 7, 0.1, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#5a3818';
-    ctx.beginPath();
-    ctx.ellipse(dx, gy + 4, 14, 5, 0.1, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#00d68f';
-    ctx.globalAlpha = 0.7;
-    ctx.font = `600 9px 'Barlow Condensed', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('DIVOT ✓', dx, gy + 20);
-    ctx.globalAlpha = 1;
-  }
-
-  if (!updateDesc) return;
-  const el = document.getElementById(did);
-  if (!el) return;
-  const diff = Math.abs(you - ideal);
-  el.innerHTML = `<b style="color:${ac}">${you > 0 ? '+' : ''}${Math.round(you)}°</b> attack &nbsp;·&nbsp; <b style="color:#00d68f">target ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${diff < 1 ? 'On target!' : you > -2 && !isDriver ? 'Too level — hitting up. Classic scoop. Push toward negative.' : you > 4 && isDriver ? 'Very upward — check tee height and ball position.' : 'Getting there — keep pushing toward target.'}`;
+  ctx.ellipse(bx, by, 7, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
+
+drawBall(ctx, bx, by, 9);
+
+// Ground guide
+ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+ctx.lineWidth = 1;
+ctx.setLineDash([4, 4]);
+ctx.beginPath();
+ctx.moveTo(bx - 44, gy + 2);
+ctx.lineTo(bx + 66, gy + 2);
+ctx.stroke();
+ctx.setLineDash([]);
+
+// ---- posture ----
+// front leg on screen
+const rightKneeX = rightFootX - 2;
+const rightKneeY = gy - 24;
+
+// wider driver stance
+const leftFootX = rightFootX - 58;
+const leftFootY = gy;
+const leftKneeX = leftFootX + 22;
+const leftKneeY = gy - 28;
+
+// hips / torso
+const hipX = rightFootX - 8;
+const hipY = gy - 75;
+
+const shoulderX = hipX - 12;
+const shoulderY = gy - 125;
+
+const neckX = shoulderX - 5;
+const neckY = shoulderY - 15;
+
+// trail shoulder slightly lower, lead shoulder slightly higher
+const shoulderLeftX = neckX - 15;
+const shoulderLeftY = gy - 115;
+
+const shoulderRightX = neckX + 20;
+const shoulderRightY = gy - 135;
+
+// head a bit higher than before
+const headX = neckX - 1;
+const headY = neckY - 16;
+
+// hands slightly more natural for driver
+const handsX = bx + 2;
+const handsY = by - 48;
+
+// shaft a touch longer / flatter
+const shaftTargetX = bx - 2;
+const shaftTargetY = by + 3;
+
+ctx.save();
+ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+ctx.fillStyle = 'rgba(255,255,255,0.11)';
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+// Head
+ctx.beginPath();
+ctx.arc(headX, headY, 8, 0, Math.PI * 2);
+ctx.fill();
+
+// Neck
+ctx.lineWidth = 4;
+ctx.beginPath();
+ctx.moveTo(neckX, neckY);
+ctx.lineTo(shoulderX, shoulderY);
+ctx.stroke();
+
+// Shoulders
+ctx.lineWidth = 5;
+ctx.beginPath();
+ctx.moveTo(shoulderLeftX, shoulderLeftY);
+ctx.lineTo(shoulderRightX, shoulderRightY);
+ctx.stroke();
+
+// Torso
+ctx.lineWidth = 6;
+ctx.beginPath();
+ctx.moveTo(shoulderX, shoulderY);
+ctx.quadraticCurveTo(hipX - 2, gy - 76, hipX, hipY);
+ctx.stroke();
+
+// Front leg
+ctx.lineWidth = 5.8;
+ctx.beginPath();
+ctx.moveTo(hipX, hipY);
+ctx.lineTo(rightKneeX, rightKneeY);
+ctx.lineTo(rightFootX, rightFootY);
+ctx.stroke();
+
+// Back leg
+ctx.lineWidth = 5;
+ctx.beginPath();
+ctx.moveTo(hipX, hipY);
+ctx.lineTo(leftKneeX, leftKneeY);
+ctx.lineTo(leftFootX, leftFootY);
+ctx.stroke();
+
+// Lead arm
+ctx.lineWidth = 4.6;
+ctx.beginPath();
+ctx.moveTo(shoulderRightX, shoulderRightY);
+ctx.lineTo(handsX, handsY);
+ctx.stroke();
+
+// Trail arm - slightly bent, less strange than a straight mirror line
+ctx.beginPath();
+ctx.moveTo(shoulderLeftX, shoulderLeftY);
+ctx.quadraticCurveTo(shoulderX - 2, gy - 95, handsX + 3, handsY + 1);
+ctx.stroke();
+
+ctx.restore();
+
+// Shaft
+ctx.strokeStyle = 'rgba(255,255,255,0.34)';
+ctx.lineWidth = 2.2;
+ctx.lineCap = 'round';
+ctx.beginPath();
+ctx.moveTo(handsX, handsY);
+ctx.lineTo(shaftTargetX, shaftTargetY);
+ctx.stroke();
+
+const rad = you * Math.PI / 180;
+const arcR = w * 0.40;
+const ix = shaftTargetX;
+const iy = shaftTargetY;
+
+const backX = ix - arcR * 0.86;
+const backY = iy - arcR * 0.50;
+const fwdX = ix + arcR * 0.48;
+const fwdY = iy - arcR * (0.12 + you * 0.02);
+
+const cp1x = ix - arcR * 0.52;
+const cp1y = iy + Math.sin(rad) * arcR * 0.35 - 10;
+const cp2x = ix + arcR * 0.18;
+const cp2y = iy - Math.sin(rad) * arcR * 0.28;
+
+// Main swing path
+ctx.strokeStyle = ac;
+ctx.lineWidth = 12;
+ctx.globalAlpha = 0.07;
+ctx.lineCap = 'round';
+ctx.beginPath();
+ctx.moveTo(backX, backY);
+ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
+ctx.stroke();
+
+ctx.lineWidth = 3;
+ctx.globalAlpha = 1;
+ctx.beginPath();
+ctx.moveTo(backX, backY);
+ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, fwdX, fwdY);
+ctx.stroke();
+
+const fwdAngle = Math.atan2(fwdY - cp2y, fwdX - cp2x);
+drawArrow(ctx, fwdX, fwdY, fwdAngle, ac, 10);
+
+// Ideal ghost path
+const irad = ideal * Math.PI / 180;
+const icp1y = iy + Math.sin(irad) * arcR * 0.35 - 10;
+const icp2y = iy - Math.sin(irad) * arcR * 0.28;
+const ifwdY = iy - arcR * (0.12 + ideal * 0.02);
+
+ctx.strokeStyle = '#00d68f';
+ctx.lineWidth = 1.5;
+ctx.globalAlpha = 0.25;
+ctx.setLineDash([6, 5]);
+ctx.beginPath();
+ctx.moveTo(backX, backY);
+ctx.bezierCurveTo(cp1x, icp1y, cp2x, icp2y, fwdX, ifwdY);
+ctx.stroke();
+ctx.setLineDash([]);
+ctx.globalAlpha = 1;
+
+// Clubhead
+ctx.save();
+ctx.translate(ix, iy);
+ctx.rotate(isDriver ? (-0.12 - rad * 0.10) : (-rad + (you < 0 ? 0.12 : -0.12)));
+
+if (isDriver) {
+  ctx.fillStyle = '#252b31';
+  ctx.beginPath();
+  ctx.roundRect(-9, -11, 28, 21, 7);
+  ctx.fill();
+
+  ctx.shadowColor = ac;
+  ctx.shadowBlur = 9;
+  ctx.fillStyle = ac;
+  ctx.beginPath();
+  ctx.roundRect(-9, -11, 6, 21, [4, 0, 0, 4]);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+} else {
+  ctx.fillStyle = '#2c3238';
+  ctx.beginPath();
+  ctx.roundRect(-7, -9, 24, 18, 3);
+  ctx.fill();
+
+  ctx.shadowColor = ac;
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = ac;
+  ctx.beginPath();
+  ctx.roundRect(-7, -9, 5, 18, [2, 0, 0, 2]);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+ctx.restore();
+
+// Ball again on top
+drawBall(ctx, bx, by, 9);
+
+// Labels
+ctx.fillStyle = ac;
+ctx.font = `700 28px 'Barlow Condensed', sans-serif`;
+ctx.textAlign = 'left';
+ctx.fillText((you > 0 ? '+' : '') + Math.round(you) + '°', 14, 38);
+
+ctx.font = `500 10px 'DM Mono', monospace`;
+ctx.fillStyle = '#3a4550';
+ctx.fillText('ATTACK ANGLE', 14, 52);
+
+ctx.fillStyle = '#00d68f';
+ctx.globalAlpha = 0.65;
+ctx.font = `500 10px 'DM Mono', monospace`;
+ctx.fillText(`IDEAL ${ideal > 0 ? '+' : ''}${ideal}°`, 14, 66);
+ctx.globalAlpha = 1;
+
+ctx.font = `500 9px 'DM Mono', monospace`;
+ctx.fillStyle = 'rgba(255,255,255,0.36)';
+ctx.textAlign = 'center';
+ctx.fillText('IMPACT', bx, gy + 18);
+
+if (you < -2) {
+  const dx = bx + 28;
+  ctx.fillStyle = '#3a2008';
+  ctx.beginPath();
+  ctx.ellipse(dx, gy + 5, 22, 7, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#5a3818';
+  ctx.beginPath();
+  ctx.ellipse(dx, gy + 4, 14, 5, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#00d68f';
+  ctx.globalAlpha = 0.7;
+  ctx.font = `600 9px 'Barlow Condensed', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('DIVOT ✓', dx, gy + 20);
+  ctx.globalAlpha = 1;
+}
+
+if (!updateDesc) return;
+const el = document.getElementById(did);
+if (!el) return;
+const diff = Math.abs(you - ideal);
+el.innerHTML = `<b style="color:${ac}">${you > 0 ? '+' : ''}${Math.round(you)}°</b> attack &nbsp;·&nbsp; <b style="color:#00d68f">target ${ideal > 0 ? '+' : ''}${ideal}°</b><br>${diff < 1 ? 'On target!' : you > -2 && !isDriver ? 'Too level — hitting up. Classic scoop. Push toward negative.' : you > 4 && isDriver ? 'Very upward — check tee height and ball position.' : 'Getting there — keep pushing toward target.'}`;
 
 // ── Replacement drawVizs with embedded sliders ─────────────────────────────
 function drawVizs() {
