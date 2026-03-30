@@ -564,33 +564,6 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // Head
-  ctx.beginPath();
-  ctx.arc(headX, headY, 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Neck / upper body
-  ctx.lineWidth = 4.5;
-  ctx.beginPath();
-  ctx.moveTo(neckX, neckY);
-  ctx.lineTo(shoulderX, shoulderY);
-  ctx.stroke();
-
-  // Torso leaning left
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(shoulderX, shoulderY);
-  ctx.quadraticCurveTo(hipX - 8, gy - 95, hipX, hipY);
-  ctx.stroke();
-
-  // Right leg on screen = front leg, more straight
-  ctx.lineWidth = 5.8;
-  ctx.beginPath();
-  ctx.moveTo(hipX, hipY);
-  ctx.lineTo(rightKneeX, rightKneeY);
-  ctx.lineTo(rightFootX, rightFootY);
-  ctx.stroke();
-
     ctx.save();
   ctx.strokeStyle = 'rgba(255,255,255,0.25)';
   ctx.fillStyle = 'rgba(255,255,255,0.11)';
