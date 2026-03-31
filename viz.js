@@ -554,8 +554,8 @@ const shoulderRightX = neckX + 18;
 const shoulderRightY = gy - 120;
 
 // head slightly bigger and connected better to neck
-const headX = neckX - 1;
-const headY = neckY - 10;
+const headX = neckX - 3;
+const headY = neckY - 9.5;
 const headR = 10;
 
 // hands a bit higher/closer so the whole figure reads smaller
