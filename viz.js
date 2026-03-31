@@ -536,30 +536,31 @@ const leftFootY = gy;
 const leftKneeX = leftFootX + 22;
 const leftKneeY = gy - 28;
 
-// hips / torso
-const hipX = rightFootX - 8;
-const hipY = gy - 75;
+// hips / torso — a bit smaller overall
+const hipX = rightFootX - 7;
+const hipY = gy - 68;
 
-const shoulderX = hipX - 12;
-const shoulderY = gy - 125;
+const shoulderX = hipX - 10;
+const shoulderY = gy - 112;
 
-const neckX = shoulderX - 5;
-const neckY = shoulderY - 15;
+const neckX = shoulderX - 3;
+const neckY = shoulderY - 11;
 
 // trail shoulder slightly lower, lead shoulder slightly higher
-const shoulderLeftX = neckX - 15;
-const shoulderLeftY = gy - 115;
+const shoulderLeftX = neckX - 13;
+const shoulderLeftY = gy - 104;
 
-const shoulderRightX = neckX + 20;
-const shoulderRightY = gy - 135;
+const shoulderRightX = neckX + 18;
+const shoulderRightY = gy - 120;
 
-// head a bit higher than before
-const headX = neckX - 1;
-const headY = neckY - 16;
+// head slightly bigger and connected better to neck
+const headX = neckX;
+const headY = neckY - 11;
+const headR = 9;
 
-// hands slightly more natural for driver
-const handsX = bx + 2;
-const handsY = by - 48;
+// hands a bit higher/closer so the whole figure reads smaller
+const handsX = bx + 4;
+const handsY = by - 42;
 
 // shaft a touch longer / flatter
 const shaftTargetX = bx - 2;
