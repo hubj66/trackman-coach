@@ -218,69 +218,64 @@
   <div id="page-stats" class="page-section" style="display:none;">
     <div class="main">
 
-      <div class="acc open">
-        <div class="acc-head">
-          <div class="acc-title">TrackMan</div>
-        </div>
-        <div class="acc-body" style="max-height:4000px;opacity:1;">
-          <div style="padding:16px;">
-            <div id="stats-trackman-summary">No TrackMan stats loaded yet.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="acc open">
-        <div class="acc-head">
-          <div class="acc-title">Chipping</div>
-        </div>
-        <div class="acc-body" style="max-height:4000px;opacity:1;">
-          <div style="padding:16px;">
-            <div class="stats-card" style="margin-bottom:12px;">
-              <div class="form-grid">
-                <input id="chip-date" type="date">
-                <input id="chip-distance" type="number" step="0.1" placeholder="Distance (m)">
-                <input id="chip-club" type="text" placeholder="Club (e.g. PW)">
-                <input id="chip-attempts" type="number" placeholder="Attempts">
-                <input id="chip-in1" type="number" placeholder="Inside 1m">
-                <input id="chip-in2" type="number" placeholder="1–2m">
-                <input id="chip-in3" type="number" placeholder="2–3m">
-                <input id="chip-out3" type="number" placeholder="Outside 3m">
-                <input id="chip-success" type="number" step="0.1" placeholder="Success target (optional)">
-                <input id="chip-notes" type="text" placeholder="Notes">
+            <div class="acc open">
+              <div class="acc-head">
+                <div class="acc-title">Chipping</div>
               </div>
-              <div style="margin-top:12px;">
-                <button id="add-chip-btn" type="button">Add chipping session</button>
+              <div class="acc-body" style="max-height:4000px;opacity:1;">
+                <div style="padding:16px;">
+                  <div class="stats-card" style="margin-bottom:12px;">
+                    <div class="form-grid">
+                      <input id="chip-date" type="date">
+                      <input id="chip-distance" type="number" step="0.1" placeholder="Distance (m)">
+                      <input id="chip-club" type="text" placeholder="Club (e.g. PW)">
+                      <input id="chip-attempts" type="number" placeholder="Attempts">
+                      <input id="chip-in1" type="number" placeholder="Inside 1m">
+                      <input id="chip-in2" type="number" placeholder="1–2m">
+                      <input id="chip-in3" type="number" placeholder="2–3m">
+                      <input id="chip-out3" type="number" placeholder="Outside 3m">
+                      <input id="chip-success" type="number" step="0.1" placeholder="Success target (optional)">
+                      <input id="chip-notes" type="text" placeholder="Notes">
+                    </div>
+                    <div style="margin-top:12px;" class="inline-actions">
+                      <button id="add-chip-btn" type="button">Add chipping session</button>
+                      <button id="update-chip-btn" type="button" style="display:none;">Update chipping session</button>
+                      <button id="cancel-chip-edit-btn" type="button" style="display:none;">Cancel edit</button>
+                    </div>
+                  </div>
+      
+                  <div id="stats-chipping-summary">No chipping data yet.</div>
+                  <div id="stats-chipping-list" style="margin-top:12px;"></div>
+                </div>
               </div>
             </div>
-
-            <div id="stats-chipping-summary">No chipping data yet.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="acc open">
-        <div class="acc-head">
-          <div class="acc-title">Putting</div>
-        </div>
-        <div class="acc-body" style="max-height:4000px;opacity:1;">
-          <div style="padding:16px;">
-            <div class="stats-card" style="margin-bottom:12px;">
-              <div class="form-grid">
-                <input id="putt-date" type="date">
-                <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)">
-                <input id="putt-holed" type="number" placeholder="Holed">
-                <input id="putt-total" type="number" placeholder="Total attempts">
-                <input id="putt-notes" class="form-span-2" type="text" placeholder="Notes">
+      
+            <div class="acc open">
+              <div class="acc-head">
+                <div class="acc-title">Putting</div>
               </div>
-              <div style="margin-top:12px;">
-                <button id="add-putt-btn" type="button">Add putting session</button>
+              <div class="acc-body" style="max-height:4000px;opacity:1;">
+                <div style="padding:16px;">
+                  <div class="stats-card" style="margin-bottom:12px;">
+                    <div class="form-grid">
+                      <input id="putt-date" type="date">
+                      <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)">
+                      <input id="putt-holed" type="number" placeholder="Holed">
+                      <input id="putt-total" type="number" placeholder="Total attempts">
+                      <input id="putt-notes" class="form-span-2" type="text" placeholder="Notes">
+                    </div>
+                    <div style="margin-top:12px;" class="inline-actions">
+                      <button id="add-putt-btn" type="button">Add putting session</button>
+                      <button id="update-putt-btn" type="button" style="display:none;">Update putting session</button>
+                      <button id="cancel-putt-edit-btn" type="button" style="display:none;">Cancel edit</button>
+                    </div>
+                  </div>
+      
+                  <div id="stats-putting-summary">No putting data yet.</div>
+                  <div id="stats-putting-list" style="margin-top:12px;"></div>
+                </div>
               </div>
             </div>
-
-            <div id="stats-putting-summary">No putting data yet.</div>
-          </div>
-        </div>
-      </div>
 
     </div>
   </div>
