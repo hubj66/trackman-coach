@@ -5,8 +5,6 @@ let rangeMode = 'realistic';
 const vals = {};
 let lastColor = {};
 
-// ── Club selector ──────────────────────────────────────────────────────────
-
 function sel(id, el) {
   club = id;
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
@@ -14,8 +12,6 @@ function sel(id, el) {
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
 }
-
-// ── Range mode ─────────────────────────────────────────────────────────────
 
 function setRangeMode(mode) {
   if (mode !== 'realistic' && mode !== 'good') return;
@@ -27,17 +23,15 @@ function setRangeMode(mode) {
 }
 
 function updateModeButtons() {
-  const realisticBtn = document.getElementById('mode-realistic');
-  const goodBtn      = document.getElementById('mode-good');
-  if (realisticBtn) realisticBtn.classList.toggle('on', rangeMode === 'realistic');
-  if (goodBtn)      goodBtn.classList.toggle('on', rangeMode === 'good');
+  const r = document.getElementById('mode-realistic');
+  const g = document.getElementById('mode-good');
+  if (r) r.classList.toggle('on', rangeMode === 'realistic');
+  if (g) g.classList.toggle('on', rangeMode === 'good');
 }
 
-function getRangeLabel()  { return rangeMode === 'good' ? 'Good target' : 'Realistic'; }
-function getIdealRange(inp) { return inp[rangeMode] || inp.realistic || inp.ideal; }
-function getKpiDisplayValue(kpi) { return kpi[rangeMode] || kpi.realistic || kpi.v || ''; }
-
-// ── Accordion ──────────────────────────────────────────────────────────────
+function getRangeLabel()   { return rangeMode === 'good' ? 'Good target' : 'Realistic'; }
+function getIdealRange(inp){ return inp[rangeMode] || inp.realistic || inp.ideal; }
+function getKpiDisplayValue(kpi){ return kpi[rangeMode] || kpi.realistic || kpi.v || ''; }
 
 function toggleAcc(id) {
   const el = document.getElementById('acc-' + id);
@@ -70,8 +64,6 @@ function openAcc(id) {
   }
 }
 
-// ── Sub-accordion ──────────────────────────────────────────────────────────
-
 function toggleSub(id) {
   const head = document.getElementById('sub-head-' + id);
   const body = document.getElementById('sub-body-' + id);
@@ -80,10 +72,8 @@ function toggleSub(id) {
   head.classList.toggle('open');
   body.classList.toggle('open');
   body.style.maxHeight = '';
-  body.style.opacity   = '';
+  body.style.opacity = '';
 }
-
-// ── Colors ─────────────────────────────────────────────────────────────────
 
 function getColorAdapted(inp, v) {
   const [lo, hi] = getIdealRange(inp);
@@ -93,23 +83,19 @@ function getColorAdapted(inp, v) {
   return '#ff4d4d';
 }
 function getColor(inp, v) { return getColorAdapted(inp, v); }
-function fillPct(inp, v)  { return Math.round((v - inp.min) / (inp.max - inp.min) * 100); }
-function dispVal(inp, v)  { if (inp.scale) return (v / inp.scale).toFixed(inp.dp || 2) + inp.unit; return v + inp.unit; }
+function fillPct(inp, v) { return Math.round((v - inp.min) / (inp.max - inp.min) * 100); }
+function dispVal(inp, v) { return inp.scale ? (v / inp.scale).toFixed(inp.dp || 2) + inp.unit : v + inp.unit; }
 function formatIdealValue(val, inp) {
   if (inp.scale) return (val / inp.scale).toFixed(inp.dp || 2);
-  if (Number.isInteger(val)) return String(val);
-  return String(val);
+  return Number.isInteger(val) ? String(val) : String(val);
 }
 function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
-// ── Slider builder ─────────────────────────────────────────────────────────
-
 function buildSlider(inp, v, prefix) {
-  const col     = getColorAdapted(inp, v);
-  const pct     = fillPct(inp, v);
-  const ideal   = getIdealRange(inp);
+  const col = getColorAdapted(inp, v);
+  const pct = fillPct(inp, v);
+  const ideal = getIdealRange(inp);
   const idealStr = `${getRangeLabel().toLowerCase()} ${formatIdealValue(ideal[0], inp)}${inp.unit.trim()} → ${formatIdealValue(ideal[1], inp)}${inp.unit.trim()}`;
-
   return `<div class="irow" id="${prefix}row-${inp.id}">
     <div class="irow-top">
       <span class="irow-lbl">${inp.l}</span>
@@ -126,8 +112,6 @@ function buildSlider(inp, v, prefix) {
     </div>
   </div>`;
 }
-
-// ── Render ─────────────────────────────────────────────────────────────────
 
 function badgeToClass(bt) {
   return bt === 'Critical' ? 'critical' : bt === 'Important' ? 'important' : 'watch';
@@ -164,9 +148,7 @@ function render() {
       const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
       return buildSlider(inp, v, 'main-');
     }).join('');
-  } else {
-    secEl.style.display = 'none';
-  }
+  } else { secEl.style.display = 'none'; }
 
   const advEl = document.getElementById('advanced-section');
   if (C.advanced?.length) {
@@ -176,16 +158,14 @@ function render() {
       const v = vals[club][inp.id] !== undefined ? vals[club][inp.id] : inp.def;
       return buildSlider(inp, v, 'main-');
     }).join('');
-  } else {
-    advEl.style.display = 'none';
-  }
+  } else { advEl.style.display = 'none'; }
 
   const hasFace = C.primary.find(i => i.id === 'face');
   const hasPath = C.primary.find(i => i.id === 'path');
   document.getElementById('acc-shot').style.display =
     (hasFace && hasPath && club !== 'putter') ? 'block' : 'none';
 
-  ['secondary', 'advanced'].forEach(id => {
+  ['secondary','advanced'].forEach(id => {
     const head = document.getElementById('sub-head-' + id);
     const body = document.getElementById('sub-body-' + id);
     if (head) head.classList.remove('open');
@@ -194,61 +174,44 @@ function render() {
 
   diagnose();
 
-  const vizAcc = document.getElementById('acc-viz');
-  if (vizAcc?.classList.contains('open')) {
+  if (document.getElementById('acc-viz')?.classList.contains('open')) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
       drawVizs();
     }));
   }
-
-  const shotAcc = document.getElementById('acc-shot');
-  if (shotAcc?.classList.contains('open')) {
+  if (document.getElementById('acc-shot')?.classList.contains('open')) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (typeof _drawShotShape === 'function') _drawShotShape();
     }));
   }
 }
 
-// ── Slider update ──────────────────────────────────────────────────────────
-
 function onSlider(id, v, prefix) {
   if (!vals[club]) vals[club] = {};
   vals[club][id] = v;
   const inp = getAllInputs(club).find(i => i.id === id);
   if (!inp) return;
-
-  const col     = getColorAdapted(inp, v);
-  const pct     = fillPct(inp, v);
-  const ideal   = getIdealRange(inp);
+  const col = getColorAdapted(inp, v);
+  const pct = fillPct(inp, v);
+  const ideal = getIdealRange(inp);
   const idealStr = `${getRangeLabel().toLowerCase()} ${formatIdealValue(ideal[0], inp)}${inp.unit.trim()} → ${formatIdealValue(ideal[1], inp)}${inp.unit.trim()}`;
-
-  if (lastColor[id] && lastColor[id] !== col) {
-    vibrate(col === '#00d68f' ? 25 : [8, 8, 8]);
-  }
+  if (lastColor[id] && lastColor[id] !== col) vibrate(col === '#00d68f' ? 25 : [8,8,8]);
   lastColor[id] = col;
-
-  ['main-', 'viz-'].forEach(pfx => {
+  ['main-','viz-'].forEach(pfx => {
     const valEl = document.getElementById(pfx + 'val-' + id);
     if (valEl) { valEl.textContent = dispVal(inp, v); valEl.style.color = col; }
     const rangeEl = document.getElementById(pfx + 'range-' + id);
-    if (rangeEl) {
-      rangeEl.value = v;
-      rangeEl.style.setProperty('--track-color', col);
-      rangeEl.style.setProperty('--track-pct', pct + '%');
-    }
+    if (rangeEl) { rangeEl.value = v; rangeEl.style.setProperty('--track-color', col); rangeEl.style.setProperty('--track-pct', pct + '%'); }
     const lbl = document.getElementById(pfx + 'row-' + id)?.querySelector('.ideal-lbl');
     if (lbl) { lbl.style.color = col; lbl.textContent = idealStr; }
   });
-
   if (id === 'face' || id === 'path') drawShotShape();
-  if (id === 'face')   triggerFace('vface', 'vdface');
-  if (id === 'path')   triggerPath('vpath', 'vdpath');
-  if (id === 'attack') triggerAttack('vattack', 'vdattack');
+  if (id === 'face')   triggerFace('vface','vdface');
+  if (id === 'path')   triggerPath('vpath','vdpath');
+  if (id === 'attack') triggerAttack('vattack','vdattack');
   diagnose();
 }
-
-// ── Value getter ───────────────────────────────────────────────────────────
 
 function getVal(id) {
   const inp = getAllInputs(club).find(i => i.id === id);
@@ -257,41 +220,28 @@ function getVal(id) {
   return inp.scale ? v / inp.scale : v;
 }
 
-// ── Banner + Tips ──────────────────────────────────────────────────────────
-
 function setBanner(msg, cls) {
   const b = document.getElementById('banner');
-  b.innerHTML = msg;
-  b.className = 'banner ' + cls;
+  b.innerHTML = msg; b.className = 'banner ' + cls;
   const sub = document.getElementById('diag-sub');
-  if (sub) {
-    if (cls === 'banner-bad')  sub.textContent = 'Faults detected';
-    else if (cls === 'banner-good') sub.textContent = 'Numbers look good';
-    else sub.textContent = 'Move sliders to diagnose';
-  }
+  if (sub) sub.textContent = cls === 'banner-bad' ? 'Faults detected' : cls === 'banner-good' ? 'Numbers look good' : 'Move sliders to diagnose';
 }
 
 function setTips(tips) {
-  const cls = ['tip-p1', 'tip-p2', 'tip-p3'];
+  const cls = ['tip-p1','tip-p2','tip-p3'];
   document.getElementById('tiplist').innerHTML = tips.map((t, i) => `
-    <div class="tip-item ${cls[i] || 'tip-p3'}">
-      <span class="tip-num">${i + 1}</span>
-      <span>${t}</span>
+    <div class="tip-item ${cls[i]||'tip-p3'}">
+      <span class="tip-num">${i+1}</span><span>${t}</span>
     </div>`).join('');
-
   openAcc('diag');
-
   const vizAcc = document.getElementById('acc-viz');
   if (vizAcc?.classList.contains('open')) {
-    if (document.getElementById('vface'))   triggerFace('vface', 'vdface');
-    if (document.getElementById('vpath'))   triggerPath('vpath', 'vdpath');
-    if (document.getElementById('vattack')) triggerAttack('vattack', 'vdattack');
+    if (document.getElementById('vface'))   triggerFace('vface','vdface');
+    if (document.getElementById('vpath'))   triggerPath('vpath','vdpath');
+    if (document.getElementById('vattack')) triggerAttack('vattack','vdattack');
   }
-  const shotAcc = document.getElementById('acc-shot');
-  if (shotAcc?.classList.contains('open')) drawShotShape();
+  if (document.getElementById('acc-shot')?.classList.contains('open')) drawShotShape();
 }
-
-// ── Drill request ──────────────────────────────────────────────────────────
 
 function doAsk() {
   vibrate(20);
@@ -304,95 +254,68 @@ function doAsk() {
   if (navigator.share) {
     navigator.share({ title: 'Trackman drill request', text: msg }).catch(() => {});
   } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(msg)
-      .then(() => showToast('Copied — paste into Claude'))
-      .catch(() => prompt('Copy this:', msg));
+    navigator.clipboard.writeText(msg).then(() => showToast('Copied — paste into Claude')).catch(() => prompt('Copy this:', msg));
   } else {
     prompt('Copy this:', msg);
   }
 }
 
-// ── Toast ──────────────────────────────────────────────────────────────────
-
 function showToast(msg) {
   let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity = '1';
   setTimeout(() => t.style.opacity = '0', 2500);
 }
 
-// ── Shot shape ─────────────────────────────────────────────────────────────
-
 function drawShotShape() {
   const C = CLUBS[club];
-  const hasFace = C.primary.find(i => i.id === 'face');
-  const hasPath = C.primary.find(i => i.id === 'path');
-  if (!hasFace || !hasPath || club === 'putter') return;
+  if (!C.primary.find(i=>i.id==='face') || !C.primary.find(i=>i.id==='path') || club==='putter') return;
   if (typeof _drawShotShape === 'function') _drawShotShape();
 }
 
-// ── Page navigation ─────────────────────────────────────────────────────────
-
-const ALL_PAGES = ['coach', 'stats', 'clubs', 'analysis'];
+// ── Page nav — 4 tabs ──────────────────────────────────────────────────────
+const ALL_PAGES = ['coach','stats','clubs','analysis'];
 
 function showPage(page) {
   ALL_PAGES.forEach(id => {
     const pageEl = document.getElementById('page-' + id);
     const btnEl  = document.getElementById('nav-' + id + '-btn');
-    if (pageEl) {
-      pageEl.style.display = id === page ? 'block' : 'none';
-      pageEl.classList.toggle('active', id === page);
-    }
-    if (btnEl) btnEl.classList.toggle('active', id === page);
+    if (pageEl) { pageEl.style.display = id===page?'block':'none'; pageEl.classList.toggle('active', id===page); }
+    if (btnEl)  btnEl.classList.toggle('active', id===page);
   });
 
   if (page === 'coach') {
     Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
     render();
   }
-
-  if ((page === 'stats' || page === 'clubs') && typeof window.loadStatsPage === 'function') {
+  if ((page==='stats'||page==='clubs') && typeof window.loadStatsPage==='function') {
     window.loadStatsPage();
   }
-
-  if (page === 'analysis' && typeof window.initAnalysisTab === 'function') {
+  if (page==='analysis' && typeof window.initAnalysisTab==='function') {
     window.initAnalysisTab();
   }
 }
 
-// ── State save/load ─────────────────────────────────────────────────────────
-
-function getCurrentState() {
-  return { club, rangeMode, vals: JSON.parse(JSON.stringify(vals)) };
-}
+// ── State ──────────────────────────────────────────────────────────────────
+function getCurrentState() { return { club, rangeMode, vals: JSON.parse(JSON.stringify(vals)) }; }
 
 function applyState(state) {
   if (!state) return;
-  if (state.club)      club = state.club;
+  if (state.club) club = state.club;
   if (state.rangeMode) { rangeMode = state.rangeMode; applyRangeModeToClubs(rangeMode); updateModeButtons(); }
-  Object.keys(vals).forEach(key => delete vals[key]);
-  if (state.vals && typeof state.vals === 'object') {
-    Object.entries(state.vals).forEach(([key, value]) => { vals[key] = value; });
-  }
-  document.querySelectorAll('.ctab').forEach(tab => tab.classList.remove('on'));
+  Object.keys(vals).forEach(k => delete vals[k]);
+  if (state.vals) Object.entries(state.vals).forEach(([k,v]) => { vals[k]=v; });
+  document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
+  const tabMap = { driver:0, irons:1, wedge:2, putter:3 };
   const tabs = document.querySelectorAll('.ctab');
-  const tabIndexMap = { driver: 0, irons: 1, wedge: 2, putter: 3 };
-  const activeIndex = tabIndexMap[club];
-  if (tabs[activeIndex]) tabs[activeIndex].classList.add('on');
+  if (tabs[tabMap[club]]) tabs[tabMap[club]].classList.add('on');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
-  showPage('coach');
-  render();
+  showPage('coach'); render();
 }
 
 window.trackmanCoach = { getCurrentState, applyState };
 
 // ── Init ───────────────────────────────────────────────────────────────────
-
 applyRangeModeToClubs(rangeMode);
 updateModeButtons();
 render();
@@ -401,12 +324,9 @@ window.addEventListener('load', () => {
   openAcc('viz');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   drawVizs();
-
   const C = CLUBS[club];
-  const hasFace = C.primary.find(i => i.id === 'face');
-  const hasPath = C.primary.find(i => i.id === 'path');
-  if (hasFace && hasPath && club !== 'putter') {
+  if (C.primary.find(i=>i.id==='face') && C.primary.find(i=>i.id==='path') && club!=='putter') {
     openAcc('shot');
-    if (typeof _drawShotShape === 'function') _drawShotShape();
+    if (typeof _drawShotShape==='function') _drawShotShape();
   }
 });
