@@ -410,6 +410,10 @@ function showPage(page) {
     Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
     render();
   }
+
+  if ((page === 'stats' || page === 'clubs') && typeof window.loadStatsPage === 'function') {
+    window.loadStatsPage();
+  }
 }
 
 function getCurrentState() {
