@@ -2,10 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0e1012">
   <title>Trackman Coach</title>
@@ -29,50 +26,34 @@
         <button id="login-btn" type="button">Log in</button>
       </div>
     </div>
-
     <div id="logged-in-view" style="display:none;">
       <div class="auth-user-row">
         <div>Logged in as: <span id="user-email"></span></div>
         <button id="logout-btn" type="button">Log out</button>
       </div>
-
       <div class="auth-save-row">
         <input id="save-title" type="text" placeholder="Name for this save">
         <button id="save-btn" type="button">Save current stats</button>
       </div>
-
       <div id="saved-list"></div>
     </div>
-
     <div id="auth-message"></div>
   </div>
 
+  <!-- NAV — 4 tabs -->
   <div class="top-nav">
-    <button class="top-nav-btn active" id="nav-coach-btn" type="button" onclick="showPage('coach')">Coach</button>
-    <button class="top-nav-btn" id="nav-stats-btn" type="button" onclick="showPage('stats')">Stats</button>
-    <button class="top-nav-btn" id="nav-clubs-btn" type="button" onclick="showPage('clubs')">Clubs</button>
+    <button class="top-nav-btn active" id="nav-coach-btn"    type="button" onclick="showPage('coach')">Coach</button>
+    <button class="top-nav-btn"        id="nav-stats-btn"    type="button" onclick="showPage('stats')">Stats</button>
+    <button class="top-nav-btn"        id="nav-clubs-btn"    type="button" onclick="showPage('clubs')">Clubs</button>
+    <button class="top-nav-btn"        id="nav-analysis-btn" type="button" onclick="showPage('analysis')">Analysis</button>
   </div>
 
-  <!-- COACH -->
+  <!-- ══ COACH ══════════════════════════════════════════════════════════════ -->
   <div id="page-coach" class="page-section active">
     <div class="mode-wrap">
       <div class="mode-toggle" role="tablist" aria-label="Target mode">
-        <button
-          id="mode-realistic"
-          class="mode-btn on"
-          type="button"
-          onclick="setRangeMode('realistic')"
-        >
-          Realistic Range
-        </button>
-        <button
-          id="mode-good"
-          class="mode-btn"
-          type="button"
-          onclick="setRangeMode('good')"
-        >
-          Good Target
-        </button>
+        <button id="mode-realistic" class="mode-btn on" type="button" onclick="setRangeMode('realistic')">Realistic Range</button>
+        <button id="mode-good"      class="mode-btn"   type="button" onclick="setRangeMode('good')">Good Target</button>
       </div>
     </div>
 
@@ -145,8 +126,7 @@
         <div class="acc-head" onclick="toggleAcc('shot')">
           <div class="acc-icon">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 8v8M8 12h8"/>
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>
             </svg>
           </div>
           <div class="acc-title">Shot shape</div>
@@ -170,8 +150,7 @@
         <div class="acc-head" onclick="toggleAcc('diag')">
           <div class="acc-icon">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="M21 21l-4.35-4.35"/>
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
           </div>
           <div class="acc-title">Diagnosis</div>
@@ -203,108 +182,149 @@
       </div>
 
       <div class="spacer"></div>
-
       <div class="cta-wrap">
         <button class="ask-btn" onclick="doAsk()">
-          Copy drill request for Claude
-          <span>↗</span>
+          Copy drill request for Claude <span>↗</span>
         </button>
       </div>
-
     </div>
   </div>
 
-  <!-- STATS -->
+  <!-- ══ STATS ══════════════════════════════════════════════════════════════ -->
   <div id="page-stats" class="page-section" style="display:none;">
     <div class="main">
 
-            <div class="acc open">
-              <div class="acc-head">
-                <div class="acc-title">Chipping</div>
+      <!-- TrackMan -->
+      <div class="acc open">
+        <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
+          <div class="acc-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg>
+          </div>
+          <div class="acc-title">TrackMan</div>
+          <div class="acc-subtitle">Progress &amp; sessions</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body" style="max-height:4000px;opacity:1;">
+          <div style="padding:16px;">
+            <div id="stats-trackman-summary">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chipping -->
+      <div class="acc open">
+        <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
+          <div class="acc-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
+          </div>
+          <div class="acc-title">Chipping</div>
+          <div class="acc-subtitle">Log &amp; track short game</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body" style="max-height:4000px;opacity:1;">
+          <div style="padding:16px;">
+            <div class="stats-card" style="margin-bottom:12px;">
+              <div class="form-grid">
+                <input id="chip-date"     type="date">
+                <input id="chip-distance" type="number" step="0.1" placeholder="Distance (m)">
+                <input id="chip-club"     type="text"   placeholder="Club (e.g. PW)">
+                <input id="chip-attempts" type="number" placeholder="Attempts">
+                <input id="chip-in1"      type="number" placeholder="Inside 1m">
+                <input id="chip-in2"      type="number" placeholder="1–2m">
+                <input id="chip-in3"      type="number" placeholder="2–3m">
+                <input id="chip-out3"     type="number" placeholder="Outside 3m">
+                <input id="chip-success"  type="number" step="0.1" placeholder="Success target (opt)">
+                <input id="chip-notes"    type="text"   placeholder="Notes">
               </div>
-              <div class="acc-body" style="max-height:4000px;opacity:1;">
-                <div style="padding:16px;">
-                  <div class="stats-card" style="margin-bottom:12px;">
-                    <div class="form-grid">
-                      <input id="chip-date" type="date">
-                      <input id="chip-distance" type="number" step="0.1" placeholder="Distance (m)">
-                      <input id="chip-club" type="text" placeholder="Club (e.g. PW)">
-                      <input id="chip-attempts" type="number" placeholder="Attempts">
-                      <input id="chip-in1" type="number" placeholder="Inside 1m">
-                      <input id="chip-in2" type="number" placeholder="1–2m">
-                      <input id="chip-in3" type="number" placeholder="2–3m">
-                      <input id="chip-out3" type="number" placeholder="Outside 3m">
-                      <input id="chip-success" type="number" step="0.1" placeholder="Success target (optional)">
-                      <input id="chip-notes" type="text" placeholder="Notes">
-                    </div>
-                    <div style="margin-top:12px;" class="inline-actions">
-                      <button id="add-chip-btn" type="button">Add chipping session</button>
-                      <button id="update-chip-btn" type="button" style="display:none;">Update chipping session</button>
-                      <button id="cancel-chip-edit-btn" type="button" style="display:none;">Cancel edit</button>
-                    </div>
-                  </div>
-      
-                  <div id="stats-chipping-summary">No chipping data yet.</div>
-                  <div id="stats-chipping-list" style="margin-top:12px;"></div>
-                </div>
-              </div>
-            </div>
-      
-            <div class="acc open">
-              <div class="acc-head">
-                <div class="acc-title">Putting</div>
-              </div>
-              <div class="acc-body" style="max-height:4000px;opacity:1;">
-                <div style="padding:16px;">
-                  <div class="stats-card" style="margin-bottom:12px;">
-                    <div class="form-grid">
-                      <input id="putt-date" type="date">
-                      <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)">
-                      <input id="putt-holed" type="number" placeholder="Holed">
-                      <input id="putt-total" type="number" placeholder="Total attempts">
-                      <input id="putt-notes" class="form-span-2" type="text" placeholder="Notes">
-                    </div>
-                    <div style="margin-top:12px;" class="inline-actions">
-                      <button id="add-putt-btn" type="button">Add putting session</button>
-                      <button id="update-putt-btn" type="button" style="display:none;">Update putting session</button>
-                      <button id="cancel-putt-edit-btn" type="button" style="display:none;">Cancel edit</button>
-                    </div>
-                  </div>
-      
-                  <div id="stats-putting-summary">No putting data yet.</div>
-                  <div id="stats-putting-list" style="margin-top:12px;"></div>
-                </div>
+              <div style="margin-top:12px;" class="inline-actions">
+                <button id="add-chip-btn"         type="button">Add session</button>
+                <button id="update-chip-btn"      type="button" style="display:none;">Update</button>
+                <button id="cancel-chip-edit-btn" type="button" style="display:none;">Cancel</button>
               </div>
             </div>
+            <div id="stats-chipping-summary">No chipping data yet.</div>
+            <div id="stats-chipping-list" style="margin-top:12px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Putting -->
+      <div class="acc open">
+        <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
+          <div class="acc-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
+          </div>
+          <div class="acc-title">Putting</div>
+          <div class="acc-subtitle">Log &amp; track putts</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body" style="max-height:4000px;opacity:1;">
+          <div style="padding:16px;">
+            <div class="stats-card" style="margin-bottom:12px;">
+              <div class="form-grid">
+                <input id="putt-date"     type="date">
+                <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)">
+                <input id="putt-holed"    type="number" placeholder="Holed">
+                <input id="putt-total"    type="number" placeholder="Total attempts">
+                <input id="putt-notes"    class="form-span-2" type="text" placeholder="Notes">
+              </div>
+              <div style="margin-top:12px;" class="inline-actions">
+                <button id="add-putt-btn"         type="button">Add session</button>
+                <button id="update-putt-btn"      type="button" style="display:none;">Update</button>
+                <button id="cancel-putt-edit-btn" type="button" style="display:none;">Cancel</button>
+              </div>
+            </div>
+            <div id="stats-putting-summary">No putting data yet.</div>
+            <div id="stats-putting-list" style="margin-top:12px;"></div>
+          </div>
+        </div>
+      </div>
 
     </div>
   </div>
 
-  <!-- CLUBS -->
+  <!-- ══ CLUBS ══════════════════════════════════════════════════════════════ -->
   <div id="page-clubs" class="page-section" style="display:none;">
     <div class="main">
-      <div class="acc open">
-        <div class="acc-head">
-          <div class="acc-title">Clubs</div>
-        </div>
-        <div class="acc-body" style="max-height:4000px;opacity:1;">
-          <div id="clubs-overview" style="padding:16px;">
-            No club overview loaded yet.
-          </div>
-        </div>
+      <div class="page-intro">Your bag — tap a club to deep-dive in Analysis.</div>
+      <div id="clubs-overview" style="padding:0 16px 24px;">
+        No club overview loaded yet.
       </div>
+    </div>
+  </div>
+
+  <!-- ══ ANALYSIS ═══════════════════════════════════════════════════════════ -->
+  <div id="page-analysis" class="page-section" style="display:none;">
+    <div class="main">
+
+      <!-- Club selector -->
+      <div class="analysis-club-bar">
+        <div id="analysis-club-tabs" class="analysis-club-tabs"></div>
+      </div>
+
+      <!-- Filter -->
+      <div class="analysis-filter-bar">
+        <div id="analysis-filter-tabs" class="analysis-filter-tabs"></div>
+      </div>
+
+      <!-- Content area -->
+      <div id="analysis-content">
+        <div class="analysis-empty">Select a club above to load data.</div>
+      </div>
+
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js?v=2"></script>
-  <script src="auth.js?v=2"></script>
+  <script src="supabase-config.js?v=3"></script>
+  <script src="auth.js?v=3"></script>
 
   <script src="distances.js?v=2"></script>
   <script src="clubs.js?v=2"></script>
   <script src="viz.js?v=2"></script>
   <script src="shotshape.js?v=2"></script>
   <script src="engine.js?v=2"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
+  <script src="analysis.js?v=1"></script>
 </body>
 </html>
