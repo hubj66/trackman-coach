@@ -1,5 +1,10 @@
 const sb = window.supabaseClient;
 
+let editingChipId = null;
+let editingPuttId = null;
+let chippingCache = [];
+let puttingCache = [];
+
 function msg(text, isError = false) {
   const el = document.getElementById("auth-message");
   if (!el) return;
@@ -80,10 +85,7 @@ async function signUp() {
   const email = document.getElementById("email")?.value?.trim();
   const password = document.getElementById("password")?.value || "";
 
-  const { error } = await sb.auth.signUp({
-    email,
-    password
-  });
+  const { error } = await sb.auth.signUp({ email, password });
 
   if (error) {
     msg(error.message, true);
@@ -97,10 +99,7 @@ async function logIn() {
   const email = document.getElementById("email")?.value?.trim();
   const password = document.getElementById("password")?.value || "";
 
-  const { error } = await sb.auth.signInWithPassword({
-    email,
-    password
-  });
+  const { error } = await sb.auth.signInWithPassword({ email, password });
 
   if (error) {
     msg(error.message, true);
@@ -274,21 +273,27 @@ async function loadTrackmanSummary() {
 
 async function loadChippingSummary() {
   const el = document.getElementById("stats-chipping-summary");
+  const listEl = document.getElementById("stats-chipping-list");
   if (!el) return;
 
   const { data, error } = await sb
     .from("chipping_sessions")
-    .select("session_date, distance_m, club, attempts, success_target, inside_1m, between_1_2m, between_2_3m, outside_3m")
+    .select("id, session_date, distance_m, club, attempts, success_target, inside_1m, between_1_2m, between_2_3m, outside_3m, notes, created_at")
     .order("session_date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(100);
 
   if (error) {
     el.innerHTML = `Error loading chipping stats: ${escapeHtml(error.message)}`;
+    if (listEl) listEl.innerHTML = "";
     return;
   }
 
+  chippingCache = data || [];
+
   if (!data || data.length === 0) {
     el.innerHTML = "No chipping data yet.";
+    if (listEl) listEl.innerHTML = "";
     return;
   }
 
@@ -298,19 +303,6 @@ async function loadChippingSummary() {
   const inside2m = sum(data.map(x => (x.inside_1m || 0) + (x.between_1_2m || 0)));
   const inside3m = sum(data.map(x => (x.inside_1m || 0) + (x.between_1_2m || 0) + (x.between_2_3m || 0)));
 
-  const latest = data.slice(0, 5).map(row => `
-    <tr>
-      <td>${escapeHtml(row.session_date)}</td>
-      <td>${escapeHtml(row.club)}</td>
-      <td>${fmt(row.distance_m, 1)}m</td>
-      <td>${row.attempts}</td>
-      <td>${row.inside_1m || 0}</td>
-      <td>${row.between_1_2m || 0}</td>
-      <td>${row.between_2_3m || 0}</td>
-      <td>${row.outside_3m || 0}</td>
-    </tr>
-  `).join("");
-
   el.innerHTML = `
     <div class="stats-card">
       <div><strong>Sessions:</strong> ${sessions}</div>
@@ -319,62 +311,80 @@ async function loadChippingSummary() {
       <div><strong>Inside 2m:</strong> ${inside2m} (${pct(inside2m, attempts)})</div>
       <div><strong>Inside 3m:</strong> ${inside3m} (${pct(inside3m, attempts)})</div>
     </div>
-
-    <div class="stats-table-wrap">
-      <table class="stats-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Club</th>
-            <th>Dist</th>
-            <th>Att</th>
-            <th>&lt;1m</th>
-            <th>1–2m</th>
-            <th>2–3m</th>
-            <th>&gt;3m</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${latest}
-        </tbody>
-      </table>
-    </div>
   `;
+
+  if (listEl) {
+    listEl.innerHTML = `
+      <div class="stats-table-wrap">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Club</th>
+              <th>Dist</th>
+              <th>Att</th>
+              <th>&lt;1m</th>
+              <th>1–2m</th>
+              <th>2–3m</th>
+              <th>&gt;3m</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.slice(0, 10).map(row => `
+              <tr>
+                <td>${escapeHtml(row.session_date)}</td>
+                <td>${escapeHtml(row.club)}</td>
+                <td>${fmt(row.distance_m, 1)}m</td>
+                <td>${row.attempts}</td>
+                <td>${row.inside_1m || 0}</td>
+                <td>${row.between_1_2m || 0}</td>
+                <td>${row.between_2_3m || 0}</td>
+                <td>${row.outside_3m || 0}</td>
+                <td>
+                  <div class="inline-actions">
+                    <button onclick="startEditChippingSession('${row.id}')">Edit</button>
+                    <button onclick="deleteChippingSession('${row.id}')">Delete</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
 }
 
 async function loadPuttingSummary() {
   const el = document.getElementById("stats-putting-summary");
+  const listEl = document.getElementById("stats-putting-list");
   if (!el) return;
 
   const { data, error } = await sb
     .from("putting_sessions")
-    .select("session_date, distance_m, holed, total")
+    .select("id, session_date, distance_m, holed, total, notes, created_at")
     .order("session_date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(100);
 
   if (error) {
     el.innerHTML = `Error loading putting stats: ${escapeHtml(error.message)}`;
+    if (listEl) listEl.innerHTML = "";
     return;
   }
 
+  puttingCache = data || [];
+
   if (!data || data.length === 0) {
     el.innerHTML = "No putting data yet.";
+    if (listEl) listEl.innerHTML = "";
     return;
   }
 
   const sessions = data.length;
   const holed = sum(data.map(x => x.holed));
   const total = sum(data.map(x => x.total));
-
-  const latest = data.slice(0, 5).map(row => `
-    <tr>
-      <td>${escapeHtml(row.session_date)}</td>
-      <td>${fmt(row.distance_m, 1)}m</td>
-      <td>${row.holed}</td>
-      <td>${row.total}</td>
-      <td>${pct(row.holed, row.total)}</td>
-    </tr>
-  `).join("");
 
   el.innerHTML = `
     <div class="stats-card">
@@ -383,24 +393,43 @@ async function loadPuttingSummary() {
       <div><strong>Holed:</strong> ${holed}</div>
       <div><strong>Make rate:</strong> ${pct(holed, total)}</div>
     </div>
-
-    <div class="stats-table-wrap">
-      <table class="stats-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Dist</th>
-            <th>Holed</th>
-            <th>Total</th>
-            <th>Rate</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${latest}
-        </tbody>
-      </table>
-    </div>
   `;
+
+  if (listEl) {
+    listEl.innerHTML = `
+      <div class="stats-table-wrap">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Dist</th>
+              <th>Holed</th>
+              <th>Total</th>
+              <th>Rate</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.slice(0, 10).map(row => `
+              <tr>
+                <td>${escapeHtml(row.session_date)}</td>
+                <td>${fmt(row.distance_m, 1)}m</td>
+                <td>${row.holed}</td>
+                <td>${row.total}</td>
+                <td>${pct(row.holed, row.total)}</td>
+                <td>
+                  <div class="inline-actions">
+                    <button onclick="startEditPuttingSession('${row.id}')">Edit</button>
+                    <button onclick="deletePuttingSession('${row.id}')">Delete</button>
+                  </div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
 }
 
 async function loadClubsOverview() {
@@ -530,6 +559,112 @@ async function addChippingSession() {
   await loadChippingSummary();
 }
 
+async function updateChippingSession() {
+  if (!editingChipId) return;
+
+  const session_date = document.getElementById("chip-date")?.value;
+  const distance_m = Number(document.getElementById("chip-distance")?.value);
+  const club = document.getElementById("chip-club")?.value?.trim();
+  const attempts = Number(document.getElementById("chip-attempts")?.value);
+  const inside_1m = Number(document.getElementById("chip-in1")?.value || 0);
+  const between_1_2m = Number(document.getElementById("chip-in2")?.value || 0);
+  const between_2_3m = Number(document.getElementById("chip-in3")?.value || 0);
+  const outside_3m = Number(document.getElementById("chip-out3")?.value || 0);
+  const success_target_raw = document.getElementById("chip-success")?.value;
+  const notes = document.getElementById("chip-notes")?.value?.trim() || null;
+
+  if (!session_date || !club || !distance_m || !attempts) {
+    msg("Please fill date, distance, club and attempts", true);
+    return;
+  }
+
+  const bucketTotal = inside_1m + between_1_2m + between_2_3m + outside_3m;
+  if (bucketTotal > attempts) {
+    msg("Bucket totals cannot be more than attempts", true);
+    return;
+  }
+
+  const success_target =
+    success_target_raw === "" || success_target_raw == null
+      ? null
+      : Number(success_target_raw);
+
+  const { error } = await sb
+    .from("chipping_sessions")
+    .update({
+      session_date,
+      distance_m,
+      club,
+      attempts,
+      success_target,
+      inside_1m,
+      between_1_2m,
+      between_2_3m,
+      outside_3m,
+      notes
+    })
+    .eq("id", editingChipId);
+
+  if (error) {
+    msg(error.message, true);
+    return;
+  }
+
+  msg("Chipping session updated");
+  cancelEditChippingSession();
+  await loadChippingSummary();
+}
+
+function startEditChippingSession(id) {
+  const row = chippingCache.find(x => x.id === id);
+  if (!row) return;
+
+  editingChipId = id;
+
+  document.getElementById("chip-date").value = row.session_date || "";
+  document.getElementById("chip-distance").value = row.distance_m ?? "";
+  document.getElementById("chip-club").value = row.club || "";
+  document.getElementById("chip-attempts").value = row.attempts ?? "";
+  document.getElementById("chip-in1").value = row.inside_1m ?? 0;
+  document.getElementById("chip-in2").value = row.between_1_2m ?? 0;
+  document.getElementById("chip-in3").value = row.between_2_3m ?? 0;
+  document.getElementById("chip-out3").value = row.outside_3m ?? 0;
+  document.getElementById("chip-success").value = row.success_target ?? "";
+  document.getElementById("chip-notes").value = row.notes || "";
+
+  document.getElementById("add-chip-btn").style.display = "none";
+  document.getElementById("update-chip-btn").style.display = "inline-block";
+  document.getElementById("cancel-chip-edit-btn").style.display = "inline-block";
+}
+
+function cancelEditChippingSession() {
+  editingChipId = null;
+  clearChippingForm();
+
+  document.getElementById("add-chip-btn").style.display = "inline-block";
+  document.getElementById("update-chip-btn").style.display = "none";
+  document.getElementById("cancel-chip-edit-btn").style.display = "none";
+}
+
+async function deleteChippingSession(id) {
+  const { error } = await sb
+    .from("chipping_sessions")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    msg(error.message, true);
+    return;
+  }
+
+  if (editingChipId === id) {
+    cancelEditChippingSession();
+  }
+
+  msg("Chipping session deleted");
+  await loadChippingSummary();
+}
+
 function clearChippingForm() {
   const ids = [
     "chip-date",
@@ -599,6 +734,91 @@ async function addPuttingSession() {
   await loadPuttingSummary();
 }
 
+async function updatePuttingSession() {
+  if (!editingPuttId) return;
+
+  const session_date = document.getElementById("putt-date")?.value;
+  const distance_m = Number(document.getElementById("putt-distance")?.value);
+  const holed = Number(document.getElementById("putt-holed")?.value);
+  const total = Number(document.getElementById("putt-total")?.value);
+  const notes = document.getElementById("putt-notes")?.value?.trim() || null;
+
+  if (!session_date || !distance_m || total <= 0 || holed < 0) {
+    msg("Please fill date, distance, holed and total", true);
+    return;
+  }
+
+  if (holed > total) {
+    msg("Holed cannot be more than total", true);
+    return;
+  }
+
+  const { error } = await sb
+    .from("putting_sessions")
+    .update({
+      session_date,
+      distance_m,
+      holed,
+      total,
+      notes
+    })
+    .eq("id", editingPuttId);
+
+  if (error) {
+    msg(error.message, true);
+    return;
+  }
+
+  msg("Putting session updated");
+  cancelEditPuttingSession();
+  await loadPuttingSummary();
+}
+
+function startEditPuttingSession(id) {
+  const row = puttingCache.find(x => x.id === id);
+  if (!row) return;
+
+  editingPuttId = id;
+
+  document.getElementById("putt-date").value = row.session_date || "";
+  document.getElementById("putt-distance").value = row.distance_m ?? "";
+  document.getElementById("putt-holed").value = row.holed ?? "";
+  document.getElementById("putt-total").value = row.total ?? "";
+  document.getElementById("putt-notes").value = row.notes || "";
+
+  document.getElementById("add-putt-btn").style.display = "none";
+  document.getElementById("update-putt-btn").style.display = "inline-block";
+  document.getElementById("cancel-putt-edit-btn").style.display = "inline-block";
+}
+
+function cancelEditPuttingSession() {
+  editingPuttId = null;
+  clearPuttingForm();
+
+  document.getElementById("add-putt-btn").style.display = "inline-block";
+  document.getElementById("update-putt-btn").style.display = "none";
+  document.getElementById("cancel-putt-edit-btn").style.display = "none";
+}
+
+async function deletePuttingSession(id) {
+  const { error } = await sb
+    .from("putting_sessions")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    msg(error.message, true);
+    return;
+  }
+
+  if (editingPuttId === id) {
+    cancelEditPuttingSession();
+  }
+
+  msg("Putting session deleted");
+  await loadPuttingSummary();
+}
+
 function clearPuttingForm() {
   const ids = [
     "putt-date",
@@ -618,6 +838,10 @@ window.loadOneState = loadOneState;
 window.deleteOneState = deleteOneState;
 window.loadStatsPage = loadStatsPage;
 window.saveCurrentState = saveCurrentState;
+window.startEditChippingSession = startEditChippingSession;
+window.deleteChippingSession = deleteChippingSession;
+window.startEditPuttingSession = startEditPuttingSession;
+window.deletePuttingSession = deletePuttingSession;
 
 window.addEventListener("DOMContentLoaded", async () => {
   const signupBtn = document.getElementById("signup-btn");
@@ -625,14 +849,24 @@ window.addEventListener("DOMContentLoaded", async () => {
   const logoutBtn = document.getElementById("logout-btn");
   const saveBtn = document.getElementById("save-btn");
   const addChipBtn = document.getElementById("add-chip-btn");
+  const updateChipBtn = document.getElementById("update-chip-btn");
+  const cancelChipEditBtn = document.getElementById("cancel-chip-edit-btn");
   const addPuttBtn = document.getElementById("add-putt-btn");
+  const updatePuttBtn = document.getElementById("update-putt-btn");
+  const cancelPuttEditBtn = document.getElementById("cancel-putt-edit-btn");
 
   if (signupBtn) signupBtn.addEventListener("click", signUp);
   if (loginBtn) loginBtn.addEventListener("click", logIn);
   if (logoutBtn) logoutBtn.addEventListener("click", logOut);
   if (saveBtn) saveBtn.addEventListener("click", saveCurrentState);
+
   if (addChipBtn) addChipBtn.addEventListener("click", addChippingSession);
+  if (updateChipBtn) updateChipBtn.addEventListener("click", updateChippingSession);
+  if (cancelChipEditBtn) cancelChipEditBtn.addEventListener("click", cancelEditChippingSession);
+
   if (addPuttBtn) addPuttBtn.addEventListener("click", addPuttingSession);
+  if (updatePuttBtn) updatePuttBtn.addEventListener("click", updatePuttingSession);
+  if (cancelPuttEditBtn) cancelPuttEditBtn.addEventListener("click", cancelEditPuttingSession);
 
   await refreshSession();
 });
