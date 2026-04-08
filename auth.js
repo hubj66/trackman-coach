@@ -4,20 +4,58 @@ function msg(text, isError = false) {
   const el = document.getElementById("auth-message");
   if (!el) return;
   el.textContent = text || "";
-  el.style.color = isError ? "red" : "green";
+  el.style.color = isError ? "#ff4d4d" : "#00d68f";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function sum(arr) {
+  return arr.reduce((a, b) => a + (Number(b) || 0), 0);
+}
+
+function avg(arr) {
+  const valid = arr.map(Number).filter(v => !Number.isNaN(v));
+  if (!valid.length) return null;
+  return valid.reduce((a, b) => a + b, 0) / valid.length;
+}
+
+function fmt(value, dp = 1) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-";
+  return Number(value).toFixed(dp);
+}
+
+function pct(part, total) {
+  if (!total) return "0%";
+  return `${((part / total) * 100).toFixed(1)}%`;
 }
 
 function setLoggedInUI(user) {
-  document.getElementById("logged-out-view").style.display = "none";
-  document.getElementById("logged-in-view").style.display = "block";
-  document.getElementById("user-email").textContent = user?.email || "";
+  const loggedOut = document.getElementById("logged-out-view");
+  const loggedIn = document.getElementById("logged-in-view");
+  const userEmail = document.getElementById("user-email");
+
+  if (loggedOut) loggedOut.style.display = "none";
+  if (loggedIn) loggedIn.style.display = "block";
+  if (userEmail) userEmail.textContent = user?.email || "";
 }
 
 function setLoggedOutUI() {
-  document.getElementById("logged-out-view").style.display = "block";
-  document.getElementById("logged-in-view").style.display = "none";
-  document.getElementById("user-email").textContent = "";
-  document.getElementById("saved-list").innerHTML = "";
+  const loggedOut = document.getElementById("logged-out-view");
+  const loggedIn = document.getElementById("logged-in-view");
+  const userEmail = document.getElementById("user-email");
+  const savedList = document.getElementById("saved-list");
+
+  if (loggedOut) loggedOut.style.display = "block";
+  if (loggedIn) loggedIn.style.display = "none";
+  if (userEmail) userEmail.textContent = "";
+  if (savedList) savedList.innerHTML = "";
 }
 
 async function refreshSession() {
@@ -39,8 +77,8 @@ async function refreshSession() {
 }
 
 async function signUp() {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
+  const email = document.getElementById("email")?.value?.trim();
+  const password = document.getElementById("password")?.value || "";
 
   const { error } = await sb.auth.signUp({
     email,
@@ -56,8 +94,8 @@ async function signUp() {
 }
 
 async function logIn() {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
+  const email = document.getElementById("email")?.value?.trim();
+  const password = document.getElementById("password")?.value || "";
 
   const { error } = await sb.auth.signInWithPassword({
     email,
@@ -95,7 +133,7 @@ async function saveCurrentState() {
   }
 
   const title =
-    document.getElementById("save-title").value.trim() ||
+    document.getElementById("save-title")?.value?.trim() ||
     `Save ${new Date().toLocaleString()}`;
 
   if (!window.trackmanCoach || !window.trackmanCoach.getCurrentState) {
@@ -107,7 +145,7 @@ async function saveCurrentState() {
 
   const { error } = await sb.from("saved_states").insert({
     user_id: user.id,
-    title: title,
+    title,
     club: currentState.club || null,
     app_state: currentState
   });
@@ -118,7 +156,8 @@ async function saveCurrentState() {
   }
 
   msg("Saved");
-  document.getElementById("save-title").value = "";
+  const saveTitle = document.getElementById("save-title");
+  if (saveTitle) saveTitle.value = "";
   await loadSavedStates();
 }
 
@@ -134,18 +173,22 @@ async function loadSavedStates() {
   }
 
   const list = document.getElementById("saved-list");
+  if (!list) return;
 
   if (!data || data.length === 0) {
     list.innerHTML = "<p>No saved stats yet.</p>";
+    window.__savedStatesCache = [];
     return;
   }
 
   list.innerHTML = data.map(row => `
-    <div style="margin:8px 0; padding:8px; border:1px solid #ccc;">
-      <strong>${escapeHtml(row.title)}</strong><br>
-      <small>${escapeHtml(row.club || "")} · ${new Date(row.created_at).toLocaleString()}</small><br>
-      <button onclick="loadOneState('${row.id}')">Load</button>
-      <button onclick="deleteOneState('${row.id}')">Delete</button>
+    <div class="stats-card" style="margin-top:10px;">
+      <div><strong>${escapeHtml(row.title)}</strong></div>
+      <div class="muted-line">${escapeHtml(row.club || "")} · ${new Date(row.created_at).toLocaleString()}</div>
+      <div class="inline-actions" style="margin-top:10px;">
+        <button onclick="loadOneState('${row.id}')">Load</button>
+        <button onclick="deleteOneState('${row.id}')">Delete</button>
+      </div>
     </div>
   `).join("");
 
@@ -178,58 +221,6 @@ async function deleteOneState(id) {
 
   msg("Deleted");
   await loadSavedStates();
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-window.loadOneState = loadOneState;
-window.deleteOneState = deleteOneState;
-
-window.addEventListener("DOMContentLoaded", async () => {
-  document.getElementById("signup-btn").addEventListener("click", signUp);
-  document.getElementById("login-btn").addEventListener("click", logIn);
-  document.getElementById("logout-btn").addEventListener("click", logOut);
-  document.getElementById("save-btn").addEventListener("click", saveCurrentState);
-
-  await refreshSession();
-});
-
-
-async function loadStatsPage() {
-  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
-
-  if (sessionError) {
-    msg(sessionError.message, true);
-    return;
-  }
-
-  const user = sessionData.session?.user;
-  if (!user) {
-    const tm = document.getElementById("stats-trackman-summary");
-    const ch = document.getElementById("stats-chipping-summary");
-    const pt = document.getElementById("stats-putting-summary");
-    const cl = document.getElementById("clubs-overview");
-
-    if (tm) tm.innerHTML = "Please log in to view stats.";
-    if (ch) ch.innerHTML = "Please log in to view stats.";
-    if (pt) pt.innerHTML = "Please log in to view stats.";
-    if (cl) cl.innerHTML = "Please log in to view clubs.";
-    return;
-  }
-
-  await Promise.all([
-    loadTrackmanSummary(),
-    loadChippingSummary(),
-    loadPuttingSummary(),
-    loadClubsOverview()
-  ]);
 }
 
 async function loadTrackmanSummary() {
@@ -307,6 +298,19 @@ async function loadChippingSummary() {
   const inside2m = sum(data.map(x => (x.inside_1m || 0) + (x.between_1_2m || 0)));
   const inside3m = sum(data.map(x => (x.inside_1m || 0) + (x.between_1_2m || 0) + (x.between_2_3m || 0)));
 
+  const latest = data.slice(0, 5).map(row => `
+    <tr>
+      <td>${escapeHtml(row.session_date)}</td>
+      <td>${escapeHtml(row.club)}</td>
+      <td>${fmt(row.distance_m, 1)}m</td>
+      <td>${row.attempts}</td>
+      <td>${row.inside_1m || 0}</td>
+      <td>${row.between_1_2m || 0}</td>
+      <td>${row.between_2_3m || 0}</td>
+      <td>${row.outside_3m || 0}</td>
+    </tr>
+  `).join("");
+
   el.innerHTML = `
     <div class="stats-card">
       <div><strong>Sessions:</strong> ${sessions}</div>
@@ -314,6 +318,26 @@ async function loadChippingSummary() {
       <div><strong>Inside 1m:</strong> ${inside1m} (${pct(inside1m, attempts)})</div>
       <div><strong>Inside 2m:</strong> ${inside2m} (${pct(inside2m, attempts)})</div>
       <div><strong>Inside 3m:</strong> ${inside3m} (${pct(inside3m, attempts)})</div>
+    </div>
+
+    <div class="stats-table-wrap">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Club</th>
+            <th>Dist</th>
+            <th>Att</th>
+            <th>&lt;1m</th>
+            <th>1–2m</th>
+            <th>2–3m</th>
+            <th>&gt;3m</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${latest}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -342,12 +366,39 @@ async function loadPuttingSummary() {
   const holed = sum(data.map(x => x.holed));
   const total = sum(data.map(x => x.total));
 
+  const latest = data.slice(0, 5).map(row => `
+    <tr>
+      <td>${escapeHtml(row.session_date)}</td>
+      <td>${fmt(row.distance_m, 1)}m</td>
+      <td>${row.holed}</td>
+      <td>${row.total}</td>
+      <td>${pct(row.holed, row.total)}</td>
+    </tr>
+  `).join("");
+
   el.innerHTML = `
     <div class="stats-card">
       <div><strong>Sessions:</strong> ${sessions}</div>
       <div><strong>Total putts tracked:</strong> ${total}</div>
       <div><strong>Holed:</strong> ${holed}</div>
       <div><strong>Make rate:</strong> ${pct(holed, total)}</div>
+    </div>
+
+    <div class="stats-table-wrap">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Dist</th>
+            <th>Holed</th>
+            <th>Total</th>
+            <th>Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${latest}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -383,24 +434,205 @@ async function loadClubsOverview() {
   `).join("");
 }
 
-function sum(arr) {
-  return arr.reduce((a, b) => a + (Number(b) || 0), 0);
+async function loadStatsPage() {
+  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+
+  if (sessionError) {
+    msg(sessionError.message, true);
+    return;
+  }
+
+  const user = sessionData.session?.user;
+
+  if (!user) {
+    const tm = document.getElementById("stats-trackman-summary");
+    const ch = document.getElementById("stats-chipping-summary");
+    const pt = document.getElementById("stats-putting-summary");
+    const cl = document.getElementById("clubs-overview");
+
+    if (tm) tm.innerHTML = "Please log in to view stats.";
+    if (ch) ch.innerHTML = "Please log in to view stats.";
+    if (pt) pt.innerHTML = "Please log in to view stats.";
+    if (cl) cl.innerHTML = "Please log in to view clubs.";
+    return;
+  }
+
+  await Promise.all([
+    loadTrackmanSummary(),
+    loadChippingSummary(),
+    loadPuttingSummary(),
+    loadClubsOverview()
+  ]);
 }
 
-function avg(arr) {
-  const valid = arr.map(Number).filter(v => !Number.isNaN(v));
-  if (!valid.length) return null;
-  return valid.reduce((a, b) => a + b, 0) / valid.length;
+async function addChippingSession() {
+  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+
+  if (sessionError) {
+    msg(sessionError.message, true);
+    return;
+  }
+
+  const user = sessionData.session?.user;
+  if (!user) {
+    msg("Please log in first", true);
+    return;
+  }
+
+  const session_date = document.getElementById("chip-date")?.value;
+  const distance_m = Number(document.getElementById("chip-distance")?.value);
+  const club = document.getElementById("chip-club")?.value?.trim();
+  const attempts = Number(document.getElementById("chip-attempts")?.value);
+  const inside_1m = Number(document.getElementById("chip-in1")?.value || 0);
+  const between_1_2m = Number(document.getElementById("chip-in2")?.value || 0);
+  const between_2_3m = Number(document.getElementById("chip-in3")?.value || 0);
+  const outside_3m = Number(document.getElementById("chip-out3")?.value || 0);
+  const success_target_raw = document.getElementById("chip-success")?.value;
+  const notes = document.getElementById("chip-notes")?.value?.trim() || null;
+
+  if (!session_date || !club || !distance_m || !attempts) {
+    msg("Please fill date, distance, club and attempts", true);
+    return;
+  }
+
+  const bucketTotal = inside_1m + between_1_2m + between_2_3m + outside_3m;
+  if (bucketTotal > attempts) {
+    msg("Bucket totals cannot be more than attempts", true);
+    return;
+  }
+
+  const success_target =
+    success_target_raw === "" || success_target_raw == null
+      ? null
+      : Number(success_target_raw);
+
+  const { error } = await sb.from("chipping_sessions").insert({
+    user_id: user.id,
+    session_date,
+    distance_m,
+    club,
+    attempts,
+    success_target,
+    inside_1m,
+    between_1_2m,
+    between_2_3m,
+    outside_3m,
+    notes
+  });
+
+  if (error) {
+    msg(error.message, true);
+    return;
+  }
+
+  msg("Chipping session added");
+  clearChippingForm();
+  await loadChippingSummary();
 }
 
-function fmt(value, dp = 1) {
-  if (value === null || value === undefined || Number.isNaN(value)) return "-";
-  return Number(value).toFixed(dp);
+function clearChippingForm() {
+  const ids = [
+    "chip-date",
+    "chip-distance",
+    "chip-club",
+    "chip-attempts",
+    "chip-in1",
+    "chip-in2",
+    "chip-in3",
+    "chip-out3",
+    "chip-success",
+    "chip-notes"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
 }
 
-function pct(part, total) {
-  if (!total) return "0%";
-  return `${((part / total) * 100).toFixed(1)}%`;
+async function addPuttingSession() {
+  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+
+  if (sessionError) {
+    msg(sessionError.message, true);
+    return;
+  }
+
+  const user = sessionData.session?.user;
+  if (!user) {
+    msg("Please log in first", true);
+    return;
+  }
+
+  const session_date = document.getElementById("putt-date")?.value;
+  const distance_m = Number(document.getElementById("putt-distance")?.value);
+  const holed = Number(document.getElementById("putt-holed")?.value);
+  const total = Number(document.getElementById("putt-total")?.value);
+  const notes = document.getElementById("putt-notes")?.value?.trim() || null;
+
+  if (!session_date || !distance_m || total <= 0 || holed < 0) {
+    msg("Please fill date, distance, holed and total", true);
+    return;
+  }
+
+  if (holed > total) {
+    msg("Holed cannot be more than total", true);
+    return;
+  }
+
+  const { error } = await sb.from("putting_sessions").insert({
+    user_id: user.id,
+    session_date,
+    distance_m,
+    holed,
+    total,
+    notes
+  });
+
+  if (error) {
+    msg(error.message, true);
+    return;
+  }
+
+  msg("Putting session added");
+  clearPuttingForm();
+  await loadPuttingSummary();
 }
 
+function clearPuttingForm() {
+  const ids = [
+    "putt-date",
+    "putt-distance",
+    "putt-holed",
+    "putt-total",
+    "putt-notes"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+}
+
+window.loadOneState = loadOneState;
+window.deleteOneState = deleteOneState;
 window.loadStatsPage = loadStatsPage;
+window.saveCurrentState = saveCurrentState;
+
+window.addEventListener("DOMContentLoaded", async () => {
+  const signupBtn = document.getElementById("signup-btn");
+  const loginBtn = document.getElementById("login-btn");
+  const logoutBtn = document.getElementById("logout-btn");
+  const saveBtn = document.getElementById("save-btn");
+  const addChipBtn = document.getElementById("add-chip-btn");
+  const addPuttBtn = document.getElementById("add-putt-btn");
+
+  if (signupBtn) signupBtn.addEventListener("click", signUp);
+  if (loginBtn) loginBtn.addEventListener("click", logIn);
+  if (logoutBtn) logoutBtn.addEventListener("click", logOut);
+  if (saveBtn) saveBtn.addEventListener("click", saveCurrentState);
+  if (addChipBtn) addChipBtn.addEventListener("click", addChippingSession);
+  if (addPuttBtn) addPuttBtn.addEventListener("click", addPuttingSession);
+
+  await refreshSession();
+});
