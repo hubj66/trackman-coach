@@ -416,6 +416,31 @@ function showPage(page) {
   }
 }
 
+function showPage(page) {
+  ['coach', 'stats', 'clubs'].forEach(id => {
+    const pageEl = document.getElementById('page-' + id);
+    const btnEl = document.getElementById('nav-' + id + '-btn');
+
+    if (pageEl) {
+      pageEl.style.display = id === page ? 'block' : 'none';
+      pageEl.classList.toggle('active', id === page);
+    }
+
+    if (btnEl) {
+      btnEl.classList.toggle('active', id === page);
+    }
+  });
+
+  if (page === 'coach') {
+    Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+    render();
+  }
+
+  if ((page === 'stats' || page === 'clubs') && typeof window.loadStatsPage === 'function') {
+    window.loadStatsPage();
+  }
+}
+
 function getCurrentState() {
   return {
     club: club,
@@ -447,19 +472,21 @@ function applyState(state) {
 
   document.querySelectorAll('.ctab').forEach(tab => tab.classList.remove('on'));
 
-  const tabMap = {
+  const tabs = document.querySelectorAll('.ctab');
+  const tabIndexMap = {
     driver: 0,
     irons: 1,
     wedge: 2,
     putter: 3
   };
 
-  const tabs = document.querySelectorAll('.ctab');
-  if (tabs[tabMap[club]]) {
-    tabs[tabMap[club]].classList.add('on');
+  const activeIndex = tabIndexMap[club];
+  if (tabs[activeIndex]) {
+    tabs[activeIndex].classList.add('on');
   }
 
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+  showPage('coach');
   render();
 }
 
