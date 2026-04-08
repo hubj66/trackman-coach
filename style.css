@@ -442,3 +442,12 @@ canvas.cv { display:block; width:100%; height:200px; }
 .page-section.active {
   display: block;
 }
+
+
+.stats-card {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: #131517;
+  line-height: 1.6;
+}
