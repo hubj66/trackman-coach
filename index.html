@@ -19,7 +19,27 @@
     </div>
     <div class="header-sub">54 HCP · SESSION TOOL</div>
   </div>
-
+  
+  <div id="auth-box" class="auth-box">
+    <div id="logged-out-view">
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Password" />
+      <button id="signup-btn">Sign up</button>
+      <button id="login-btn">Log in</button>
+    </div>
+  
+    <div id="logged-in-view" style="display:none;">
+      <div>
+        Logged in as: <span id="user-email"></span>
+      </div>
+      <input id="save-title" type="text" placeholder="Name for this save" />
+      <button id="save-btn">Save current stats</button>
+      <button id="logout-btn">Log out</button>
+      <div id="saved-list"></div>
+    </div>
+  
+    <div id="auth-message"></div>
+  </div>
   <div class="mode-wrap">
     <div class="mode-toggle" role="tablist" aria-label="Target mode">
       <button
