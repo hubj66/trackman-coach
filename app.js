@@ -391,7 +391,26 @@ function drawShotShape() {
 
 
 
+function showPage(page) {
+  ['coach', 'stats', 'clubs'].forEach(id => {
+    const pageEl = document.getElementById('page-' + id);
+    const btnEl = document.getElementById('nav-' + id + '-btn');
 
+    if (pageEl) {
+      pageEl.style.display = id === page ? 'block' : 'none';
+      pageEl.classList.toggle('active', id === page);
+    }
+
+    if (btnEl) {
+      btnEl.classList.toggle('active', id === page);
+    }
+  });
+
+  if (page === 'coach') {
+    Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+    render();
+  }
+}
 
 function getCurrentState() {
   return {
