@@ -389,6 +389,62 @@ function drawShotShape() {
   if (typeof _drawShotShape === 'function') _drawShotShape();
 }
 
+
+
+
+
+function getCurrentState() {
+  return {
+    club: club,
+    rangeMode: rangeMode,
+    vals: JSON.parse(JSON.stringify(vals))
+  };
+}
+
+function applyState(state) {
+  if (!state) return;
+
+  if (state.club) {
+    club = state.club;
+  }
+
+  if (state.rangeMode) {
+    rangeMode = state.rangeMode;
+    applyRangeModeToClubs(rangeMode);
+    updateModeButtons();
+  }
+
+  Object.keys(vals).forEach(key => delete vals[key]);
+
+  if (state.vals && typeof state.vals === 'object') {
+    Object.entries(state.vals).forEach(([key, value]) => {
+      vals[key] = value;
+    });
+  }
+
+  document.querySelectorAll('.ctab').forEach(tab => tab.classList.remove('on'));
+
+  const tabMap = {
+    driver: 0,
+    irons: 1,
+    wedge: 2,
+    putter: 3
+  };
+
+  const tabs = document.querySelectorAll('.ctab');
+  if (tabs[tabMap[club]]) {
+    tabs[tabMap[club]].classList.add('on');
+  }
+
+  Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+  render();
+}
+
+window.trackmanCoach = {
+  getCurrentState,
+  applyState
+};
+
 // ── Init ───────────────────────────────────────────────────────────────────
 
 applyRangeModeToClubs(rangeMode);
