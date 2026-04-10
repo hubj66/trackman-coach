@@ -382,36 +382,59 @@ function loadLastSessionIntoCoach() {
   const s = _lastSessionCache[club];
   if (!s) return;
 
-  const C = CLUBS[club];
   if (!vals[club]) vals[club] = {};
 
-  // Map field names to slider ids
+  // Maps: cache field name → exact slider id as defined in clubs.js
+  // clubs.js slider IDs: face, path, attack, launch, spin, smash (scale:100),
+  //                      clubspeed, dynloft, spinaxis  (advanced)
+  // NOTE: ball_speed has no slider — it's a derived/display metric only
   const fieldMap = {
-    face:    'face',
-    path:    'path',
-    attack:  'attack',
-    launch:  'launch',
-    smash:   'smash',
-    spin:    'spin',
-    ballSpeed: 'ballspeed',
-    clubSpeed: 'clubspeed',
-    dynLoft:   'dynloft',
-    spinAxis:  'spinaxis',
+    face:      'face',
+    path:      'path',
+    attack:    'attack',
+    launch:    'launch',
+    spin:      'spin',       // spin_rate raw rpm — slider min/max are in rpm
+    smash:     'smash',      // smash_factor — slider uses scale:100 (stored as integer 100-150)
+    clubSpeed: 'clubspeed',  // mph
+    dynLoft:   'dynloft',    // degrees
+    spinAxis:  'spinaxis',   // degrees
   };
 
   const allInps = getAllInputs(club);
+  let loaded = 0;
+
   Object.entries(fieldMap).forEach(([field, sliderId]) => {
     const inp = allInps.find(i => i.id === sliderId);
-    if (!inp || s[field] == null) return;
-    // If the slider has a scale factor, multiply back
-    const rawVal = inp.scale ? Math.round(s[field] * inp.scale) : Math.round(s[field]);
+    if (!inp) return;           // slider doesn't exist for this club tab
+    const val = s[field];
+    if (val == null) return;    // no data for this metric
+
+    // inp.scale means the slider stores value * scale as integer (e.g. smash: 1.32 → 132)
+    const rawVal = inp.scale ? Math.round(val * inp.scale) : Math.round(val * 10) / 10;
     const clamped = Math.max(inp.min, Math.min(inp.max, rawVal));
     vals[club][sliderId] = clamped;
+    loaded++;
   });
 
+  // Re-render to show all new values in sliders
   render();
+
+  // Open the main numbers accordion
   openAcc('numbers');
-  showToast(`Loaded ${s.date} session averages`);
+
+  // Also open secondary + advanced sub-accordions so user can see all loaded values
+  ['secondary', 'advanced'].forEach(id => {
+    const head = document.getElementById('sub-head-' + id);
+    const body = document.getElementById('sub-body-' + id);
+    if (head && body) {
+      head.classList.add('open');
+      body.classList.add('open');
+      body.style.maxHeight = '1000px';
+      body.style.opacity = '1';
+    }
+  });
+
+  showToast(`Loaded ${s.date} — ${loaded} metrics into sliders`);
 }
 
 // ── Page navigation ────────────────────────────────────────────────────────
