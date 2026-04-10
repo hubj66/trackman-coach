@@ -79,13 +79,13 @@ async function loadStatsGlance(){
   const el=document.getElementById('stats-glance');if(!el)return;
   try{
     const[tmRes,chipRes,puttRes]=await Promise.all([
-      sb.from('trackman_shots').select('carry,is_full_shot,exclude_from_progress,created_at').order('created_at',{ascending:false}).limit(200),
+      sb.from('trackman_shots').select('carry,is_full_shot,exclude_from_progress,shot_time,created_at').order('shot_time',{ascending:false}).limit(200),
       sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m').order('session_date',{ascending:false}).limit(20),
       sb.from('putting_sessions').select('session_date,holed,total').order('session_date',{ascending:false}).limit(20),
     ]);
     const lastTm=tmRes.data?.filter(x=>x.is_full_shot!==false&&x.exclude_from_progress!==true)||[];
-    const lastDate=lastTm[0]?.created_at?.slice(0,10);
-    const lastSessionShots=lastDate?lastTm.filter(x=>x.created_at?.startsWith(lastDate)):[];
+    const lastDate=lastTm[0]?.shot_time?.slice(0,10)||lastTm[0]?.created_at?.slice(0,10);
+    const lastSessionShots=lastDate?lastTm.filter(x=>(x.shot_time||x.created_at)?.startsWith(lastDate)):[];
     const avgCarry=avg(lastSessionShots.map(x=>x.carry).filter(Boolean));
     const lastChip=chipRes.data?.[0];
     const chipIn2=lastChip?((lastChip.inside_1m||0)+(lastChip.between_1_2m||0)):null;
@@ -106,18 +106,18 @@ async function loadStatsGlance(){
 async function loadTrackmanSummary(){
   const el=document.getElementById('stats-trackman-summary');if(!el)return;
   el.innerHTML='<div class="stats-loading">Loading…</div>';
-  const{data,error}=await sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,face_angle,club_path,face_to_path,attack_angle,side,is_full_shot,exclude_from_progress,created_at').order('created_at',{ascending:false}).limit(1000);
+  const{data,error}=await sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,face_angle,club_path,face_to_path,attack_angle,side,is_full_shot,exclude_from_progress,shot_time,created_at').order('shot_time',{ascending:false}).limit(1000);
   if(error){el.innerHTML=`<div class="stats-error">${escapeHtml(error.message)}</div>`;return;}
   if(!data?.length){el.innerHTML='<div class="stats-empty">No TrackMan shots yet.</div>';return;}
   const progress=data.filter(x=>x.is_full_shot!==false&&x.exclude_from_progress!==true);
-  const dates=[...new Set(data.map(x=>x.created_at?.slice(0,10)).filter(Boolean))];
+  const dates=[...new Set(data.map(x=>(x.shot_time||x.created_at)?.slice(0,10)).filter(Boolean))];
   const avgCarry=avg(progress.map(x=>x.carry).filter(Boolean));
   const avgSmash=avg(progress.map(x=>x.smash_factor).filter(Boolean));
   const avgBSp=avg(progress.map(x=>x.ball_speed).filter(Boolean));
   const carrySD=stdDev(progress.map(x=>x.carry).filter(Boolean));
   const avgFace=avg(progress.map(x=>x.face_angle).filter(x=>x!=null));
   const avgFTP=avg(progress.map(x=>x.face_to_path).filter(x=>x!=null));
-  const last5=dates.slice(0,5).map(d=>{const s=progress.filter(x=>x.created_at?.startsWith(d));if(!s.length)return null;return{date:d,n:s.length,carry:avg(s.map(x=>x.carry).filter(Boolean)),smash:avg(s.map(x=>x.smash_factor).filter(Boolean))};}).filter(Boolean);
+  const last5=dates.slice(0,5).map(d=>{const s=progress.filter(x=>(x.shot_time||x.created_at)?.startsWith(d));if(!s.length)return null;return{date:d,n:s.length,carry:avg(s.map(x=>x.carry).filter(Boolean)),smash:avg(s.map(x=>x.smash_factor).filter(Boolean))};}).filter(Boolean);
   const clubCounts={};data.forEach(r=>{const k=r.club||'?';clubCounts[k]=(clubCounts[k]||0)+1;});
   el.innerHTML=`
     <div class="stats-kpi-band">

@@ -4,7 +4,7 @@
 let analysisClub   = '7';
 let analysisFilter = 'progress';
 let analysisShots  = [];
-let analysisRawSort = { col: 'created_at', dir: -1 };
+let analysisRawSort = { col: 'shot_time', dir: -1 };
 let editingRowId   = null;
 let currentProgKey = 'carry';
 let _allFetchedShots = [];
@@ -101,8 +101,8 @@ async function loadAnalysis() {
   const sb = window.supabaseClient;
   const { data, error } = await sb
     .from('trackman_shots')
-    .select('id,club,carry,total,side,total_side,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,launch_direction,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_loft,spin_axis,max_height,landing_angle,hang_time,notes,is_full_shot,exclude_from_progress,shot_type,strike_quality,created_at')
-    .order('created_at', { ascending: false })
+    .select('id,club,carry,total,side,total_side,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,launch_direction,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_loft,spin_axis,max_height,landing_angle,hang_time,notes,is_full_shot,exclude_from_progress,shot_type,strike_quality,shot_time,created_at')
+    .order('shot_time', { ascending: false })
     .limit(2000);
 
   if (error) { el.innerHTML = `<div class="analysis-empty">Error: ${escapeHtml(error.message)}</div>`; return; }
@@ -121,7 +121,7 @@ function applyFilter(shots) {
 }
 
 function buildSessionColorMap(shots) {
-  const dates = [...new Set([...shots].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(s=>s.created_at?.slice(0,10)).filter(Boolean))];
+  const dates = [...new Set([...shots].sort((a,b)=>new Date(a.shot_time||a.created_at)-new Date(b.shot_time||b.created_at)).map(s=>(s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
   const map = {};
   dates.forEach((d,i) => { map[d] = SESSION_COLORS[i % SESSION_COLORS.length]; });
   return map;
@@ -205,16 +205,16 @@ function fSign(v,dp=1){ return (v==null||isNaN(v))?'–':(v>0?'+':'')+Number(v).
 
 // ── A5: Load into Coach button ─────────────────────────────────────────────
 function renderLoadIntoCoachBtn(shots) {
-  const lastDate = shots[0]?.created_at?.slice(0,10);
+  const lastDate = (shots[0]?.shot_time || shots[0]?.created_at)?.slice(0,10);
   if (!lastDate) return '';
-  const lastSession = shots.filter(s => s.created_at?.startsWith(lastDate));
+  const lastSession = shots.filter(s => (s.shot_time||s.created_at)?.startsWith(lastDate));
   return `<button class="load-into-coach-btn" onclick="loadAnalysisSessionIntoCoach('${lastDate}')">
     ⟵ Load ${lastDate} averages into Coach
   </button>`;
 }
 
 function loadAnalysisSessionIntoCoach(date) {
-  const shots = applyFilter(analysisShots).filter(s => s.created_at?.startsWith(date));
+  const shots = applyFilter(analysisShots).filter(s => (s.shot_time||s.created_at)?.startsWith(date));
   if (!shots.length) return;
 
   // Map canonical club to coach tab
@@ -390,9 +390,9 @@ function drawProgressChart(key,shots){
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
   const isSign=['face_angle','club_path','face_to_path','attack_angle'].includes(key);
   const colorMap=buildSessionColorMap(shots);
-  const ordered=[...shots].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).filter(s=>s[key]!=null&&!isNaN(s[key]));
+  const ordered=[...shots].sort((a,b)=>new Date(a.shot_time||a.created_at)-new Date(b.shot_time||b.created_at)).filter(s=>s[key]!=null&&!isNaN(s[key]));
   const values=ordered.map(s=>Number(s[key]));
-  const dates=ordered.map(s=>s.created_at?.slice(0,10)||'');
+  const dates=ordered.map(s=>(s.shot_time||s.created_at)?.slice(0,10)||'');
   if(values.length<2){ctx.fillStyle='#4e5660';ctx.font="13px 'Barlow',sans-serif";ctx.textAlign='center';ctx.fillText('Not enough data',w/2,h/2);return;}
   const pad={t:28,r:20,b:38,l:48};
   const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
@@ -445,7 +445,7 @@ function renderSessionGroups(shots, colorMap) {
   const groups = [];
   const groupMap = {};
   sorted.forEach(s => {
-    const date = s.created_at?.slice(0,10) || 'Unknown';
+    const date = (s.shot_time || s.created_at)?.slice(0,10) || 'Unknown';
     if (!groupMap[date]) {
       groupMap[date] = [];
       groups.push({ date, shots: groupMap[date] });
@@ -455,7 +455,7 @@ function renderSessionGroups(shots, colorMap) {
 
   return `
     <div class="session-sort-bar">
-      Sort: <button class="sort-micro-btn" onclick="sortRawTable('created_at')">Date ${analysisRawSort.col==='created_at'?(analysisRawSort.dir>0?'↑':'↓'):''}</button>
+      Sort: <button class="sort-micro-btn" onclick="sortRawTable('shot_time')">Date ${analysisRawSort.col==='shot_time'?(analysisRawSort.dir>0?'↑':'↓'):''}</button>
       <button class="sort-micro-btn" onclick="sortRawTable('carry')">Carry ${analysisRawSort.col==='carry'?(analysisRawSort.dir>0?'↑':'↓'):''}</button>
       <button class="sort-micro-btn" onclick="sortRawTable('smash_factor')">Smash ${analysisRawSort.col==='smash_factor'?(analysisRawSort.dir>0?'↑':'↓'):''}</button>
     </div>
@@ -530,7 +530,7 @@ function renderShotRows(shots, sessionCol) {
 }
 
 function renderShotRow(s, sessionCol) {
-  const time = s.created_at ? new Date(s.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+  const time = s.shot_time ? new Date(s.shot_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : (s.created_at ? new Date(s.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '');
   if (s.id === editingRowId) {
     return `<tr class="shot-row shot-row-editing" data-id="${s.id}">
       <td><span class="shot-time">${time}</span></td>

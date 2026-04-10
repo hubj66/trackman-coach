@@ -330,8 +330,8 @@ async function loadLastSessionBanner() {
     const sb = window.supabaseClient;
     const { data } = await sb
       .from('trackman_shots')
-      .select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_axis,created_at,is_full_shot,exclude_from_progress')
-      .order('created_at', { ascending: false })
+      .select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_axis,shot_time,created_at,is_full_shot,exclude_from_progress')
+      .order('shot_time', { ascending: false })
       .limit(300);
 
     if (!data?.length) { banner.style.display = 'none'; return; }
@@ -346,8 +346,8 @@ async function loadLastSessionBanner() {
     if (!relevantShots.length) { banner.style.display = 'none'; return; }
 
     // Most recent session date
-    const lastDate = relevantShots[0].created_at?.slice(0,10);
-    const lastSessionShots = relevantShots.filter(s => s.created_at?.startsWith(lastDate));
+    const lastDate = (relevantShots[0].shot_time || relevantShots[0].created_at)?.slice(0,10);
+    const lastSessionShots = relevantShots.filter(s => (s.shot_time||s.created_at)?.startsWith(lastDate));
     const progress = lastSessionShots.filter(s => s.is_full_shot !== false && s.exclude_from_progress !== true);
 
     const n = progress.length || lastSessionShots.length;
