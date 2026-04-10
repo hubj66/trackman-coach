@@ -4,52 +4,78 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0e1012">
   <title>Trackman Coach</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div class="header">
-    <div>
+  <!-- ══ STICKY HEADER + NAV (always visible) ════════════════════════════════ -->
+  <div class="app-header">
+    <div class="app-header-top">
       <div class="header-title">Trackman<span> Coach</span></div>
+      <button class="auth-toggle-btn" id="auth-toggle-btn" onclick="toggleAuthPanel()" title="Account">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span id="auth-toggle-label">Login</span>
+      </button>
     </div>
-    <div class="header-sub">54 HCP · SESSION TOOL</div>
-  </div>
 
-  <!-- Auth — minimal: login/logout + saved states load only -->
-  <div id="auth-box" class="auth-box">
-    <div id="logged-out-view" class="auth-row-wrap">
-      <input id="email" type="email" placeholder="Email">
-      <input id="password" type="password" placeholder="Password">
-      <div class="auth-actions">
-        <button id="signup-btn" type="button">Sign up</button>
-        <button id="login-btn" type="button">Log in</button>
+    <!-- Auth panel — hidden by default, toggled -->
+    <div id="auth-panel" class="auth-panel" style="display:none;">
+      <div id="logged-out-view">
+        <div class="auth-inline-row">
+          <input id="email" type="email" placeholder="Email">
+          <input id="password" type="password" placeholder="Password">
+          <button id="login-btn" type="button" class="auth-action-btn">Log in</button>
+          <button id="signup-btn" type="button" class="auth-action-btn auth-action-secondary">Sign up</button>
+        </div>
       </div>
-    </div>
-    <div id="logged-in-view" style="display:none;">
-      <div class="auth-user-row">
-        <span class="auth-user-email" id="user-email"></span>
-        <button id="logout-btn" type="button" class="auth-logout-btn">Log out</button>
+      <div id="logged-in-view" style="display:none;">
+        <div class="auth-inline-row">
+          <span class="auth-email-label" id="user-email"></span>
+          <div id="saved-list-inline"></div>
+          <button id="logout-btn" type="button" class="auth-action-btn auth-action-secondary">Log out</button>
+        </div>
       </div>
-      <div id="saved-list"></div>
+      <div id="auth-message" class="auth-msg"></div>
     </div>
-    <div id="auth-message"></div>
+
+    <!-- Sticky tab nav -->
+    <nav class="top-nav" id="top-nav">
+      <button class="top-nav-btn active" id="nav-coach-btn"    onclick="showPage('coach')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        Coach
+      </button>
+      <button class="top-nav-btn" id="nav-stats-btn"    onclick="showPage('stats')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg>
+        Stats
+      </button>
+      <button class="top-nav-btn" id="nav-clubs-btn"    onclick="showPage('clubs')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        Clubs
+      </button>
+      <button class="top-nav-btn" id="nav-analysis-btn" onclick="showPage('analysis')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Analysis
+      </button>
+    </nav>
   </div>
 
-  <!-- 4-tab nav -->
-  <div class="top-nav">
-    <button class="top-nav-btn active" id="nav-coach-btn"    onclick="showPage('coach')">Coach</button>
-    <button class="top-nav-btn"        id="nav-stats-btn"    onclick="showPage('stats')">Stats</button>
-    <button class="top-nav-btn"        id="nav-clubs-btn"    onclick="showPage('clubs')">Clubs</button>
-    <button class="top-nav-btn"        id="nav-analysis-btn" onclick="showPage('analysis')">Analysis</button>
-  </div>
-
-  <!-- ══ COACH ══════════════════════════════════════════════════════════════ -->
+  <!-- ══ COACH ════════════════════════════════════════════════════════════════ -->
   <div id="page-coach" class="page-section active">
+
+    <!-- Last session banner for Coach -->
+    <div id="coach-session-banner" class="coach-session-banner" style="display:none;">
+      <span id="coach-session-text"></span>
+      <button class="load-session-btn" onclick="loadLastSessionIntoCoach()">Load into sliders</button>
+    </div>
+
     <div class="mode-wrap">
       <div class="mode-toggle">
-        <button id="mode-realistic" class="mode-btn on" onclick="setRangeMode('realistic')">Realistic Range</button>
+        <button id="mode-realistic" class="mode-btn on" onclick="setRangeMode('realistic')">Realistic</button>
         <button id="mode-good"      class="mode-btn"   onclick="setRangeMode('good')">Good Target</button>
       </div>
     </div>
@@ -64,9 +90,9 @@
     <div class="main">
       <div class="acc" id="acc-kpis">
         <div class="acc-head" onclick="toggleAcc('kpis')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
           <div class="acc-title">Target KPIs</div>
-          <div class="acc-subtitle" id="kpi-sub">6 metrics · Realistic</div>
+          <div class="acc-subtitle" id="kpi-sub">6 metrics</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body" id="acc-body-kpis">
@@ -77,12 +103,12 @@
 
       <div class="acc open" id="acc-numbers">
         <div class="acc-head" onclick="toggleAcc('numbers')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
-          <div class="acc-title">Your numbers</div>
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+          <div class="acc-title">Your Numbers</div>
           <div class="acc-subtitle" id="numbers-sub">Enter from Trackman</div>
           <div class="acc-arrow">›</div>
         </div>
-        <div class="acc-body" id="acc-body-numbers" style="max-height:4000px;opacity:1">
+        <div class="acc-body" id="acc-body-numbers">
           <div class="slider-list" id="primary-sliders"></div>
           <div id="secondary-section">
             <div class="sub-acc-head" id="sub-head-secondary" onclick="toggleSub('secondary')">
@@ -109,9 +135,9 @@
 
       <div class="acc" id="acc-shot" style="display:none">
         <div class="acc-head" onclick="toggleAcc('shot')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg></div>
-          <div class="acc-title">Shot shape</div>
-          <div class="acc-subtitle" id="shot-sub">Predicted ball flight</div>
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg></div>
+          <div class="acc-title">Shot Shape</div>
+          <div class="acc-subtitle">Predicted ball flight</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body" id="acc-body-shot">
@@ -127,22 +153,20 @@
 
       <div class="acc" id="acc-diag">
         <div class="acc-head" onclick="toggleAcc('diag')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></div>
           <div class="acc-title">Diagnosis</div>
           <div class="acc-subtitle" id="diag-sub">Move sliders to diagnose</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body" id="acc-body-diag">
-          <div class="acc-padding">
-            <div class="banner banner-ok" id="banner">Move sliders above to get a diagnosis.</div>
-          </div>
+          <div class="acc-padding"><div class="banner banner-ok" id="banner">Move sliders above to get a diagnosis.</div></div>
           <div class="tip-list" id="tiplist"></div>
         </div>
       </div>
 
       <div class="acc open" id="acc-viz">
         <div class="acc-head" onclick="toggleAcc('viz')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg></div>
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg></div>
           <div class="acc-title">Visualizations</div>
           <div class="acc-subtitle">Face · path · attack angle</div>
           <div class="acc-arrow">›</div>
@@ -159,53 +183,55 @@
     </div>
   </div>
 
-  <!-- ══ STATS ══════════════════════════════════════════════════════════════ -->
+  <!-- ══ STATS ════════════════════════════════════════════════════════════════ -->
   <div id="page-stats" class="page-section" style="display:none;">
     <div class="main">
 
-      <!-- TrackMan -->
-      <div class="acc open">
-        <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg></div>
-          <div class="acc-title">TrackMan</div>
-          <div class="acc-subtitle">Progress &amp; sessions</div>
+      <!-- At a glance strip -->
+      <div id="stats-glance" class="stats-glance-strip"></div>
+
+      <div class="acc open" id="acc-stats-trackman">
+        <div class="acc-head" onclick="toggleAccById('acc-stats-trackman')">
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg></div>
+          <div class="acc-title">TrackMan</div><div class="acc-subtitle">Progress &amp; sessions</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body" style="max-height:4000px;opacity:1;">
-          <div class="stats-section-pad">
-            <div id="stats-trackman-summary">Loading…</div>
-          </div>
+          <div class="stats-section-pad"><div id="stats-trackman-summary">Loading…</div></div>
         </div>
       </div>
 
-      <!-- Chipping -->
-      <div class="acc open">
-        <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg></div>
-          <div class="acc-title">Chipping</div>
-          <div class="acc-subtitle">Log &amp; track short game</div>
+      <div class="acc open" id="acc-stats-chipping">
+        <div class="acc-head" onclick="toggleAccById('acc-stats-chipping')">
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg></div>
+          <div class="acc-title">Chipping</div><div class="acc-subtitle">Log &amp; trend</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body" style="max-height:4000px;opacity:1;">
           <div class="stats-section-pad">
             <div id="stats-chipping-summary"></div>
+            <!-- Chipping trend chart -->
+            <div id="chipping-chart-wrap" style="margin-top:12px;display:none;">
+              <div class="chart-label">Inside 2m % over time</div>
+              <canvas id="chipping-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:6px;"></canvas>
+            </div>
             <div class="stats-form-card">
               <div class="stats-form-title">Log session</div>
               <div class="form-grid">
-                <input id="chip-date"     type="date">
+                <input id="chip-date" type="date">
                 <input id="chip-distance" type="number" step="0.1" placeholder="Distance (m)">
-                <input id="chip-club"     type="text"   placeholder="Club (e.g. PW)">
+                <input id="chip-club" type="text" placeholder="Club (e.g. PW)">
                 <input id="chip-attempts" type="number" placeholder="Attempts">
-                <input id="chip-in1"      type="number" placeholder="Inside 1m">
-                <input id="chip-in2"      type="number" placeholder="1–2m">
-                <input id="chip-in3"      type="number" placeholder="2–3m">
-                <input id="chip-out3"     type="number" placeholder="Outside 3m">
-                <input id="chip-success"  type="number" step="0.1" placeholder="Success target (opt)">
-                <input id="chip-notes"    type="text"   placeholder="Notes">
+                <input id="chip-in1" type="number" placeholder="Inside 1m">
+                <input id="chip-in2" type="number" placeholder="1–2m">
+                <input id="chip-in3" type="number" placeholder="2–3m">
+                <input id="chip-out3" type="number" placeholder="Outside 3m">
+                <input id="chip-success" type="number" step="0.1" placeholder="Success target (opt)">
+                <input id="chip-notes" type="text" placeholder="Notes">
               </div>
               <div class="form-actions">
                 <button id="add-chip-btn">Add session</button>
-                <button id="update-chip-btn"      style="display:none;">Update</button>
+                <button id="update-chip-btn" style="display:none;">Update</button>
                 <button id="cancel-chip-edit-btn" style="display:none;">Cancel</button>
               </div>
             </div>
@@ -214,29 +240,32 @@
         </div>
       </div>
 
-      <!-- Putting -->
-      <div class="acc open">
-        <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
-          <div class="acc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg></div>
-          <div class="acc-title">Putting</div>
-          <div class="acc-subtitle">Log &amp; track putts</div>
+      <div class="acc open" id="acc-stats-putting">
+        <div class="acc-head" onclick="toggleAccById('acc-stats-putting')">
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg></div>
+          <div class="acc-title">Putting</div><div class="acc-subtitle">Log &amp; trend</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body" style="max-height:4000px;opacity:1;">
           <div class="stats-section-pad">
             <div id="stats-putting-summary"></div>
+            <!-- Putting trend chart -->
+            <div id="putting-chart-wrap" style="margin-top:12px;display:none;">
+              <div class="chart-label">Make rate % over time</div>
+              <canvas id="putting-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:6px;"></canvas>
+            </div>
             <div class="stats-form-card">
               <div class="stats-form-title">Log session</div>
               <div class="form-grid">
-                <input id="putt-date"     type="date">
+                <input id="putt-date" type="date">
                 <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)">
-                <input id="putt-holed"    type="number" placeholder="Holed">
-                <input id="putt-total"    type="number" placeholder="Total attempts">
-                <input id="putt-notes"    class="form-span-2" type="text" placeholder="Notes">
+                <input id="putt-holed" type="number" placeholder="Holed">
+                <input id="putt-total" type="number" placeholder="Total attempts">
+                <input id="putt-notes" class="form-span-2" type="text" placeholder="Notes">
               </div>
               <div class="form-actions">
                 <button id="add-putt-btn">Add session</button>
-                <button id="update-putt-btn"      style="display:none;">Update</button>
+                <button id="update-putt-btn" style="display:none;">Update</button>
                 <button id="cancel-putt-edit-btn" style="display:none;">Cancel</button>
               </div>
             </div>
@@ -248,23 +277,32 @@
     </div>
   </div>
 
-  <!-- ══ CLUBS ══════════════════════════════════════════════════════════════ -->
+  <!-- ══ CLUBS ════════════════════════════════════════════════════════════════ -->
   <div id="page-clubs" class="page-section" style="display:none;">
     <div class="main">
       <div class="page-intro">Your bag · tap a club to open Analysis</div>
-      <div id="clubs-overview" style="padding:0 14px 32px;"></div>
+      <div id="clubs-overview" style="padding:0 14px 16px;"></div>
+      <div class="acc" id="acc-alias">
+        <div class="acc-head" onclick="toggleAccById('acc-alias')">
+          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 3H6a2 2 0 00-2 2v14c0 1.1.9 2 2 2h12a2 2 0 002-2v-4"/><path d="M14 3h4l-7 7"/><path d="M18 3v4h-4"/></svg></div>
+          <div class="acc-title">Club Name Aliases</div>
+          <div class="acc-subtitle">Map Trackman names → clubs</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body">
+          <div style="padding:14px 16px 20px;"><div id="alias-manager">Loading…</div></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ══ ANALYSIS ═══════════════════════════════════════════════════════════ -->
+  <!-- ══ ANALYSIS ══════════════════════════════════════════════════════════════ -->
   <div id="page-analysis" class="page-section" style="display:none;">
-    <div class="main">
-      <div class="analysis-club-bar">
-        <div id="analysis-club-tabs" class="analysis-club-tabs"></div>
-      </div>
-      <div class="analysis-filter-bar">
-        <div id="analysis-filter-tabs" class="analysis-filter-tabs"></div>
-      </div>
+    <div class="analysis-sticky-bar">
+      <div id="analysis-club-tabs" class="analysis-club-tabs"></div>
+      <div id="analysis-filter-tabs" class="analysis-filter-tabs"></div>
+    </div>
+    <div class="main" style="padding-top:4px;">
       <div id="analysis-content">
         <div class="analysis-empty">Select a club above.</div>
       </div>
@@ -273,13 +311,14 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="auth.js?v=4"></script>
+  <script src="auth.js?v=6"></script>
   <script src="distances.js?v=2"></script>
   <script src="clubs.js?v=2"></script>
   <script src="viz.js?v=2"></script>
   <script src="shotshape.js?v=2"></script>
   <script src="engine.js?v=2"></script>
-  <script src="app.js?v=4"></script>
-  <script src="analysis.js?v=2"></script>
+  <script src="app.js?v=5"></script>
+  <script src="clubAliases.js?v=1"></script>
+  <script src="analysis.js?v=4"></script>
 </body>
 </html>

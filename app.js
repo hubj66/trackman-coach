@@ -1,18 +1,37 @@
-// app.js — accordion-first architecture
+// app.js v5
 
 let club = 'driver';
 let rangeMode = 'realistic';
 const vals = {};
 let lastColor = {};
 
+// ── Tab memory ─────────────────────────────────────────────────────────────
+function getLastTab() {
+  try { return localStorage.getItem('tc_last_tab') || 'coach'; } catch { return 'coach'; }
+}
+function setLastTab(page) {
+  try { localStorage.setItem('tc_last_tab', page); } catch {}
+}
+
+// ── Auth panel toggle ───────────────────────────────────────────────────────
+function toggleAuthPanel() {
+  const panel = document.getElementById('auth-panel');
+  if (!panel) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+}
+
+// ── Club selector ──────────────────────────────────────────────────────────
 function sel(id, el) {
   club = id;
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
   if (el) el.classList.add('on');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
+  loadLastSessionBanner();
 }
 
+// ── Range mode ─────────────────────────────────────────────────────────────
 function setRangeMode(mode) {
   if (mode !== 'realistic' && mode !== 'good') return;
   rangeMode = mode;
@@ -21,25 +40,33 @@ function setRangeMode(mode) {
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
   render();
 }
-
 function updateModeButtons() {
-  const r = document.getElementById('mode-realistic');
-  const g = document.getElementById('mode-good');
-  if (r) r.classList.toggle('on', rangeMode === 'realistic');
-  if (g) g.classList.toggle('on', rangeMode === 'good');
+  document.getElementById('mode-realistic')?.classList.toggle('on', rangeMode === 'realistic');
+  document.getElementById('mode-good')?.classList.toggle('on', rangeMode === 'good');
 }
+function getRangeLabel()    { return rangeMode === 'good' ? 'Good target' : 'Realistic'; }
+function getIdealRange(inp) { return inp[rangeMode] || inp.realistic || inp.ideal; }
+function getKpiDisplayValue(kpi) { return kpi[rangeMode] || kpi.realistic || kpi.v || ''; }
 
-function getRangeLabel()   { return rangeMode === 'good' ? 'Good target' : 'Realistic'; }
-function getIdealRange(inp){ return inp[rangeMode] || inp.realistic || inp.ideal; }
-function getKpiDisplayValue(kpi){ return kpi[rangeMode] || kpi.realistic || kpi.v || ''; }
-
+// ── Accordion ──────────────────────────────────────────────────────────────
 function toggleAcc(id) {
   const el = document.getElementById('acc-' + id);
   if (!el) return;
   vibrate(10);
-  const isOpen = el.classList.contains('open');
+  const wasOpen = el.classList.contains('open');
   el.classList.toggle('open');
-  if (!isOpen) {
+  // Fix: explicitly control max-height so it can actually close
+  const body = document.getElementById('acc-body-' + id);
+  if (body) {
+    if (!wasOpen) {
+      body.style.maxHeight = body.scrollHeight + 2000 + 'px';
+      body.style.opacity = '1';
+    } else {
+      body.style.maxHeight = '0';
+      body.style.opacity = '0';
+    }
+  }
+  if (!wasOpen) {
     if (id === 'viz') {
       requestAnimationFrame(() => requestAnimationFrame(() => {
         Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
@@ -54,14 +81,20 @@ function toggleAcc(id) {
   }
 }
 
+// Generic accordion toggle by element id (used in stats/clubs)
+function toggleAccById(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  vibrate(10);
+  el.classList.toggle('open');
+}
+
 function openAcc(id) {
   const el = document.getElementById('acc-' + id);
   if (!el || el.classList.contains('open')) return;
   el.classList.add('open');
-  if (id === 'numbers') {
-    const body = document.getElementById('acc-body-numbers');
-    if (body) body.style.maxHeight = '4000px';
-  }
+  const body = document.getElementById('acc-body-' + id);
+  if (body) { body.style.maxHeight = '4000px'; body.style.opacity = '1'; }
 }
 
 function toggleSub(id) {
@@ -75,6 +108,7 @@ function toggleSub(id) {
   body.style.opacity = '';
 }
 
+// ── Colors ─────────────────────────────────────────────────────────────────
 function getColorAdapted(inp, v) {
   const [lo, hi] = getIdealRange(inp);
   if (v >= lo && v <= hi) return '#00d68f';
@@ -83,18 +117,19 @@ function getColorAdapted(inp, v) {
   return '#ff4d4d';
 }
 function getColor(inp, v) { return getColorAdapted(inp, v); }
-function fillPct(inp, v) { return Math.round((v - inp.min) / (inp.max - inp.min) * 100); }
-function dispVal(inp, v) { return inp.scale ? (v / inp.scale).toFixed(inp.dp || 2) + inp.unit : v + inp.unit; }
+function fillPct(inp, v)  { return Math.round((v - inp.min) / (inp.max - inp.min) * 100); }
+function dispVal(inp, v)  { return inp.scale ? (v / inp.scale).toFixed(inp.dp || 2) + inp.unit : v + inp.unit; }
 function formatIdealValue(val, inp) {
   if (inp.scale) return (val / inp.scale).toFixed(inp.dp || 2);
   return Number.isInteger(val) ? String(val) : String(val);
 }
 function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
+// ── Slider builder ─────────────────────────────────────────────────────────
 function buildSlider(inp, v, prefix) {
-  const col = getColorAdapted(inp, v);
-  const pct = fillPct(inp, v);
-  const ideal = getIdealRange(inp);
+  const col     = getColorAdapted(inp, v);
+  const pct     = fillPct(inp, v);
+  const ideal   = getIdealRange(inp);
   const idealStr = `${getRangeLabel().toLowerCase()} ${formatIdealValue(ideal[0], inp)}${inp.unit.trim()} → ${formatIdealValue(ideal[1], inp)}${inp.unit.trim()}`;
   return `<div class="irow" id="${prefix}row-${inp.id}">
     <div class="irow-top">
@@ -113,6 +148,7 @@ function buildSlider(inp, v, prefix) {
   </div>`;
 }
 
+// ── Render ─────────────────────────────────────────────────────────────────
 function badgeToClass(bt) {
   return bt === 'Critical' ? 'critical' : bt === 'Important' ? 'important' : 'watch';
 }
@@ -187,6 +223,7 @@ function render() {
   }
 }
 
+// ── Slider update ──────────────────────────────────────────────────────────
 function onSlider(id, v, prefix) {
   if (!vals[club]) vals[club] = {};
   vals[club][id] = v;
@@ -224,18 +261,16 @@ function setBanner(msg, cls) {
   const b = document.getElementById('banner');
   b.innerHTML = msg; b.className = 'banner ' + cls;
   const sub = document.getElementById('diag-sub');
-  if (sub) sub.textContent = cls === 'banner-bad' ? 'Faults detected' : cls === 'banner-good' ? 'Numbers look good' : 'Move sliders to diagnose';
+  if (sub) sub.textContent = cls==='banner-bad'?'Faults detected':cls==='banner-good'?'Numbers look good':'Move sliders to diagnose';
 }
 
 function setTips(tips) {
   const cls = ['tip-p1','tip-p2','tip-p3'];
-  document.getElementById('tiplist').innerHTML = tips.map((t, i) => `
-    <div class="tip-item ${cls[i]||'tip-p3'}">
-      <span class="tip-num">${i+1}</span><span>${t}</span>
-    </div>`).join('');
+  document.getElementById('tiplist').innerHTML = tips.map((t,i) =>
+    `<div class="tip-item ${cls[i]||'tip-p3'}"><span class="tip-num">${i+1}</span><span>${t}</span></div>`
+  ).join('');
   openAcc('diag');
-  const vizAcc = document.getElementById('acc-viz');
-  if (vizAcc?.classList.contains('open')) {
+  if (document.getElementById('acc-viz')?.classList.contains('open')) {
     if (document.getElementById('vface'))   triggerFace('vface','vdface');
     if (document.getElementById('vpath'))   triggerPath('vpath','vdpath');
     if (document.getElementById('vattack')) triggerAttack('vattack','vdattack');
@@ -273,7 +308,113 @@ function drawShotShape() {
   if (typeof _drawShotShape === 'function') _drawShotShape();
 }
 
-// ── Page nav — 4 tabs ──────────────────────────────────────────────────────
+// ── C1: Last session banner + load into sliders ────────────────────────────
+let _lastSessionCache = {};
+
+async function loadLastSessionBanner() {
+  const banner = document.getElementById('coach-session-banner');
+  const text   = document.getElementById('coach-session-text');
+  if (!banner || !text) return;
+
+  // Map coach club tabs to canonical keys
+  const clubKeyMap = {
+    driver: ['driver'],
+    irons:  ['6','7','8','9'],
+    wedge:  ['pw','sw','58'],
+    putter: ['putter'],
+  };
+  const keys = clubKeyMap[club] || [];
+  if (!keys.length) { banner.style.display = 'none'; return; }
+
+  try {
+    const sb = window.supabaseClient;
+    const { data } = await sb
+      .from('trackman_shots')
+      .select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_axis,created_at,is_full_shot,exclude_from_progress')
+      .order('created_at', { ascending: false })
+      .limit(300);
+
+    if (!data?.length) { banner.style.display = 'none'; return; }
+
+    // Find the most recent session date across the relevant keys
+    const CA = window.clubAliases;
+    const relevantShots = data.filter(s => {
+      const resolved = CA ? CA.resolveClub(s.club) : null;
+      return resolved ? keys.includes(resolved) : keys.some(k => (s.club||'').toLowerCase().includes(k));
+    });
+
+    if (!relevantShots.length) { banner.style.display = 'none'; return; }
+
+    // Most recent session date
+    const lastDate = relevantShots[0].created_at?.slice(0,10);
+    const lastSessionShots = relevantShots.filter(s => s.created_at?.startsWith(lastDate));
+    const progress = lastSessionShots.filter(s => s.is_full_shot !== false && s.exclude_from_progress !== true);
+
+    const n = progress.length || lastSessionShots.length;
+    const shots = progress.length ? progress : lastSessionShots;
+
+    const avgOf = key => {
+      const v = shots.map(s => s[key]).filter(x => x != null && !isNaN(x));
+      return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
+    };
+
+    _lastSessionCache[club] = {
+      date: lastDate, n,
+      carry: avgOf('carry'), face: avgOf('face_angle'), path: avgOf('club_path'),
+      attack: avgOf('attack_angle'), smash: avgOf('smash_factor'),
+      launch: avgOf('launch_angle'), spin: avgOf('spin_rate'),
+      ballSpeed: avgOf('ball_speed'), clubSpeed: avgOf('club_speed'),
+      dynLoft: avgOf('dyn_loft'), spinAxis: avgOf('spin_axis'),
+    };
+
+    const s = _lastSessionCache[club];
+    const fmtN = (v, dp=1) => v != null ? Number(v).toFixed(dp) : '–';
+    const fmtS = (v, dp=1) => v != null ? (v>0?'+':'')+Number(v).toFixed(dp) : '–';
+
+    text.innerHTML = `<strong>${lastDate}</strong> · ${n} shots · carry ${fmtN(s.carry)}m · face ${fmtS(s.face)}° · smash ${fmtN(s.smash,2)}`;
+    banner.style.display = 'flex';
+  } catch(e) {
+    banner.style.display = 'none';
+  }
+}
+
+function loadLastSessionIntoCoach() {
+  const s = _lastSessionCache[club];
+  if (!s) return;
+
+  const C = CLUBS[club];
+  if (!vals[club]) vals[club] = {};
+
+  // Map field names to slider ids
+  const fieldMap = {
+    face:    'face',
+    path:    'path',
+    attack:  'attack',
+    launch:  'launch',
+    smash:   'smash',
+    spin:    'spin',
+    ballSpeed: 'ballspeed',
+    clubSpeed: 'clubspeed',
+    dynLoft:   'dynloft',
+    spinAxis:  'spinaxis',
+  };
+
+  const allInps = getAllInputs(club);
+  Object.entries(fieldMap).forEach(([field, sliderId]) => {
+    const inp = allInps.find(i => i.id === sliderId);
+    if (!inp || s[field] == null) return;
+    // If the slider has a scale factor, multiply back
+    const rawVal = inp.scale ? Math.round(s[field] * inp.scale) : Math.round(s[field]);
+    const clamped = Math.max(inp.min, Math.min(inp.max, rawVal));
+    vals[club][sliderId] = clamped;
+  });
+
+  render();
+  openAcc('numbers');
+  showToast(`Loaded ${s.date} session averages`);
+}
+
+// ── Page navigation ────────────────────────────────────────────────────────
 const ALL_PAGES = ['coach','stats','clubs','analysis'];
 
 function showPage(page) {
@@ -284,9 +425,16 @@ function showPage(page) {
     if (btnEl)  btnEl.classList.toggle('active', id===page);
   });
 
+  setLastTab(page);
+
+  // Close auth panel on page switch
+  const ap = document.getElementById('auth-panel');
+  if (ap) ap.style.display = 'none';
+
   if (page === 'coach') {
     Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
     render();
+    loadLastSessionBanner();
   }
   if ((page==='stats'||page==='clubs') && typeof window.loadStatsPage==='function') {
     window.loadStatsPage();
@@ -321,12 +469,19 @@ updateModeButtons();
 render();
 
 window.addEventListener('load', () => {
-  openAcc('viz');
-  Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
-  drawVizs();
-  const C = CLUBS[club];
-  if (C.primary.find(i=>i.id==='face') && C.primary.find(i=>i.id==='path') && club!=='putter') {
-    openAcc('shot');
-    if (typeof _drawShotShape==='function') _drawShotShape();
+  // Restore last tab
+  const lastTab = getLastTab();
+  showPage(lastTab);
+
+  if (lastTab === 'coach') {
+    openAcc('viz');
+    Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+    drawVizs();
+    const C = CLUBS[club];
+    if (C.primary.find(i=>i.id==='face') && C.primary.find(i=>i.id==='path') && club!=='putter') {
+      openAcc('shot');
+      if (typeof _drawShotShape==='function') _drawShotShape();
+    }
+    loadLastSessionBanner();
   }
 });
