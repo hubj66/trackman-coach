@@ -1,4 +1,4 @@
-// auth.js v6 — S1/S2/S3: trend charts, glance strip; minimal auth UI
+// auth.js v7
 
 const sb = window.supabaseClient;
 let editingChipId=null,editingPuttId=null;
@@ -71,7 +71,70 @@ async function loadStatsPage(){
     ['stats-trackman-summary','stats-chipping-summary','stats-putting-summary','clubs-overview'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
     return;
   }
-  await Promise.all([loadTrackmanSummary(),loadChippingSummary(),loadPuttingSummary(),loadClubsOverview(),loadStatsGlance()]);
+  await Promise.all([loadTournamentPanel(),loadTrackmanSummary(),loadChippingSummary(),loadPuttingSummary(),loadClubsOverview(),loadStatsGlance()]);
+}
+
+// ── Tournament countdown panel ─────────────────────────────────────────────
+async function loadTournamentPanel(){
+  const el=document.getElementById('stats-tournament');if(!el)return;
+  const TOURNAMENT=new Date('2026-05-10');
+  const now=new Date();
+  const daysLeft=Math.ceil((TOURNAMENT-now)/86400000);
+  if(daysLeft<0){el.style.display='none';return;}
+
+  // Fetch latest KPI data
+  const[chipRes,puttRes,tmRes]=await Promise.all([
+    sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m').order('session_date',{ascending:false}).limit(5),
+    sb.from('putting_sessions').select('holed,total,distance_m').order('session_date',{ascending:false}).limit(5),
+    sb.from('trackman_shots').select('carry,face_angle,is_full_shot,exclude_from_progress,shot_time,created_at').order('shot_time',{ascending:false}).limit(100),
+  ]);
+
+  // Chip inside 2m %
+  const chipData=chipRes.data||[];
+  const chipAtt=sum(chipData.map(x=>x.attempts));
+  const chipIn2=sum(chipData.map(x=>(x.inside_1m||0)+(x.between_1_2m||0)));
+  const chipPct=chipAtt?chipIn2/chipAtt*100:null;
+
+  // 1m putt make %
+  const puttData=(puttRes.data||[]).filter(r=>r.distance_m<=1.5);
+  const puttHoled=sum(puttData.map(x=>x.holed));
+  const puttTotal=sum(puttData.map(x=>x.total));
+  const puttPct=puttTotal?puttHoled/puttTotal*100:null;
+
+  // Last 7i carry avg
+  const tmShots=(tmRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
+  const carryAvg=avg(tmShots.slice(0,30).map(s=>s.carry).filter(Boolean));
+
+  function trafficLight(val,target,low){
+    if(val==null)return'kpi-tl-none';
+    if(val>=target)return'kpi-tl-green';
+    if(val>=low)return'kpi-tl-amber';
+    return'kpi-tl-red';
+  }
+
+  el.style.display='block';
+  el.innerHTML=`
+    <div class="tournament-header">
+      <div class="tournament-title">Golfpark Otelfingen</div>
+      <div class="tournament-days">${daysLeft} days</div>
+    </div>
+    <div class="tournament-kpis">
+      <div class="tournament-kpi ${trafficLight(chipPct,75,60)}">
+        <div class="tkpi-val">${chipPct!=null?chipPct.toFixed(0)+'%':'–'}</div>
+        <div class="tkpi-label">Chip inside 2m</div>
+        <div class="tkpi-target">target 75%</div>
+      </div>
+      <div class="tournament-kpi ${trafficLight(puttPct,85,74)}">
+        <div class="tkpi-val">${puttPct!=null?puttPct.toFixed(0)+'%':'–'}</div>
+        <div class="tkpi-label">1m putts made</div>
+        <div class="tkpi-target">target 85%</div>
+      </div>
+      <div class="tournament-kpi ${trafficLight(carryAvg,105,95)}">
+        <div class="tkpi-val">${carryAvg!=null?Math.round(carryAvg)+'m':'–'}</div>
+        <div class="tkpi-label">Avg carry</div>
+        <div class="tkpi-target">target 105m+</div>
+      </div>
+    </div>`;
 }
 
 // ── S3: At-a-glance strip ──────────────────────────────────────────────────
@@ -138,6 +201,53 @@ async function loadTrackmanSummary(){
     <div class="club-count-grid">${Object.entries(clubCounts).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class="club-count-item"><span class="club-count-name">${escapeHtml(c)}</span><span class="club-count-val">${n}</span></div>`).join('')}</div>`;
 }
 
+// ── Rule of 12 helper ──────────────────────────────────────────────────────
+const RULE_OF_12 = {
+  '7i':[1,5],'7 iron':[1,5],'7iron':[1,5],
+  '8i':[1,4],'8 iron':[1,4],
+  '9i':[1,3],'9 iron':[1,3],
+  'pw':[1,2],'pitching wedge':[1,2],
+  'sw':[1,1],'sand wedge':[1,1],
+  '58':[1,1],'58°':[1,1],'58 degree':[1,1],
+};
+function getR12(club,distM){
+  if(!club||!distM)return null;
+  const key=club.toLowerCase().trim();
+  const ratio=Object.entries(RULE_OF_12).find(([k])=>key.includes(k.replace('i','')))?.[1]
+    ||RULE_OF_12[key];
+  if(!ratio)return null;
+  const total=ratio[0]+ratio[1];
+  const carry=(distM*ratio[0]/total).toFixed(1);
+  const roll=(distM*ratio[1]/total).toFixed(1);
+  return{carry,roll,ratio:`1:${ratio[1]}`};
+}
+function updateR12(){
+  const club=document.getElementById('chip-club')?.value;
+  const dist=parseFloat(document.getElementById('chip-distance')?.value);
+  const el=document.getElementById('chip-r12');
+  if(!el)return;
+  const r=getR12(club,dist);
+  if(r){
+    el.textContent=`${club.toUpperCase()} Rule of 12 (${r.ratio}): land ${r.carry}m, roll ${r.roll}m`;
+    el.style.display='block';
+  }else{
+    el.style.display='none';
+  }
+}
+
+// ── Bucket counter ─────────────────────────────────────────────────────────
+function updateBucketCounter(){
+  const att=parseInt(document.getElementById('chip-attempts')?.value)||0;
+  const used=['chip-in1','chip-in2','chip-in3','chip-out3']
+    .reduce((s,id)=>s+(parseInt(document.getElementById(id)?.value)||0),0);
+  const el=document.getElementById('chip-bucket-count');
+  if(!el)return;
+  if(!att){el.textContent='';el.className='bucket-counter';return;}
+  const over=used>att;
+  el.textContent=over?`${used} assigned — over by ${used-att}`:`${used} of ${att} assigned`;
+  el.className='bucket-counter'+(over?' bucket-over':used===att?' bucket-full':'');
+}
+
 // ── S1: Chipping with trend chart ──────────────────────────────────────────
 async function loadChippingSummary(){
   const el=document.getElementById('stats-chipping-summary');
@@ -158,18 +268,19 @@ async function loadChippingSummary(){
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(i2m,att)}</div><div class="stats-kpi-tile-label">Inside 2m</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(i3m,att)}</div><div class="stats-kpi-tile-label">Inside 3m</div></div>
   </div>`;
-  // Show trend chart
   const cw=document.getElementById('chipping-chart-wrap');
   if(cw){cw.style.display='block';requestAnimationFrame(()=>drawChippingTrend(data));}
   if(listEl)listEl.innerHTML=`<div class="stats-table-wrap"><table class="stats-table">
     <thead><tr><th>Date</th><th>Club</th><th>Dist</th><th>Att</th><th>&lt;1m</th><th>1-2m</th><th>2-3m</th><th>&gt;3m</th><th></th></tr></thead>
-    <tbody>${data.slice(0,15).map(r=>`<tr><td>${escapeHtml(r.session_date)}</td><td>${escapeHtml(r.club)}</td><td>${fmt(r.distance_m,1)}m</td><td>${r.attempts}</td><td>${r.inside_1m||0}</td><td>${r.between_1_2m||0}</td><td>${r.between_2_3m||0}</td><td>${r.outside_3m||0}</td>
-    <td><div class="inline-actions"><button onclick="startEditChippingSession('${r.id}')">Edit</button><button onclick="deleteChippingSession('${r.id}')">✕</button></div></td></tr>`).join('')}</tbody></table></div>`;
+    <tbody>${data.slice(0,15).map(r=>`<tr>
+      <td>${escapeHtml(r.session_date)}</td><td>${escapeHtml(r.club)}</td><td>${fmt(r.distance_m,1)}m</td><td>${r.attempts}</td>
+      <td>${r.inside_1m||0}</td><td>${r.between_1_2m||0}</td><td>${r.between_2_3m||0}</td><td>${r.outside_3m||0}</td>
+      <td><div class="inline-actions"><button onclick="startEditChippingSession('${r.id}')">Edit</button><button onclick="deleteChippingSession('${r.id}')">✕</button></div></td>
+    </tr>${r.notes?`<tr><td colspan="9" class="notes-row">${escapeHtml(r.notes)}</td></tr>`:''}`).join('')}</tbody></table></div>`;
 }
 
 function drawChippingTrend(data){
   const canvas=document.getElementById('chipping-trend-canvas');if(!canvas)return;
-  // Use chronological order, compute inside-2m % per session
   const sorted=[...data].sort((a,b)=>new Date(a.session_date)-new Date(b.session_date));
   const points=sorted.map(r=>{
     const i2=(r.inside_1m||0)+(r.between_1_2m||0);
@@ -189,27 +300,37 @@ async function loadPuttingSummary(){
   puttingCache=data||[];
   if(!data?.length){el.innerHTML='<div class="stats-empty">No putting data yet.</div>';const pw=document.getElementById('putting-chart-wrap');if(pw)pw.style.display='none';if(listEl)listEl.innerHTML='';return;}
   const holed=sum(data.map(x=>x.holed)),total=sum(data.map(x=>x.total));
+
+  // Separate short putts (≤1.5m) for KPI tracking
+  const shortPutts=data.filter(r=>r.distance_m<=1.5);
+  const shortHoled=sum(shortPutts.map(x=>x.holed));
+  const shortTotal=sum(shortPutts.map(x=>x.total));
+  const shortPct=shortTotal?(shortHoled/shortTotal*100).toFixed(0)+'%':'–';
+
   const byDist={};data.forEach(r=>{const d=fmt(r.distance_m,1);if(!byDist[d])byDist[d]={holed:0,total:0};byDist[d].holed+=r.holed||0;byDist[d].total+=r.total||0;});
   el.innerHTML=`<div class="stats-kpi-band">
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${data.length}</div><div class="stats-kpi-tile-label">Sessions</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${total}</div><div class="stats-kpi-tile-label">Total Putts</div></div>
-    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${holed}</div><div class="stats-kpi-tile-label">Holed</div></div>
-    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(holed,total)}</div><div class="stats-kpi-tile-label">Make Rate</div></div>
+    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(holed,total)}</div><div class="stats-kpi-tile-label">Overall rate</div></div>
+    <div class="stats-kpi-tile kpi-tile-highlight"><div class="stats-kpi-tile-val">${shortPct}</div><div class="stats-kpi-tile-label">1m make rate</div><div class="stats-kpi-tile-sub">target 85%</div></div>
   </div>
-  ${Object.keys(byDist).length>1?`<div class="putt-dist-grid">${Object.entries(byDist).sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([d,v])=>`<div class="putt-dist-card"><div class="putt-dist-label">${d}m</div><div class="putt-dist-rate">${pct(v.holed,v.total)}</div><div class="putt-dist-sub">${v.holed}/${v.total}</div></div>`).join('')}</div>`:''}`;
+  ${Object.keys(byDist).length>1?`<div class="putt-dist-grid">${Object.entries(byDist).sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([d,v])=>`<div class="putt-dist-card${parseFloat(d)<=1.5?' putt-dist-highlight':''}"><div class="putt-dist-label">${d}m${parseFloat(d)<=1.5?' ★':''}</div><div class="putt-dist-rate">${pct(v.holed,v.total)}</div><div class="putt-dist-sub">${v.holed}/${v.total}</div></div>`).join('')}</div>`:''}`;
   const pw=document.getElementById('putting-chart-wrap');
   if(pw){pw.style.display='block';requestAnimationFrame(()=>drawPuttingTrend(data));}
   if(listEl)listEl.innerHTML=`<div class="stats-table-wrap"><table class="stats-table">
     <thead><tr><th>Date</th><th>Dist</th><th>Holed</th><th>Total</th><th>Rate</th><th></th></tr></thead>
-    <tbody>${data.slice(0,15).map(r=>`<tr><td>${escapeHtml(r.session_date)}</td><td>${fmt(r.distance_m,1)}m</td><td>${r.holed}</td><td>${r.total}</td><td>${pct(r.holed,r.total)}</td>
-    <td><div class="inline-actions"><button onclick="startEditPuttingSession('${r.id}')">Edit</button><button onclick="deletePuttingSession('${r.id}')">✕</button></div></td></tr>`).join('')}</tbody></table></div>`;
+    <tbody>${data.slice(0,15).map(r=>`<tr>
+      <td>${escapeHtml(r.session_date)}</td><td>${fmt(r.distance_m,1)}m</td><td>${r.holed}</td><td>${r.total}</td><td>${pct(r.holed,r.total)}</td>
+      <td><div class="inline-actions"><button onclick="startEditPuttingSession('${r.id}')">Edit</button><button onclick="deletePuttingSession('${r.id}')">✕</button></div></td>
+    </tr>${r.notes?`<tr><td colspan="6" class="notes-row">${escapeHtml(r.notes)}</td></tr>`:''}`).join('')}</tbody></table></div>`;
 }
 
 function drawPuttingTrend(data){
   const canvas=document.getElementById('putting-trend-canvas');if(!canvas)return;
   const sorted=[...data].sort((a,b)=>new Date(a.session_date)-new Date(b.session_date));
-  const points=sorted.map(r=>({date:r.session_date,val:r.total?r.holed/r.total*100:null})).filter(p=>p.val!=null);
-  drawSimpleTrendChart(canvas,points,'Make Rate','%',0,100,'#ffaa00');
+  const shortOnly=sorted.filter(r=>r.distance_m<=1.5);
+  const points=(shortOnly.length>=2?shortOnly:sorted).map(r=>({date:r.session_date,val:r.total?r.holed/r.total*100:null})).filter(p=>p.val!=null);
+  drawSimpleTrendChart(canvas,points,shortOnly.length>=2?'1m make rate':'Make Rate','%',0,100,'#ffaa00');
 }
 
 // ── Shared mini trend chart ────────────────────────────────────────────────
@@ -228,7 +349,6 @@ function drawSimpleTrendChart(canvas,points,label,unit,yMin,yMax,color){
   const rangeMin=Math.min(yMin,dataMin-5),rangeMax=Math.max(yMax,dataMax+5);
   const px=i=>pad.l+(i/(values.length-1))*cw;
   const py=v=>pad.t+ch-((v-rangeMin)/(rangeMax-rangeMin))*ch;
-  // Grid
   ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
   ctx.font="9px 'DM Mono',monospace";ctx.fillStyle='#4e5660';ctx.textAlign='right';
   for(let i=0;i<=3;i++){
@@ -236,18 +356,15 @@ function drawSimpleTrendChart(canvas,points,label,unit,yMin,yMax,color){
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
     ctx.fillText(val.toFixed(0)+unit,pad.l-4,y+3);
   }
-  // Area
   const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
   grad.addColorStop(0,color+'33');grad.addColorStop(1,color+'05');
   ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(px(0),py(values[0]));
   values.forEach((v,i)=>ctx.lineTo(px(i),py(v)));
   ctx.lineTo(px(values.length-1),pad.t+ch);ctx.lineTo(px(0),pad.t+ch);ctx.closePath();ctx.fill();
-  // Dots + line
   ctx.strokeStyle=color;ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
   ctx.beginPath();values.forEach((v,i)=>i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v)));ctx.stroke();
   ctx.fillStyle=color;
   values.forEach((v,i)=>{ctx.beginPath();ctx.arc(px(i),py(v),3,0,Math.PI*2);ctx.fill();});
-  // Trend
   const n=values.length,sX=values.reduce((_,__,i)=>_+i,0),sY=values.reduce((a,b)=>a+b,0);
   const sXY=values.reduce((a,v,i)=>a+i*v,0),sX2=values.reduce((a,_,i)=>a+i*i,0);
   const slope=(n*sXY-sX*sY)/(n*sX2-sX*sX),intercept=(sY-slope*sX)/n;
@@ -255,55 +372,116 @@ function drawSimpleTrendChart(canvas,points,label,unit,yMin,yMax,color){
   ctx.strokeStyle=tCol;ctx.lineWidth=1.5;ctx.globalAlpha=0.6;ctx.setLineDash([6,4]);
   ctx.beginPath();ctx.moveTo(px(0),py(intercept));ctx.lineTo(px(n-1),py(slope*(n-1)+intercept));ctx.stroke();
   ctx.setLineDash([]);ctx.globalAlpha=1;
-  // Labels
   ctx.fillStyle='#f0ede8';ctx.font="700 10px 'Barlow Condensed',sans-serif";ctx.textAlign='left';
   ctx.fillText(label,pad.l,pad.t-8);
   const diff=slope*(n-1),arrow=slope>0.1?'↑':slope<-0.1?'↓':'→';
   ctx.fillStyle=tCol;ctx.textAlign='right';ctx.font="700 10px 'Barlow Condensed',sans-serif";
   ctx.fillText(`${arrow} ${diff>0?'+':''}${diff.toFixed(1)}${unit}`,w-pad.r,pad.t-8);
-  // Date labels bottom
   ctx.fillStyle='#4e5660';ctx.font="9px 'DM Mono',monospace";ctx.textAlign='center';
   const step=Math.max(1,Math.floor(dates.length/4));
   dates.forEach((d,i)=>{if(i%step===0)ctx.fillText(d.slice(5),px(i),pad.t+ch+16);});
 }
 
-// ── Clubs ──────────────────────────────────────────────────────────────────
+// ── Clubs overview ─────────────────────────────────────────────────────────
 async function loadClubsOverview(){
   const el=document.getElementById('clubs-overview');if(!el)return;
   el.innerHTML='<div class="stats-loading">Loading…</div>';
   const CA=window.clubAliases;await CA.loadAliases();
   const[clubsRes,shotsRes]=await Promise.all([
-    sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('is_active',true).order('club_name'),
+    sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active,is_fitted,fit_notes').eq('is_active',true).order('club_name'),
     sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').limit(2000)
   ]);
-  if(clubsRes.error||!clubsRes.data?.length){el.innerHTML='<div class="stats-empty">No clubs in the clubs table.</div>';const am=document.getElementById('alias-manager');if(am&&typeof renderAliasManager==='function')renderAliasManager();return;}
+
+  // Onboarding state: no aliases mapped yet
+  const hasAliases=Object.keys(CA._aliasMap||{}).length>0;
+  if(!hasAliases){
+    el.innerHTML=`<div class="clubs-onboarding">
+      <div class="clubs-onboarding-title">Set up your bag</div>
+      <div class="clubs-onboarding-steps">
+        <div class="clubs-onboarding-step"><span class="onboarding-num">1</span><span>Hit balls on the Trackman simulator</span></div>
+        <div class="clubs-onboarding-step"><span class="onboarding-num">2</span><span>Come back to this page</span></div>
+        <div class="clubs-onboarding-step"><span class="onboarding-num">3</span><span>Use the alias manager below to map Trackman names to your clubs</span></div>
+      </div>
+    </div>`;
+    const am=document.getElementById('alias-manager');
+    if(am&&typeof renderAliasManager==='function')renderAliasManager();
+    return;
+  }
+
+  if(clubsRes.error||!clubsRes.data?.length){
+    el.innerHTML='<div class="stats-empty">No clubs in the clubs table.</div>';
+    const am=document.getElementById('alias-manager');if(am&&typeof renderAliasManager==='function')renderAliasManager();
+    return;
+  }
+
   const progressShots=(shotsRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
   const grouped=CA.groupShotsByClub(progressShots);
-  el.innerHTML=`<div class="clubs-grid">${clubsRes.data.map(row=>{
+
+  // Build carry averages for gapping check
+  const carryByKey={};
+  clubsRes.data.forEach(row=>{
     const shots=grouped[row.club_key]||[];
     const carries=shots.map(s=>s.carry).filter(Boolean);
-    const avgCarry=avg(carries),medC=[...carries].sort((a,b)=>a-b)[Math.floor(carries.length/2)];
-    const carrySD=stdDev(carries),avgSmash=avg(shots.map(s=>s.smash_factor).filter(Boolean));
+    carryByKey[row.club_key]=carries.length?{avg:avg(carries),sd:stdDev(carries)||0}:null;
+  });
+
+  // Bag order for gapping (driver → long irons → short irons → wedges → putter)
+  const BAG_ORDER=['driver','3w','5w','4','5','6','7','8','9','pw','sw','58','putter'];
+  const orderedClubs=[...clubsRes.data].sort((a,b)=>{
+    const ai=BAG_ORDER.indexOf(a.club_key),bi=BAG_ORDER.indexOf(b.club_key);
+    return(ai===-1?99:ai)-(bi===-1?99:bi);
+  });
+
+  el.innerHTML=`<div class="clubs-grid">${orderedClubs.map((row,i)=>{
+    const shots=grouped[row.club_key]||[];
+    const carries=shots.map(s=>s.carry).filter(Boolean);
+    const avgCarry=avg(carries);
+    const carrySD=stdDev(carries);
+    const avgSmash=avg(shots.map(s=>s.smash_factor).filter(Boolean));
     const avgSpin=avg(shots.map(s=>s.spin_rate).filter(Boolean));
     const sides=shots.map(s=>s.side).filter(x=>x!=null),avgSide=avg(sides);
     const miss=!avgSide?'–':avgSide>5?'Right':avgSide<-5?'Left':'Straight';
     const hasData=shots.length>0;
+
+    // Fitted badge
+    const fittedBadge=row.is_fitted
+      ?`<span class="fit-badge fit-yes">${row.fit_notes||'Fitted'}</span>`
+      :`<span class="fit-badge fit-no">Not fitted</span>`;
+
+    // Gapping warning: check against next club down in bag order
+    let gapWarn='';
+    if(hasData&&avgCarry){
+      const nextKey=BAG_ORDER[BAG_ORDER.indexOf(row.club_key)+1];
+      const nextData=nextKey?carryByKey[nextKey]:null;
+      if(nextData&&nextData.avg){
+        const gap=avgCarry-nextData.avg;
+        const combinedSD=(carrySD||0)+(nextData.sd||0);
+        if(gap<combinedSD*0.8&&gap>=0){
+          gapWarn=`<div class="gap-warning">Gap overlap with next club — carries are too close (${Math.round(gap)}m gap, combined ±${Math.round(combinedSD)}m)</div>`;
+        }
+      }
+    }
+
     return`<div class="club-card" onclick="openClubInAnalysis('${escapeHtml(row.club_key||'')}')">
       <div class="club-card-header">
         <div class="club-card-name">${escapeHtml(row.club_name)}</div>
-        <div class="club-card-badge">${hasData?shots.length+' shots':'No data'}</div>
+        <div style="display:flex;gap:5px;align-items:center">${fittedBadge}<div class="club-card-badge">${hasData?shots.length+' shots':'No data'}</div></div>
       </div>
       ${row.brand||row.model?`<div class="club-card-model">${escapeHtml([row.brand,row.model].filter(Boolean).join(' '))}</div>`:''}
-      ${hasData?`<div class="club-stats-grid">
-        <div class="club-stat"><div class="club-stat-label">Avg Carry</div><div class="club-stat-val">${fmt(avgCarry)}m</div></div>
-        <div class="club-stat"><div class="club-stat-label">Median</div><div class="club-stat-val">${fmt(medC)}m</div></div>
-        <div class="club-stat"><div class="club-stat-label">Carry ±</div><div class="club-stat-val">${fmt(carrySD)}m</div></div>
-        <div class="club-stat"><div class="club-stat-label">Smash</div><div class="club-stat-val">${fmt(avgSmash,2)}</div></div>
-        <div class="club-stat"><div class="club-stat-label">Spin</div><div class="club-stat-val">${avgSpin?Math.round(avgSpin):'–'}</div></div>
-        <div class="club-stat"><div class="club-stat-label">Miss</div><div class="club-stat-val">${miss}</div></div>
-      </div><div class="club-card-cta">Tap to analyse →</div>`:`<div class="club-card-nodata">No shots mapped yet</div>`}
+      ${hasData?`
+        <div class="club-carry-hero">${Math.round(avgCarry)}m</div>
+        <div class="club-carry-label">avg carry · ±${fmt(carrySD)}m</div>
+        <div class="club-stats-grid" style="margin-top:8px">
+          <div class="club-stat"><div class="club-stat-label">Smash</div><div class="club-stat-val">${fmt(avgSmash,2)}</div></div>
+          <div class="club-stat"><div class="club-stat-label">Spin</div><div class="club-stat-val">${avgSpin?Math.round(avgSpin):'–'}</div></div>
+          <div class="club-stat"><div class="club-stat-label">Miss</div><div class="club-stat-val">${miss}</div></div>
+        </div>
+        ${gapWarn}
+        <div class="club-card-cta">Tap to analyse →</div>
+      `:`<div class="club-card-nodata">No shots mapped yet</div>`}
     </div>`;
   }).join('')}</div>`;
+
   const am=document.getElementById('alias-manager');
   if(am&&typeof renderAliasManager==='function')renderAliasManager();
 }
@@ -340,10 +518,31 @@ async function updateChippingSession(){
   if(error){msg(error.message,true);return;}
   msg('Updated');cancelEditChippingSession();await loadChippingSummary();
 }
-function startEditChippingSession(id){const r=chippingCache.find(x=>x.id===id);if(!r)return;editingChipId=id;document.getElementById('chip-date').value=r.session_date||'';document.getElementById('chip-distance').value=r.distance_m??'';document.getElementById('chip-club').value=r.club||'';document.getElementById('chip-attempts').value=r.attempts??'';document.getElementById('chip-in1').value=r.inside_1m??0;document.getElementById('chip-in2').value=r.between_1_2m??0;document.getElementById('chip-in3').value=r.between_2_3m??0;document.getElementById('chip-out3').value=r.outside_3m??0;document.getElementById('chip-success').value=r.success_target??'';document.getElementById('chip-notes').value=r.notes||'';document.getElementById('add-chip-btn').style.display='none';document.getElementById('update-chip-btn').style.display='inline-block';document.getElementById('cancel-chip-edit-btn').style.display='inline-block';}
+function startEditChippingSession(id){
+  const r=chippingCache.find(x=>x.id===id);if(!r)return;
+  editingChipId=id;
+  document.getElementById('chip-date').value=r.session_date||'';
+  document.getElementById('chip-distance').value=r.distance_m??'';
+  document.getElementById('chip-club').value=r.club||'';
+  document.getElementById('chip-attempts').value=r.attempts??'';
+  document.getElementById('chip-in1').value=r.inside_1m??0;
+  document.getElementById('chip-in2').value=r.between_1_2m??0;
+  document.getElementById('chip-in3').value=r.between_2_3m??0;
+  document.getElementById('chip-out3').value=r.outside_3m??0;
+  document.getElementById('chip-success').value=r.success_target??'';
+  document.getElementById('chip-notes').value=r.notes||'';
+  document.getElementById('add-chip-btn').style.display='none';
+  document.getElementById('update-chip-btn').style.display='inline-block';
+  document.getElementById('cancel-chip-edit-btn').style.display='inline-block';
+  updateBucketCounter();updateR12();
+}
 function cancelEditChippingSession(){editingChipId=null;clearChippingForm();document.getElementById('add-chip-btn').style.display='inline-block';document.getElementById('update-chip-btn').style.display='none';document.getElementById('cancel-chip-edit-btn').style.display='none';}
 async function deleteChippingSession(id){const{error}=await sb.from('chipping_sessions').delete().eq('id',id);if(error){msg(error.message,true);return;}if(editingChipId===id)cancelEditChippingSession();msg('Deleted');await loadChippingSummary();}
-function clearChippingForm(){['chip-date','chip-distance','chip-club','chip-attempts','chip-in1','chip-in2','chip-in3','chip-out3','chip-success','chip-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
+function clearChippingForm(){
+  ['chip-date','chip-distance','chip-club','chip-attempts','chip-in1','chip-in2','chip-in3','chip-out3','chip-success','chip-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const bc=document.getElementById('chip-bucket-count');if(bc)bc.textContent='';
+  const r12=document.getElementById('chip-r12');if(r12)r12.style.display='none';
+}
 
 // ── Putting CRUD ─────────────────────────────────────────────────────────────
 async function addPuttingSession(){
@@ -386,5 +585,19 @@ window.addEventListener('DOMContentLoaded',async()=>{
   b('signup-btn',signUp);b('login-btn',logIn);b('logout-btn',logOut);
   b('add-chip-btn',addChippingSession);b('update-chip-btn',updateChippingSession);b('cancel-chip-edit-btn',cancelEditChippingSession);
   b('add-putt-btn',addPuttingSession);b('update-putt-btn',updatePuttingSession);b('cancel-putt-edit-btn',cancelEditPuttingSession);
+
+  // Auto-fill today's date on forms
+  const today=new Date().toISOString().slice(0,10);
+  const chipDate=document.getElementById('chip-date');if(chipDate&&!chipDate.value)chipDate.value=today;
+  const puttDate=document.getElementById('putt-date');if(puttDate&&!puttDate.value)puttDate.value=today;
+
+  // Live bucket counter & R12 watchers
+  ['chip-in1','chip-in2','chip-in3','chip-out3','chip-attempts'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('input',updateBucketCounter);
+  });
+  ['chip-club','chip-distance'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('input',updateR12);
+  });
+
   await refreshSession();
 });

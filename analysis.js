@@ -1,5 +1,5 @@
-// analysis.js v4
-// Accordion sections · Session-grouped shot log · Color-coded KPIs · Load into Coach
+// analysis.js v5
+// Face SD in session headers · Fault frequency summary · Baseline reference line
 
 let analysisClub   = '7';
 let analysisFilter = 'progress';
@@ -8,7 +8,6 @@ let analysisRawSort = { col: 'shot_time', dir: -1 };
 let editingRowId   = null;
 let currentProgKey = 'carry';
 let _allFetchedShots = [];
-// Track which session groups are open (by date string)
 let openSessions = new Set();
 
 const FILTER_OPTIONS = [
@@ -22,9 +21,21 @@ const SESSION_COLORS = ['#00d68f','#ffaa00','#7b9cff','#ff7eb3','#40e0d0','#f4a4
 
 const CA = () => window.clubAliases;
 
+// ── Baselines per club/metric — update as confirmed carries change ──────────
+const BASELINES = {
+  '7': { carry: 108, smash_factor: 1.30, face_angle: 0, attack_angle: -3 },
+  '9': { carry: 88,  smash_factor: 1.30, face_angle: 0 },
+  'pw':{ carry: 82,  smash_factor: 1.28, face_angle: 0 },
+  '6': { carry: 114, smash_factor: 1.30, face_angle: 0 },
+  '58':{ carry: 59,  smash_factor: 1.18, face_angle: 0 },
+};
+function getBaselineForMetric(key, club) {
+  return BASELINES[club]?.[key] ?? null;
+}
+
 // ── Benchmarks for KPI color coding ───────────────────────────────────────
 const KPI_BENCHMARKS = {
-  carry:       { good: [110,135], ok: [90,155] },   // meters, irons
+  carry:       { good: [110,135], ok: [90,155] },
   smash_factor:{ good: [1.30,1.38], ok: [1.24,1.42] },
   ball_speed:  { good: [95,115],  ok: [80,125] },
   club_speed:  { good: [72,95],   ok: [60,105] },
@@ -39,7 +50,6 @@ function kpiColor(key, val) {
   if (val >= b.ok[0]   && val <= b.ok[1])   return 'kpi-ok';
   return 'kpi-bad';
 }
-// Carry std dev benchmark
 function carrySDColor(v) {
   if (v == null) return '';
   if (v < 8) return 'kpi-good';
@@ -77,7 +87,7 @@ function setAnalysisClub(key) {
   document.querySelectorAll('.atab').forEach(t =>
     t.classList.toggle('on', t.textContent === CA().clubLabel(key))
   );
-  openSessions = new Set(); // reset open sessions on club change
+  openSessions = new Set();
   analysisShots = _allFetchedShots.filter(s => CA().shotMatchesClub(s, analysisClub));
   renderAnalysis(analysisShots);
 }
@@ -154,7 +164,6 @@ function renderAnalysis(allShots) {
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
     drawProgressChart(currentProgKey, applyFilter(analysisShots));
-    // Restore open sessions
     openSessions.forEach(date => {
       const body = document.getElementById(`session-body-${date}`);
       const head = document.getElementById(`session-head-${date}`);
@@ -203,11 +212,10 @@ function statPercentile(arr,p) {
 function f(v,dp=1)    { return (v==null||isNaN(v))?'–':Number(v).toFixed(dp); }
 function fSign(v,dp=1){ return (v==null||isNaN(v))?'–':(v>0?'+':'')+Number(v).toFixed(dp); }
 
-// ── A5: Load into Coach button ─────────────────────────────────────────────
+// ── Load into Coach button ─────────────────────────────────────────────────
 function renderLoadIntoCoachBtn(shots) {
   const lastDate = (shots[0]?.shot_time || shots[0]?.created_at)?.slice(0,10);
   if (!lastDate) return '';
-  const lastSession = shots.filter(s => (s.shot_time||s.created_at)?.startsWith(lastDate));
   return `<button class="load-into-coach-btn" onclick="loadAnalysisSessionIntoCoach('${lastDate}')">
     ⟵ Load ${lastDate} averages into Coach
   </button>`;
@@ -217,7 +225,6 @@ function loadAnalysisSessionIntoCoach(date) {
   const shots = applyFilter(analysisShots).filter(s => (s.shot_time||s.created_at)?.startsWith(date));
   if (!shots.length) return;
 
-  // Map canonical club to coach tab
   const coachMap = {
     driver: 'driver',
     '6':'irons','7':'irons','8':'irons','9':'irons',
@@ -252,7 +259,7 @@ function loadAnalysisSessionIntoCoach(date) {
   ];
 
   mapping.forEach(([dbField, sliderId]) => {
-    const inp = allInps.find(i=>i.id===sliderId);
+    const inp = allInps.find(i => i.id === sliderId);
     if (!inp) return;
     const avg = avgOf(dbField);
     if (avg == null) return;
@@ -261,7 +268,6 @@ function loadAnalysisSessionIntoCoach(date) {
   });
 
   showPage('coach');
-  // Switch to correct coach tab
   const tabNames = { driver:'Driver', irons:'Irons 6–9', wedge:'Wedges', putter:'Putter' };
   document.querySelectorAll('.ctab').forEach(t => {
     if (t.textContent === tabNames[coachClub]) { t.click(); }
@@ -269,7 +275,7 @@ function loadAnalysisSessionIntoCoach(date) {
   showToast(`Loaded ${date} → Coach`);
 }
 
-// ── A4+A6: Overview KPIs with color coding ─────────────────────────────────
+// ── Overview KPIs ──────────────────────────────────────────────────────────
 function renderOverviewKPIs(shots) {
   const c=shots.map(s=>s.carry).filter(Boolean);
   const sm=shots.map(s=>s.smash_factor).filter(Boolean);
@@ -364,14 +370,15 @@ function renderDistanceControl(shots) {
 
 // ── Progress chart ─────────────────────────────────────────────────────────
 function renderProgressSection(allShots) {
-  const metrics=['carry','smash_factor','ball_speed','spin_rate','launch_angle','face_angle','club_path','face_to_path'];
+  const metrics=['carry','smash_factor','ball_speed','spin_rate','launch_angle','face_angle','club_path','face_to_path','attack_angle'];
   return`<div class="progress-chart-tabs">
     ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
   </div>
-  <canvas id="progress-canvas" height="190" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:#161819;"></canvas>`;
+  <canvas id="progress-canvas" height="190" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:#161819;"></canvas>
+  <div class="progress-baseline-note" id="progress-baseline-note"></div>`;
 }
 
-function progLabel(k){return{carry:'Carry',smash_factor:'Smash',ball_speed:'Ball Spd',spin_rate:'Spin',launch_angle:'Launch',face_angle:'Face',club_path:'Path',face_to_path:'FTP'}[k]||k;}
+function progLabel(k){return{carry:'Carry',smash_factor:'Smash',ball_speed:'Ball Spd',spin_rate:'Spin',launch_angle:'Launch',face_angle:'Face',club_path:'Path',face_to_path:'FTP',attack_angle:'Attack'}[k]||k;}
 
 function switchProgChart(key,btn){
   currentProgKey=key;
@@ -394,12 +401,18 @@ function drawProgressChart(key,shots){
   const values=ordered.map(s=>Number(s[key]));
   const dates=ordered.map(s=>(s.shot_time||s.created_at)?.slice(0,10)||'');
   if(values.length<2){ctx.fillStyle='#4e5660';ctx.font="13px 'Barlow',sans-serif";ctx.textAlign='center';ctx.fillText('Not enough data',w/2,h/2);return;}
+
+  // Include baseline in scale if it exists
+  const baseline=getBaselineForMetric(key,analysisClub);
+  const allVals=baseline!=null?[...values,baseline]:values;
+
   const pad={t:28,r:20,b:38,l:48};
   const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
-  const span=Math.max(...values)-Math.min(...values)||1;
-  const min=Math.min(...values)-span*0.08,max=Math.max(...values)+span*0.08;
+  const span=Math.max(...allVals)-Math.min(...allVals)||1;
+  const min=Math.min(...allVals)-span*0.1,max=Math.max(...allVals)+span*0.1;
   const px=i=>pad.l+(i/(values.length-1))*cw;
   const py=v=>pad.t+ch-((v-min)/(max-min))*ch;
+
   ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
   ctx.font="9px 'DM Mono',monospace";ctx.fillStyle='#4e5660';ctx.textAlign='right';
   for(let i=0;i<=4;i++){
@@ -407,19 +420,37 @@ function drawProgressChart(key,shots){
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
     ctx.fillText(isSign?(val>0?'+':'')+val.toFixed(1):val.toFixed(key==='spin_rate'?0:1),pad.l-6,y+3);
   }
+
+  // ── Baseline reference line ────────────────────────────────────────────
+  if(baseline!=null){
+    const by=py(baseline);
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,0.28)';ctx.lineWidth=1;ctx.globalAlpha=1;
+    ctx.setLineDash([8,5]);
+    ctx.beginPath();ctx.moveTo(pad.l,by);ctx.lineTo(w-pad.r,by);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.textAlign='right';ctx.font="8px 'DM Mono',monospace";
+    ctx.fillText('baseline '+(isSign?(baseline>0?'+':'')+baseline:baseline),w-pad.r-2,by-3);
+    ctx.restore();
+  }
+
   let prev='';ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(255,255,255,0.09)';ctx.lineWidth=1;
   dates.forEach((d,i)=>{if(d!==prev&&i>0){ctx.beginPath();ctx.moveTo(px(i),pad.t);ctx.lineTo(px(i),pad.t+ch);ctx.stroke();}prev=d;});
   ctx.setLineDash([]);
+
   const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
   grad.addColorStop(0,'rgba(0,214,143,0.13)');grad.addColorStop(1,'rgba(0,214,143,0)');
   ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(px(0),py(values[0]));
   values.forEach((v,i)=>ctx.lineTo(px(i),py(v)));
   ctx.lineTo(px(values.length-1),pad.t+ch);ctx.lineTo(px(0),pad.t+ch);ctx.closePath();ctx.fill();
+
   values.forEach((v,i)=>{ctx.fillStyle=colorMap[dates[i]]||'#00d68f';ctx.globalAlpha=0.85;ctx.beginPath();ctx.arc(px(i),py(v),3.5,0,Math.PI*2);ctx.fill();});
   ctx.globalAlpha=1;
-  const roll=values.map((_,i)=>{const w=values.slice(Math.max(0,i-4),i+1);return w.reduce((a,b)=>a+b,0)/w.length;});
+
+  const roll=values.map((_,i)=>{const w2=values.slice(Math.max(0,i-4),i+1);return w2.reduce((a,b)=>a+b,0)/w2.length;});
   ctx.strokeStyle='#00d68f';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
   ctx.beginPath();roll.forEach((v,i)=>i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v)));ctx.stroke();
+
   const n=values.length,sX=values.reduce((_,__,i)=>_+i,0),sY=values.reduce((a,b)=>a+b,0);
   const sXY=values.reduce((a,v,i)=>a+i*v,0),sX2=values.reduce((a,_,i)=>a+i*i,0);
   const slope=(n*sXY-sX*sY)/(n*sX2-sX*sX),intercept=(sY-slope*sX)/n;
@@ -428,20 +459,26 @@ function drawProgressChart(key,shots){
   ctx.strokeStyle=tCol;ctx.lineWidth=1.5;ctx.globalAlpha=0.6;ctx.setLineDash([7,4]);
   ctx.beginPath();ctx.moveTo(px(0),py(tStart));ctx.lineTo(px(n-1),py(tEnd));ctx.stroke();
   ctx.setLineDash([]);ctx.globalAlpha=1;
+
   const diff=tEnd-tStart,arrow=slope>0.01?'↑':slope<-0.01?'↓':'→';
   ctx.font="700 10px 'Barlow Condensed',sans-serif";ctx.textAlign='right';ctx.fillStyle=tCol;
   ctx.fillText(`${arrow} ${diff>0?'+':''}${diff.toFixed(key==='spin_rate'?0:1)}`,w-pad.r,pad.t-12);
   ctx.fillStyle='#f0ede8';ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
   ctx.fillText(`${progLabel(key).toUpperCase()} · ${values.length} shots`,pad.l,pad.t-12);
+
   const ud=[...new Set(dates)];ctx.font="9px 'DM Mono',monospace";ctx.textAlign='left';let lx=pad.l;
   ud.forEach(d=>{if(lx>w-60)return;const col=colorMap[d]||'#00d68f';ctx.fillStyle=col;ctx.beginPath();ctx.arc(lx+4,pad.t+ch+20,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6a7380';ctx.fillText(d.slice(5),lx+12,pad.t+ch+23);lx+=54;});
+
+  // Baseline note
+  const noteEl=document.getElementById('progress-baseline-note');
+  if(noteEl){
+    noteEl.textContent=baseline!=null?`Dashed line = confirmed baseline (${isSign?(baseline>0?'+':'')+baseline:baseline})`:'' ;
+  }
 }
 
-// ── A2+A3: Session-grouped shot log ────────────────────────────────────────
+// ── Session groups ─────────────────────────────────────────────────────────
 function renderSessionGroups(shots, colorMap) {
   const sorted = sortShots([...shots], analysisRawSort.col, analysisRawSort.dir);
-
-  // Group by date
   const groups = [];
   const groupMap = {};
   sorted.forEach(s => {
@@ -471,7 +508,15 @@ function renderSessionGroup(group, colorMap) {
   const carries = shots.map(s=>s.carry).filter(Boolean);
   const avgCarry = carries.length ? (carries.reduce((a,b)=>a+b,0)/carries.length).toFixed(1) : '–';
   const avgFace = statAvg(shots.map(s=>s.face_angle).filter(x=>x!=null));
+  const faceSD = statStdDev(shots.map(s=>s.face_angle).filter(x=>x!=null));
   const avgSmash = statAvg(shots.map(s=>s.smash_factor).filter(Boolean));
+
+  const facePart = avgFace!=null
+    ? `face ${avgFace>0?'+':''}${avgFace.toFixed(1)}° ±${faceSD!=null?faceSD.toFixed(1):'–'}°`
+    : '–';
+
+  // Fault frequency summary
+  const faultSummary = renderFaultFrequency(shots);
 
   return `
     <div class="session-group" id="session-group-${date}">
@@ -479,7 +524,7 @@ function renderSessionGroup(group, colorMap) {
            onclick="toggleSession('${date}')">
         <span class="session-dot" style="background:${sessionCol}"></span>
         <span class="session-date">${date}</span>
-        <span class="session-meta">${shots.length} shots · ${avgCarry}m · face ${avgFace!=null?(avgFace>0?'+':'')+avgFace.toFixed(1)+'°':'–'} · smash ${f(avgSmash,2)}</span>
+        <span class="session-meta">${shots.length} shots · ${avgCarry}m · ${facePart} · smash ${f(avgSmash,2)}</span>
         <span class="session-chevron">${isOpen?'▲':'▼'}</span>
       </div>
       <div class="session-body" id="session-body-${date}" style="display:${isOpen?'block':'none'};">
@@ -488,9 +533,57 @@ function renderSessionGroup(group, colorMap) {
             Load ${date} into Coach
           </button>
         </div>
+        ${faultSummary}
         ${renderShotRows(shots, sessionCol)}
       </div>
     </div>`;
+}
+
+// ── Fault frequency summary ────────────────────────────────────────────────
+function renderFaultFrequency(shots) {
+  const faces = shots.map(s=>s.face_angle).filter(x=>x!=null);
+  const attacks = shots.map(s=>s.attack_angle).filter(x=>x!=null);
+  if(!faces.length) return '';
+
+  const openFace = faces.filter(f=>f>3).length;
+  const closedFace = faces.filter(f=>f<-3).length;
+  const solidFace = faces.length - openFace - closedFace;
+  const total = faces.length;
+
+  const downCount = attacks.filter(a=>a<=-2).length;
+  const levelCount = attacks.filter(a=>a>-2&&a<=0).length;
+  const scopeCount = attacks.filter(a=>a>0).length;
+
+  const pct = (n,t) => t?Math.round(n/t*100)+'%':'–';
+
+  const faceRows = [
+    { label:'Face open >+3°', n:openFace, cls:'fault-bad' },
+    { label:'Face closed <−3°', n:closedFace, cls:'fault-bad' },
+    { label:'Face solid ±3°', n:solidFace, cls:'fault-good' },
+  ].filter(r=>r.n>0);
+
+  const attackRows = attacks.length ? [
+    { label:'Hitting down ≤−2°', n:downCount, cls:'fault-good' },
+    { label:'Level −2°–0°', n:levelCount, cls:'fault-warn' },
+    { label:'Scooping >0°', n:scopeCount, cls:'fault-bad' },
+  ].filter(r=>r.n>0) : [];
+
+  return `<div class="fault-summary">
+    <div class="fault-col">
+      <div class="fault-col-label">Face angle</div>
+      ${faceRows.map(r=>`<div class="fault-row ${r.cls}">
+        <span class="fault-label">${r.label}</span>
+        <span class="fault-count">${r.n} <span class="fault-pct">${pct(r.n,total)}</span></span>
+      </div>`).join('')}
+    </div>
+    ${attackRows.length?`<div class="fault-col">
+      <div class="fault-col-label">Attack angle</div>
+      ${attackRows.map(r=>`<div class="fault-row ${r.cls}">
+        <span class="fault-label">${r.label}</span>
+        <span class="fault-count">${r.n} <span class="fault-pct">${pct(r.n,attacks.length)}</span></span>
+      </div>`).join('')}
+    </div>`:''}
+  </div>`;
 }
 
 function toggleSession(date) {
@@ -502,7 +595,6 @@ function toggleSession(date) {
     openSessions.delete(date);
     body.style.display = 'none';
     head.classList.remove('open');
-    // Update chevron
     head.querySelector('.session-chevron').textContent = '▼';
   } else {
     openSessions.add(date);

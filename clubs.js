@@ -1,21 +1,22 @@
 // clubs.js
 // Club data + KPI definitions
-// Distances are managed separately in distances.js and referenced here by distanceRef
-// Each metric/input can have two ranges:
-// - realistic: better for normal amateurs
-// - good: stronger target
 
 const CLUBS = {
   driver: {
     name: 'Driver',
     distanceRef: 'driver',
+    routine: [
+      { step: 1, cue: 'Ball position', detail: 'Forward off lead heel — furthest forward in stance' },
+      { step: 2, cue: 'Shaft neutral', detail: 'Shaft points at belt buckle — no forward press' },
+      { step: 3, cue: 'Lead thumb', detail: 'Right of logo — face square at address. Weight 60/40 left.' },
+    ],
     kpis: [
-      { l: 'Ball speed',   realistic: '90–105 mph',    good: '98–112 mph',    d: 'Drives carry distance.',                         badge: 'br', bt: 'Critical' },
-      { l: 'Club path',    realistic: '−6° to +6°',    good: '−4° to +4°',    d: 'Neutral is good. Too extreme creates curve.',   badge: 'br', bt: 'Critical' },
-      { l: 'Face angle',   realistic: '±4°',           good: '±2.5°',         d: 'Main control for start direction.',              badge: 'br', bt: 'Critical' },
-      { l: 'Launch angle', realistic: '11–16°',        good: '12–15°',        d: 'Too low loses carry. Too high can float.',       badge: 'by', bt: 'Important' },
-      { l: 'Spin rate',    realistic: '2400–3400 rpm', good: '2300–3000 rpm', d: 'Too much spin costs distance.',                  badge: 'by', bt: 'Important' },
-      { l: 'Smash factor', realistic: '1.38–1.46',     good: '1.43–1.48',     d: 'Better strike gives more ball speed.',          badge: 'bg', bt: 'Watch' },
+      { l: 'Ball speed',   realistic: '90–105 mph',    good: '98–112 mph',    d: 'Directly drives carry distance. Ball speed = club speed × smash factor. The only way to gain distance without better contact is more club speed — but smash is faster to improve.', badge: 'br', bt: 'Critical' },
+      { l: 'Club path',    realistic: '−6° to +6°',    good: '−4° to +4°',    d: 'Direction the clubhead travels at impact. Negative = out-to-in (slice path). Positive = in-to-out (draw path). Combine with face angle to predict ball curve.', badge: 'br', bt: 'Critical' },
+      { l: 'Face angle',   realistic: '±4°',           good: '±2.5°',         d: 'Where the face points at impact. Controls ~75% of start direction. Open (+) = starts right. Closed (−) = starts left. Most important single number for direction.', badge: 'br', bt: 'Critical' },
+      { l: 'Launch angle', realistic: '11–16°',        good: '12–15°',        d: 'Vertical angle ball leaves the face. Interact with spin to determine carry. Too low = runs out of height early. Too high = ball balloons and loses distance.', badge: 'by', bt: 'Important' },
+      { l: 'Spin rate',    realistic: '2400–3400 rpm', good: '2300–3000 rpm', d: 'Lower spin with driver = more carry and roll. High spin (>3500) causes ballooning. Fix steep attack angle and open face to reduce spin naturally.', badge: 'by', bt: 'Important' },
+      { l: 'Smash factor', realistic: '1.38–1.46',     good: '1.43–1.48',     d: 'Ball speed ÷ club speed. Measures strike efficiency. Every 0.01 gain = ~1.5m carry at 90mph. Max theoretical is ~1.50. Use face tape to find your contact pattern.', badge: 'bg', bt: 'Watch' },
     ],
     focus: [
       { c: 'dr', t: 'Fix face angle first — it mostly controls where the ball starts' },
@@ -44,13 +45,18 @@ const CLUBS = {
   irons: {
     name: 'Irons (6–9)',
     distanceRef: '8i',
+    routine: [
+      { step: 1, cue: 'Ball position', detail: 'PW/9i = centre · 7i = 1 ball left of centre · 6i = 2 balls left of centre' },
+      { step: 2, cue: 'Shaft angle', detail: 'Shaft points at belt buckle — sets correct distance from ball' },
+      { step: 3, cue: 'Lead thumb', detail: 'Right of logo — face square at address. Weight 60/40 left.' },
+    ],
     kpis: [
-      { l: 'Attack angle', realistic: '−5° to −2°',    good: '−5° to −3°',    d: 'Slightly down for clean compression.',           badge: 'br', bt: 'Critical' },
-      { l: 'Club path',    realistic: '±6° max',       good: '±4° max',       d: 'Consistency matters more than perfection.',      badge: 'br', bt: 'Critical' },
-      { l: 'Face angle',   realistic: '±4°',           good: '±2.5°',         d: 'Main control for start line.',                   badge: 'br', bt: 'Critical' },
-      { l: 'Launch angle', realistic: '17–23°',        good: '18–21°',        d: 'Too high can mean scoop. Too low can be thin.',  badge: 'by', bt: 'Important' },
-      { l: 'Spin rate',    realistic: '4800–7200 rpm', good: '5500–7500 rpm', d: 'Useful for stopping power.',                     badge: 'by', bt: 'Important' },
-      { l: 'Smash factor', realistic: '1.28–1.35',     good: '1.31–1.36',     d: 'Shorter irons have lower smash than long irons.', badge: 'bg', bt: 'Watch' },
+      { l: 'Attack angle', realistic: '−5° to −2°',    good: '−5° to −3°',    d: 'How steeply the club descends at impact. Negative = hitting down (correct for irons). Near 0° or positive = scooping. Improved from ~0° to ~−3° — keep pushing toward −4°. Divot position tells you this without Trackman.', badge: 'br', bt: 'Critical' },
+      { l: 'Club path',    realistic: '±6° max',       good: '±4° max',       d: 'Direction the clubhead travels. More stable than face angle for most amateurs. Combined with face angle, determines ball curve. Your path is relatively stable — face is the priority to fix.', badge: 'br', bt: 'Critical' },
+      { l: 'Face angle',   realistic: '±4°',           good: '±2.5°',         d: 'Where the face points at impact. Your primary fault: swinging from −9° to +6° — that 15° spread explains nearly all your left/right misses. Controls ~75% of start direction. This is the #1 thing to tighten.', badge: 'br', bt: 'Critical' },
+      { l: 'Launch angle', realistic: '17–23°',        good: '18–21°',        d: 'Vertical angle ball leaves. Too high = scooping (attack angle problem). Too low = hands too far forward or delofted. Fix attack angle and launch fixes itself automatically.', badge: 'by', bt: 'Important' },
+      { l: 'Spin rate',    realistic: '4800–7200 rpm', good: '5500–7500 rpm', d: 'Spin helps the ball stop on the green. Follows from good strike and steep attack. Do not chase spin directly — fix smash and attack angle first and spin improves automatically.', badge: 'by', bt: 'Important' },
+      { l: 'Smash factor', realistic: '1.28–1.35',     good: '1.31–1.36',     d: 'Ball speed ÷ club speed. The #1 diagnostic for strike quality — fix this before anything else. Below 1.26 = significant energy lost to off-center contact. Use face impact tape to find your pattern.', badge: 'bg', bt: 'Watch' },
     ],
     focus: [
       { c: 'dr', t: 'Attack angle — hitting down a little is important with irons' },
@@ -79,13 +85,18 @@ const CLUBS = {
   wedge: {
     name: 'Wedges',
     distanceRef: 'pw',
+    routine: [
+      { step: 1, cue: 'Ball position', detail: 'PW = centre · SW = centre · 58° = just back of centre' },
+      { step: 2, cue: 'Shaft lean', detail: 'Hands slightly forward — shaft leans toward target. No scooping.' },
+      { step: 3, cue: 'Lead thumb', detail: 'Right of logo. Weight 60/40 left. Grip pressure light.' },
+    ],
     kpis: [
-      { l: 'Attack angle',   realistic: '−7° to −3°',    good: '−7° to −4°',    d: 'A little steeper than irons.',                  badge: 'br', bt: 'Critical' },
-      { l: 'Carry distance', realistic: 'repeatable ±7m', good: 'repeatable ±4m', d: 'Distance control matters most here.',         badge: 'br', bt: 'Critical' },
-      { l: 'Face angle',     realistic: '±3°',            good: '±2°',           d: 'Small errors show up quickly.',                badge: 'br', bt: 'Critical' },
-      { l: 'Club path',      realistic: '±5° max',        good: '±3° max',       d: 'Short shots punish big path errors.',         badge: 'by', bt: 'Important' },
-      { l: 'Spin rate',      realistic: '5000–8500 rpm',  good: '6500–9000 rpm', d: 'Useful, but strike comes first.',             badge: 'by', bt: 'Important' },
-      { l: 'Launch angle',   realistic: '26–40°',         good: '28–36°',        d: 'Helps with height and stopping power.',       badge: 'bg', bt: 'Watch' },
+      { l: 'Attack angle',   realistic: '−7° to −3°',    good: '−7° to −4°',    d: 'Wedges need a steeper downward strike than long irons. Near 0° = scooping — ball flies low, spins less, rolls through the green. Fix this one and distance control + spin both improve for free.', badge: 'br', bt: 'Critical' },
+      { l: 'Carry distance', realistic: 'repeatable ±7m', good: 'repeatable ±4m', d: 'Distance control is the primary wedge skill. Knowing your stock carry for PW (82m), 9i (88m), 7i (108m), 58° (59m) and hitting within ±5m every time beats all other wedge improvements.', badge: 'br', bt: 'Critical' },
+      { l: 'Face angle',     realistic: '±3°',            good: '±2°',           d: 'From inside 100m, a 3° face error matters much more than from 150m. A 3° open face from 30m = ball starts 1.5m right before any curve. Prioritise face at address over everything else for wedges.', badge: 'br', bt: 'Critical' },
+      { l: 'Club path',      realistic: '±5° max',        good: '±3° max',       d: 'Short shots punish big path errors. At wedge distances the ball does not have time to curve back. Keep path within ±4° and face within ±2° for controllable wedge flights.', badge: 'by', bt: 'Important' },
+      { l: 'Spin rate',      realistic: '5000–8500 rpm',  good: '6500–9000 rpm', d: 'Wedge spin is high because you hit steeply and grooves engage. Higher spin = ball checks up. Do not force spin — it is a byproduct of good downward strike. Fix attack angle and spin follows.', badge: 'by', bt: 'Important' },
+      { l: 'Launch angle',   realistic: '26–40°',         good: '28–36°',        d: 'Higher launch = softer landing = easier to stop. Paired with good spin, high launch allows you to attack pins. Follows from clean downward strike — do not chase this directly.', badge: 'bg', bt: 'Watch' },
     ],
     focus: [
       { c: 'dr', t: 'Attack angle — do not scoop wedge shots' },
@@ -112,13 +123,18 @@ const CLUBS = {
   putter: {
     name: 'Putter',
     distanceRef: 'putter',
+    routine: [
+      { step: 1, cue: 'Eyes over ball', detail: 'Drop a ball from your eye — it should land on the ball on the ground' },
+      { step: 2, cue: 'Face aim', detail: 'Aim face first, then build your stance around it. Face is #1.' },
+      { step: 3, cue: 'Speed focus', detail: 'Before each putt, pick a speed target — die at the hole or 30cm past.' },
+    ],
     kpis: [
-      { l: 'Face angle',   realistic: '±1.5°',        good: '±1°',          d: 'Main control for start line.',                    badge: 'br', bt: 'Critical' },
-      { l: 'Launch angle', realistic: '+1° to +4°',   good: '+1° to +3°',   d: 'Helps smooth roll.',                             badge: 'br', bt: 'Critical' },
-      { l: 'Club path',    realistic: 'repeatable ±4°', good: 'repeatable ±3°', d: 'Repeatable matters more than perfect.',       badge: 'by', bt: 'Important' },
-      { l: 'Ball speed',   realistic: 'match distance', good: 'tight speed control', d: 'Good speed control saves putts.',        badge: 'by', bt: 'Important' },
-      { l: 'Impact spot',  realistic: 'mostly center', good: 'center face',  d: 'Off-center contact changes face delivery.',      badge: 'by', bt: 'Important' },
-      { l: 'Spin loft',    realistic: 'low',           good: 'very low',     d: 'Too much loft can create bounce.',               badge: 'bg', bt: 'Watch' },
+      { l: 'Face angle',   realistic: '±1.5°',        good: '±1°',          d: 'Main control for start line. Ball starts ~90% toward where the face points on short putts. Getting face within ±1° every putt is the most important putting skill. Everything else is secondary.', badge: 'br', bt: 'Critical' },
+      { l: 'Launch angle', realistic: '+1° to +4°',   good: '+1° to +3°',   d: 'Slightly upward launch helps the ball roll smoothly instead of bouncing. Too much forward press (negative) causes the ball to skip. Too upward and the ball hops. Move ball position to adjust.', badge: 'br', bt: 'Critical' },
+      { l: 'Club path',    realistic: 'repeatable ±4°', good: 'repeatable ±3°', d: 'Repeatable path matters more than perfect path for putting. Arc or straight-back-straight-through both work — consistency is the goal. Path matters far less than face for start direction.', badge: 'by', bt: 'Important' },
+      { l: 'Ball speed',   realistic: 'match distance', good: 'tight speed control', d: 'Good speed control saves more putts than improved aim. Practice 10, 20 and 30 foot ladders — ball finishing within 30cm of the hole. Speed is the skill that transfers most to the course.', badge: 'by', bt: 'Important' },
+      { l: 'Impact spot',  realistic: 'mostly center', good: 'center face',  d: 'Off-center contact changes face delivery and ball speed. Stick a piece of face tape on the putter and check contact pattern over 10 putts. Most amateurs miss toward the toe.', badge: 'by', bt: 'Important' },
+      { l: 'Spin loft',    realistic: 'low',           good: 'very low',     d: 'Dynamic loft at impact. Too much = ball bounces before rolling. Ideally less than 3°. Forward ball position and level stroke reduces this automatically.', badge: 'bg', bt: 'Watch' },
     ],
     focus: [
       { c: 'dr', t: 'Face angle — the ball starts mostly where the face points' },
@@ -147,11 +163,9 @@ function getAllInputs(club) {
 function getClubDistance(club) {
   const ref = CLUBS[club]?.distanceRef;
   if (!ref) return null;
-
   if (typeof getDistanceRow === 'function') {
     return getDistanceRow(ref);
   }
-
   return null;
 }
 

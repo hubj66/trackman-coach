@@ -1,9 +1,10 @@
-// app.js v5
+// app.js v6
 
 let club = 'driver';
 let rangeMode = 'realistic';
 const vals = {};
 let lastColor = {};
+let activeKPIExplain = null;
 
 // ── Tab memory ─────────────────────────────────────────────────────────────
 function getLastTab() {
@@ -11,6 +12,14 @@ function getLastTab() {
 }
 function setLastTab(page) {
   try { localStorage.setItem('tc_last_tab', page); } catch {}
+}
+
+// ── Range mode memory ──────────────────────────────────────────────────────
+function getSavedRangeMode() {
+  try { return localStorage.getItem('tc_range_mode') || 'realistic'; } catch { return 'realistic'; }
+}
+function saveRangeMode(mode) {
+  try { localStorage.setItem('tc_range_mode', mode); } catch {}
 }
 
 // ── Auth panel toggle ───────────────────────────────────────────────────────
@@ -27,6 +36,7 @@ function sel(id, el) {
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('on'));
   if (el) el.classList.add('on');
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
+  activeKPIExplain = null;
   render();
   loadLastSessionBanner();
 }
@@ -35,6 +45,7 @@ function sel(id, el) {
 function setRangeMode(mode) {
   if (mode !== 'realistic' && mode !== 'good') return;
   rangeMode = mode;
+  saveRangeMode(mode);
   applyRangeModeToClubs(rangeMode);
   updateModeButtons();
   Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
@@ -55,7 +66,6 @@ function toggleAcc(id) {
   vibrate(10);
   const wasOpen = el.classList.contains('open');
   el.classList.toggle('open');
-  // Fix: explicitly control max-height so it can actually close
   const body = document.getElementById('acc-body-' + id);
   if (body) {
     if (!wasOpen) {
@@ -81,7 +91,6 @@ function toggleAcc(id) {
   }
 }
 
-// Generic accordion toggle by element id (used in stats/clubs)
 function toggleAccById(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -125,6 +134,82 @@ function formatIdealValue(val, inp) {
 }
 function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
+// ── KPI Explain ────────────────────────────────────────────────────────────
+function toggleKPIExplain(idx) {
+  if (activeKPIExplain === idx) {
+    activeKPIExplain = null;
+  } else {
+    activeKPIExplain = idx;
+    vibrate(10);
+  }
+  renderKPIGrid();
+}
+
+function renderKPIGrid() {
+  const C = CLUBS[club];
+  document.getElementById('kgrid').innerHTML = C.kpis.map((k, i) => {
+    const isOpen = activeKPIExplain === i;
+    return `<div class="kcard ${badgeToClass(k.bt)}${isOpen ? ' kcard-open' : ''}" onclick="toggleKPIExplain(${i})">
+      <div class="kcard-lbl">
+        ${k.l}
+        <span class="kpi-info-icon">${isOpen ? '▲' : 'ⓘ'}</span>
+      </div>
+      <div class="kcard-val">${getKpiDisplayValue(k)}</div>
+      <div class="kcard-desc">${k.d.split('.')[0]}.</div>
+      <div class="badge ${k.badge}">${k.bt}</div>
+      ${isOpen ? `<div class="kpi-explain-panel">${k.d}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── Distance strip ─────────────────────────────────────────────────────────
+function renderDistanceStrip() {
+  const el = document.getElementById('distance-strip');
+  if (!el) return;
+  const C = CLUBS[club];
+
+  // For irons we want to show per-iron distances; for others just the ref club
+  const ironKeys = ['6i','7i','8i','9i'];
+  const wedgeKeys = ['pw','sw','58'];
+
+  if (club === 'irons') {
+    const rows = ironKeys.map(k => {
+      const d = getDistanceRow(k);
+      return d ? `<span class="dist-chip"><span class="dist-club">${d.label.replace(' Iron','i')}</span><span class="dist-carry">${d.carry}m</span></span>` : '';
+    }).join('');
+    el.innerHTML = rows;
+  } else if (club === 'wedge') {
+    const rows = wedgeKeys.map(k => {
+      const d = getDistanceRow(k);
+      return d ? `<span class="dist-chip"><span class="dist-club">${d.label}</span><span class="dist-carry">${d.carry}m</span></span>` : '';
+    }).join('');
+    el.innerHTML = rows;
+  } else {
+    const dr = getClubDistance(club);
+    if (dr && dr.carry > 0) {
+      el.innerHTML = `<span class="dist-chip"><span class="dist-club">${dr.label}</span><span class="dist-carry">${dr.carry}m carry</span><span class="dist-total">${dr.total}m total</span></span>`;
+    } else {
+      el.innerHTML = '';
+    }
+  }
+}
+
+// ── Pre-shot routine ───────────────────────────────────────────────────────
+function renderRoutine() {
+  const C = CLUBS[club];
+  const el = document.getElementById('routine-steps');
+  if (!el || !C.routine) return;
+  el.innerHTML = C.routine.map(r => `
+    <div class="routine-step">
+      <div class="routine-num">${r.step}</div>
+      <div class="routine-content">
+        <div class="routine-cue">${r.cue}</div>
+        <div class="routine-detail">${r.detail}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
 // ── Slider builder ─────────────────────────────────────────────────────────
 function buildSlider(inp, v, prefix) {
   const col     = getColorAdapted(inp, v);
@@ -157,13 +242,7 @@ function render() {
   const C = CLUBS[club];
   if (!vals[club]) vals[club] = {};
 
-  document.getElementById('kgrid').innerHTML = C.kpis.map(k => `
-    <div class="kcard ${badgeToClass(k.bt)}">
-      <div class="kcard-lbl">${k.l}</div>
-      <div class="kcard-val">${getKpiDisplayValue(k)}</div>
-      <div class="kcard-desc">${k.d}</div>
-      <div class="badge ${k.badge}">${k.bt}</div>
-    </div>`).join('');
+  renderKPIGrid();
 
   document.getElementById('focusbox').innerHTML = C.focus.map(f =>
     `<div class="focus-item"><span class="dot ${f.c}"></span><span>${f.t}</span></div>`
@@ -208,6 +287,8 @@ function render() {
     if (body) { body.classList.remove('open'); body.style.maxHeight = ''; body.style.opacity = ''; }
   });
 
+  renderDistanceStrip();
+  renderRoutine();
   diagnose();
 
   if (document.getElementById('acc-viz')?.classList.contains('open')) {
@@ -316,7 +397,6 @@ async function loadLastSessionBanner() {
   const text   = document.getElementById('coach-session-text');
   if (!banner || !text) return;
 
-  // Map coach club tabs to canonical keys
   const clubKeyMap = {
     driver: ['driver'],
     irons:  ['6','7','8','9'],
@@ -336,7 +416,6 @@ async function loadLastSessionBanner() {
 
     if (!data?.length) { banner.style.display = 'none'; return; }
 
-    // Find the most recent session date across the relevant keys
     const CA = window.clubAliases;
     const relevantShots = data.filter(s => {
       const resolved = CA ? CA.resolveClub(s.club) : null;
@@ -345,7 +424,6 @@ async function loadLastSessionBanner() {
 
     if (!relevantShots.length) { banner.style.display = 'none'; return; }
 
-    // Most recent session date
     const lastDate = (relevantShots[0].shot_time || relevantShots[0].created_at)?.slice(0,10);
     const lastSessionShots = relevantShots.filter(s => (s.shot_time||s.created_at)?.startsWith(lastDate));
     const progress = lastSessionShots.filter(s => s.is_full_shot !== false && s.exclude_from_progress !== true);
@@ -384,20 +462,16 @@ function loadLastSessionIntoCoach() {
 
   if (!vals[club]) vals[club] = {};
 
-  // Maps: cache field name → exact slider id as defined in clubs.js
-  // clubs.js slider IDs: face, path, attack, launch, spin, smash (scale:100),
-  //                      clubspeed, dynloft, spinaxis  (advanced)
-  // NOTE: ball_speed has no slider — it's a derived/display metric only
   const fieldMap = {
     face:      'face',
     path:      'path',
     attack:    'attack',
     launch:    'launch',
-    spin:      'spin',       // spin_rate raw rpm — slider min/max are in rpm
-    smash:     'smash',      // smash_factor — slider uses scale:100 (stored as integer 100-150)
-    clubSpeed: 'clubspeed',  // mph
-    dynLoft:   'dynloft',    // degrees
-    spinAxis:  'spinaxis',   // degrees
+    spin:      'spin',
+    smash:     'smash',
+    clubSpeed: 'clubspeed',
+    dynLoft:   'dynloft',
+    spinAxis:  'spinaxis',
   };
 
   const allInps = getAllInputs(club);
@@ -405,24 +479,18 @@ function loadLastSessionIntoCoach() {
 
   Object.entries(fieldMap).forEach(([field, sliderId]) => {
     const inp = allInps.find(i => i.id === sliderId);
-    if (!inp) return;           // slider doesn't exist for this club tab
+    if (!inp) return;
     const val = s[field];
-    if (val == null) return;    // no data for this metric
-
-    // inp.scale means the slider stores value * scale as integer (e.g. smash: 1.32 → 132)
+    if (val == null) return;
     const rawVal = inp.scale ? Math.round(val * inp.scale) : Math.round(val * 10) / 10;
     const clamped = Math.max(inp.min, Math.min(inp.max, rawVal));
     vals[club][sliderId] = clamped;
     loaded++;
   });
 
-  // Re-render to show all new values in sliders
   render();
-
-  // Open the main numbers accordion
   openAcc('numbers');
 
-  // Also open secondary + advanced sub-accordions so user can see all loaded values
   ['secondary', 'advanced'].forEach(id => {
     const head = document.getElementById('sub-head-' + id);
     const body = document.getElementById('sub-body-' + id);
@@ -450,7 +518,6 @@ function showPage(page) {
 
   setLastTab(page);
 
-  // Close auth panel on page switch
   const ap = document.getElementById('auth-panel');
   if (ap) ap.style.display = 'none';
 
@@ -487,12 +554,12 @@ function applyState(state) {
 window.trackmanCoach = { getCurrentState, applyState };
 
 // ── Init ───────────────────────────────────────────────────────────────────
+rangeMode = getSavedRangeMode();
 applyRangeModeToClubs(rangeMode);
 updateModeButtons();
 render();
 
 window.addEventListener('load', () => {
-  // Restore last tab
   const lastTab = getLastTab();
   showPage(lastTab);
 

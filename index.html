@@ -11,7 +11,7 @@
 </head>
 <body>
 
-  <!-- ══ STICKY HEADER + NAV (always visible) ════════════════════════════════ -->
+  <!-- ══ STICKY HEADER + NAV ════════════════════════════════════════════════ -->
   <div class="app-header">
     <div class="app-header-top">
       <div class="header-title">Trackman<span> Coach</span></div>
@@ -23,7 +23,6 @@
       </button>
     </div>
 
-    <!-- Auth panel — hidden by default, toggled -->
     <div id="auth-panel" class="auth-panel" style="display:none;">
       <div id="logged-out-view">
         <div class="auth-inline-row">
@@ -43,7 +42,6 @@
       <div id="auth-message" class="auth-msg"></div>
     </div>
 
-    <!-- Sticky tab nav -->
     <nav class="top-nav" id="top-nav">
       <button class="top-nav-btn active" id="nav-coach-btn"    onclick="showPage('coach')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -67,7 +65,6 @@
   <!-- ══ COACH ════════════════════════════════════════════════════════════════ -->
   <div id="page-coach" class="page-section active">
 
-    <!-- Last session banner for Coach -->
     <div id="coach-session-banner" class="coach-session-banner" style="display:none;">
       <span id="coach-session-text"></span>
       <button class="load-session-btn" onclick="loadLastSessionIntoCoach()">Load into sliders</button>
@@ -87,12 +84,31 @@
       <div class="ctab" onclick="sel('putter',this)">Putter</div>
     </div>
 
+    <!-- Distance strip -->
+    <div class="distance-strip" id="distance-strip"></div>
+
     <div class="main">
+
+      <!-- Pre-shot routine -->
+      <div class="acc" id="acc-routine">
+        <div class="acc-head" onclick="toggleAcc('routine')">
+          <div class="acc-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          </div>
+          <div class="acc-title">Pre-shot routine</div>
+          <div class="acc-subtitle">3 steps before every shot</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body" id="acc-body-routine">
+          <div class="routine-steps" id="routine-steps"></div>
+        </div>
+      </div>
+
       <div class="acc" id="acc-kpis">
         <div class="acc-head" onclick="toggleAcc('kpis')">
           <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
           <div class="acc-title">Target KPIs</div>
-          <div class="acc-subtitle" id="kpi-sub">6 metrics</div>
+          <div class="acc-subtitle" id="kpi-sub">6 metrics · tap to explain</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body" id="acc-body-kpis">
@@ -187,6 +203,9 @@
   <div id="page-stats" class="page-section" style="display:none;">
     <div class="main">
 
+      <!-- Tournament countdown -->
+      <div id="stats-tournament" class="stats-tournament" style="display:none;"></div>
+
       <!-- At a glance strip -->
       <div id="stats-glance" class="stats-glance-strip"></div>
 
@@ -210,7 +229,6 @@
         <div class="acc-body" style="max-height:4000px;opacity:1;">
           <div class="stats-section-pad">
             <div id="stats-chipping-summary"></div>
-            <!-- Chipping trend chart -->
             <div id="chipping-chart-wrap" style="margin-top:12px;display:none;">
               <div class="chart-label">Inside 2m % over time</div>
               <canvas id="chipping-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:6px;"></canvas>
@@ -226,8 +244,14 @@
                 <input id="chip-in2" type="number" placeholder="1–2m">
                 <input id="chip-in3" type="number" placeholder="2–3m">
                 <input id="chip-out3" type="number" placeholder="Outside 3m">
+              </div>
+              <!-- Live bucket counter -->
+              <div id="chip-bucket-count" class="bucket-counter"></div>
+              <!-- Rule of 12 hint -->
+              <div id="chip-r12" class="chip-r12-hint" style="display:none;"></div>
+              <div class="form-grid" style="margin-top:6px">
                 <input id="chip-success" type="number" step="0.1" placeholder="Success target (opt)">
-                <input id="chip-notes" type="text" placeholder="Notes">
+                <textarea id="chip-notes" class="form-span-2" placeholder="What did you work on? Conditions, feels, grip changes..." rows="2"></textarea>
               </div>
               <div class="form-actions">
                 <button id="add-chip-btn">Add session</button>
@@ -249,9 +273,8 @@
         <div class="acc-body" style="max-height:4000px;opacity:1;">
           <div class="stats-section-pad">
             <div id="stats-putting-summary"></div>
-            <!-- Putting trend chart -->
             <div id="putting-chart-wrap" style="margin-top:12px;display:none;">
-              <div class="chart-label">Make rate % over time</div>
+              <div class="chart-label">1m make rate % over time</div>
               <canvas id="putting-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:6px;"></canvas>
             </div>
             <div class="stats-form-card">
@@ -261,7 +284,7 @@
                 <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)">
                 <input id="putt-holed" type="number" placeholder="Holed">
                 <input id="putt-total" type="number" placeholder="Total attempts">
-                <input id="putt-notes" class="form-span-2" type="text" placeholder="Notes">
+                <textarea id="putt-notes" class="form-span-2" placeholder="Conditions, stroke feel, what you worked on..." rows="2"></textarea>
               </div>
               <div class="form-actions">
                 <button id="add-putt-btn">Add session</button>
@@ -311,14 +334,14 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="auth.js?v=6"></script>
-  <script src="distances.js?v=2"></script>
-  <script src="clubs.js?v=2"></script>
+  <script src="auth.js?v=7"></script>
+  <script src="distances.js?v=3"></script>
+  <script src="clubs.js?v=3"></script>
   <script src="viz.js?v=2"></script>
   <script src="shotshape.js?v=2"></script>
   <script src="engine.js?v=2"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
   <script src="clubAliases.js?v=1"></script>
-  <script src="analysis.js?v=4"></script>
+  <script src="analysis.js?v=5"></script>
 </body>
 </html>
