@@ -388,7 +388,7 @@ async function loadClubsOverview(){
   el.innerHTML='<div class="stats-loading">Loading…</div>';
   const CA=window.clubAliases;await CA.loadAliases();
   const[clubsRes,shotsRes]=await Promise.all([
-    sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active,is_fitted,fit_notes').eq('is_active',true).order('club_name'),
+    sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('is_active',true).order('club_name'),
     sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').limit(2000)
   ]);
 
@@ -409,30 +409,29 @@ async function loadClubsOverview(){
   }
 
   if(clubsRes.error||!clubsRes.data?.length){
-    el.innerHTML='<div class="stats-empty">No clubs in the clubs table.</div>';
+    el.innerHTML='<div class="stats-empty">No clubs found.</div>';
     const am=document.getElementById('alias-manager');if(am&&typeof renderAliasManager==='function')renderAliasManager();
     return;
   }
 
   const progressShots=(shotsRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
   const grouped=CA.groupShotsByClub(progressShots);
-
-  // Build carry averages for gapping check
-  const carryByKey={};
-  clubsRes.data.forEach(row=>{
-    const shots=grouped[row.club_key]||[];
-    const carries=shots.map(s=>s.carry).filter(Boolean);
-    carryByKey[row.club_key]=carries.length?{avg:avg(carries),sd:stdDev(carries)||0}:null;
-  });
-
-  // Bag order for gapping (driver → long irons → short irons → wedges → putter)
   const BAG_ORDER=['driver','3w','5w','4','5','6','7','8','9','pw','sw','58','putter'];
+  const FITTED_KEYS=new Set(['6','7','8','9','pw','58']);
+
   const orderedClubs=[...clubsRes.data].sort((a,b)=>{
     const ai=BAG_ORDER.indexOf(a.club_key),bi=BAG_ORDER.indexOf(b.club_key);
     return(ai===-1?99:ai)-(bi===-1?99:bi);
   });
 
-  el.innerHTML=`<div class="clubs-grid">${orderedClubs.map((row,i)=>{
+  // Build carry data for gapping check
+  const carryByKey={};
+  orderedClubs.forEach(row=>{
+    const carries=(grouped[row.club_key]||[]).map(s=>s.carry).filter(Boolean);
+    carryByKey[row.club_key]=carries.length?{avg:avg(carries),sd:stdDev(carries)||0}:null;
+  });
+
+  el.innerHTML=`<div class="clubs-grid">${orderedClubs.map(row=>{
     const shots=grouped[row.club_key]||[];
     const carries=shots.map(s=>s.carry).filter(Boolean);
     const avgCarry=avg(carries);
@@ -442,13 +441,10 @@ async function loadClubsOverview(){
     const sides=shots.map(s=>s.side).filter(x=>x!=null),avgSide=avg(sides);
     const miss=!avgSide?'–':avgSide>5?'Right':avgSide<-5?'Left':'Straight';
     const hasData=shots.length>0;
-
-    // Fitted badge
-    const fittedBadge=row.is_fitted
-      ?`<span class="fit-badge fit-yes">${row.fit_notes||'Fitted'}</span>`
+    const fittedBadge=FITTED_KEYS.has(row.club_key)
+      ?`<span class="fit-badge fit-yes">Fitted</span>`
       :`<span class="fit-badge fit-no">Not fitted</span>`;
 
-    // Gapping warning: check against next club down in bag order
     let gapWarn='';
     if(hasData&&avgCarry){
       const nextKey=BAG_ORDER[BAG_ORDER.indexOf(row.club_key)+1];
@@ -456,9 +452,8 @@ async function loadClubsOverview(){
       if(nextData&&nextData.avg){
         const gap=avgCarry-nextData.avg;
         const combinedSD=(carrySD||0)+(nextData.sd||0);
-        if(gap<combinedSD*0.8&&gap>=0){
-          gapWarn=`<div class="gap-warning">Gap overlap with next club — carries are too close (${Math.round(gap)}m gap, combined ±${Math.round(combinedSD)}m)</div>`;
-        }
+        if(gap<combinedSD*0.8&&gap>=0)
+          gapWarn=`<div class="gap-warning">Gap overlap with next club (${Math.round(gap)}m gap, combined ±${Math.round(combinedSD)}m)</div>`;
       }
     }
 
@@ -478,7 +473,7 @@ async function loadClubsOverview(){
         </div>
         ${gapWarn}
         <div class="club-card-cta">Tap to analyse →</div>
-      `:`<div class="club-card-nodata">No shots mapped yet</div>`}
+      `:`<div class="club-card-nodata">No shots yet</div>`}
     </div>`;
   }).join('')}</div>`;
 
