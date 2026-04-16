@@ -154,12 +154,22 @@ function renderAnalysis(allShots) {
     return;
   }
 
+  // Preserve accordion open/closed states across club switches and filter changes.
+  // On first render (no anacc-overview in DOM yet) fall back to defaults.
+  const _accIds = ['overview', 'consist', 'distance', 'progress', 'shots'];
+  const _firstRender = !document.getElementById('anacc-overview');
+  const openAccs = new Set(
+    _firstRender
+      ? ['overview', 'progress', 'shots']
+      : _accIds.filter(id => document.getElementById('anacc-' + id)?.classList.contains('open'))
+  );
+
   el.innerHTML = unknownBanner + `
-    ${renderAnalysisAcc('overview',  'Overview',         renderOverviewKPIs(shots), true)}
-    ${renderAnalysisAcc('consist',   'Consistency &amp; Direction', renderConsistencyAndDirection(shots), false)}
-    ${renderAnalysisAcc('distance',  'Distance Control', renderDistanceControl(shots), false)}
-    ${renderAnalysisAcc('progress',  'Progress Over Time', renderProgressSection(allShots), true)}
-    ${renderAnalysisAcc('shots',     'Shot Log',         renderSessionGroups(shots, colorMap), true)}
+    ${renderAnalysisAcc('overview',  'Overview',         renderOverviewKPIs(shots), openAccs.has('overview'))}
+    ${renderAnalysisAcc('consist',   'Consistency &amp; Direction', renderConsistencyAndDirection(shots), openAccs.has('consist'))}
+    ${renderAnalysisAcc('distance',  'Distance Control', renderDistanceControl(shots), openAccs.has('distance'))}
+    ${renderAnalysisAcc('progress',  'Progress Over Time', renderProgressSection(allShots), openAccs.has('progress'))}
+    ${renderAnalysisAcc('shots',     'Shot Log',         renderSessionGroups(shots, colorMap), openAccs.has('shots'))}
   `;
 
   requestAnimationFrame(() => requestAnimationFrame(() => {

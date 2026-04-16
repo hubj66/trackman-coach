@@ -180,25 +180,52 @@ async function loadTrackmanSummary(){
   const carrySD=stdDev(progress.map(x=>x.carry).filter(Boolean));
   const avgFace=avg(progress.map(x=>x.face_angle).filter(x=>x!=null));
   const avgFTP=avg(progress.map(x=>x.face_to_path).filter(x=>x!=null));
-  const last5=dates.slice(0,5).map(d=>{const s=progress.filter(x=>(x.shot_time||x.created_at)?.startsWith(d));if(!s.length)return null;return{date:d,n:s.length,carry:avg(s.map(x=>x.carry).filter(Boolean)),smash:avg(s.map(x=>x.smash_factor).filter(Boolean))};}).filter(Boolean);
-  const clubCounts={};data.forEach(r=>{const k=r.club||'?';clubCounts[k]=(clubCounts[k]||0)+1;});
+  const last5=dates.slice(0,5).map(d=>{const s=progress.filter(x=>(x.shot_time||x.created_at)?.startsWith(d));if(!s.length)return null;return{date:d,n:s.length,carry:avg(s.map(x=>x.carry).filter(Boolean)),smash:avg(s.map(x=>x.smash_factor).filter(Boolean)),face:avg(s.map(x=>x.face_angle).filter(x=>x!=null))};}).filter(Boolean);
+
+  // Per-canonical-club breakdown using alias mapping
+  const CA=window.clubAliases;
+  let clubTableHtml='';
+  if(CA){
+    await CA.loadAliases();
+    const BAG_ORDER=['driver','3w','5w','4','5','6','7','8','9','pw','sw','58','putter'];
+    const grouped=CA.groupShotsByClub(progress);
+    const clubRows=BAG_ORDER.filter(key=>(grouped[key]||[]).length>0).map(key=>{
+      const shots=grouped[key];
+      const carries=shots.map(x=>x.carry).filter(Boolean);
+      const smashes=shots.map(x=>x.smash_factor).filter(Boolean);
+      const faces=shots.map(x=>x.face_angle).filter(x=>x!=null);
+      return{label:CA.clubLabel(key),key,n:shots.length,carry:avg(carries),carrySD:stdDev(carries),smash:avg(smashes),face:avg(faces)};
+    });
+    if(clubRows.length){
+      clubTableHtml=`<div class="stats-subsection-title">By Club</div>
+      <div class="stats-table-wrap"><table class="stats-table">
+        <thead><tr><th>Club</th><th>Shots</th><th>Avg Carry</th><th>Carry ±</th><th>Smash</th><th>Avg Face</th></tr></thead>
+        <tbody>${clubRows.map(r=>`<tr>
+          <td><strong>${escapeHtml(r.label)}</strong></td>
+          <td>${r.n}</td>
+          <td>${fmt(r.carry,1)}m</td>
+          <td>±${r.carrySD!=null?fmt(r.carrySD,1):'–'}m</td>
+          <td>${fmt(r.smash,2)}</td>
+          <td class="${r.face!=null&&Math.abs(r.face)<=2?'cell-good':r.face!=null&&Math.abs(r.face)<=4?'cell-warn':'cell-bad'}">${r.face!=null?(r.face>0?'+':'')+fmt(r.face,1)+'°':'–'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    }
+  }
+
   el.innerHTML=`
     <div class="stats-kpi-band">
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${data.length}</div><div class="stats-kpi-tile-label">Total Shots</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${dates.length}</div><div class="stats-kpi-tile-label">Sessions</div></div>
-      <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${fmt(avgCarry)}m</div><div class="stats-kpi-tile-label">Avg Carry</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${fmt(avgSmash,2)}</div><div class="stats-kpi-tile-label">Smash</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${fmt(avgBSp)} mph</div><div class="stats-kpi-tile-label">Ball Spd</div></div>
-      <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">±${fmt(carrySD)}m</div><div class="stats-kpi-tile-label">Carry ±</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${avgFace!=null?(avgFace>0?'+':'')+fmt(avgFace):'–'}°</div><div class="stats-kpi-tile-label">Avg Face</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${avgFTP!=null?(avgFTP>0?'+':'')+fmt(avgFTP):'–'}°</div><div class="stats-kpi-tile-label">Avg FTP</div></div>
     </div>
-    <div class="stats-note">Progress shots only</div>
+    <div class="stats-note">Progress shots only (full swings, not excluded)</div>
     ${last5.length?`<div class="stats-subsection-title">Recent Sessions</div>
-    <table class="stats-table"><thead><tr><th>Date</th><th>Shots</th><th>Avg Carry</th><th>Smash</th></tr></thead>
-    <tbody>${last5.map(s=>`<tr><td>${s.date}</td><td>${s.n}</td><td>${fmt(s.carry,1)}m</td><td>${fmt(s.smash,2)}</td></tr>`).join('')}</tbody></table>`:''}
-    <div class="stats-subsection-title">By Club (raw names)</div>
-    <div class="club-count-grid">${Object.entries(clubCounts).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class="club-count-item"><span class="club-count-name">${escapeHtml(c)}</span><span class="club-count-val">${n}</span></div>`).join('')}</div>`;
+    <div class="stats-table-wrap"><table class="stats-table"><thead><tr><th>Date</th><th>Shots</th><th>Carry</th><th>Smash</th><th>Avg Face</th></tr></thead>
+    <tbody>${last5.map(s=>`<tr><td>${s.date}</td><td>${s.n}</td><td>${fmt(s.carry,1)}m</td><td>${fmt(s.smash,2)}</td><td>${s.face!=null?(s.face>0?'+':'')+fmt(s.face,1)+'°':'–'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    ${clubTableHtml}`;
 }
 
 // ── Rule of 12 helper ──────────────────────────────────────────────────────
