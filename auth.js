@@ -68,10 +68,10 @@ async function deleteOneState(id){const{error}=await sb.from('saved_states').del
 async function loadStatsPage(){
   const{data:sd,error:se}=await sb.auth.getSession();
   if(se||!sd.session?.user){
-    ['stats-trackman-summary','stats-chipping-summary','stats-putting-summary','clubs-overview'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
+    ['stats-chipping-summary','stats-putting-summary','clubs-overview'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
     return;
   }
-  await Promise.all([loadTournamentPanel(),loadTrackmanSummary(),loadChippingSummary(),loadPuttingSummary(),loadClubsOverview(),loadStatsGlance()]);
+  await Promise.all([loadTournamentPanel(),loadChippingSummary(),loadPuttingSummary(),loadClubsOverview(),loadStatsGlance()]);
 }
 
 // ── Tournament countdown panel ─────────────────────────────────────────────
@@ -288,13 +288,38 @@ async function loadChippingSummary(){
   const i1m=sum(data.map(x=>x.inside_1m));
   const i2m=sum(data.map(x=>(x.inside_1m||0)+(x.between_1_2m||0)));
   const i3m=sum(data.map(x=>(x.inside_1m||0)+(x.between_1_2m||0)+(x.between_2_3m||0)));
+
+  // Recent form: last 5 sessions vs all-time
+  const recent=data.slice(0,5);
+  const recentAtt=sum(recent.map(x=>x.attempts));
+  const recentI2m=sum(recent.map(x=>(x.inside_1m||0)+(x.between_1_2m||0)));
+  const recentPctVal=recentAtt?recentI2m/recentAtt*100:null;
+  const allPctVal=att?i2m/att*100:null;
+  const formArrow=recentPctVal!=null&&allPctVal!=null?(recentPctVal>allPctVal+3?'↑ ':recentPctVal<allPctVal-3?'↓ ':'→ '):'';
+  const formCol=formArrow==='↑ '?'var(--green)':formArrow==='↓ '?'var(--red)':'var(--text2)';
+
+  // By-distance breakdown
+  const byDist={};
+  data.forEach(r=>{
+    const d=r.distance_m!=null?Math.round(r.distance_m)+'m':'?';
+    if(!byDist[d])byDist[d]={sessions:0,attempts:0,in2m:0,in1m:0};
+    byDist[d].sessions++;byDist[d].attempts+=r.attempts||0;
+    byDist[d].in2m+=(r.inside_1m||0)+(r.between_1_2m||0);
+    byDist[d].in1m+=r.inside_1m||0;
+  });
+  const distKeys=Object.keys(byDist).sort((a,b)=>parseFloat(a)-parseFloat(b));
+  const distHtml=distKeys.length>1?`<div class="stats-subsection-title">By Distance</div>
+    <div class="putt-dist-grid">${distKeys.map(d=>{const v=byDist[d];const r=v.attempts?v.in2m/v.attempts*100:0;const cls=r>=75?'putt-dist-highlight':'';return`<div class="putt-dist-card ${cls}"><div class="putt-dist-label">${d}</div><div class="putt-dist-rate">${pct(v.in2m,v.attempts)}</div><div class="putt-dist-sub">inside 2m · ${v.sessions}s</div></div>`;}).join('')}</div>`:'';
+
   el.innerHTML=`<div class="stats-kpi-band">
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${data.length}</div><div class="stats-kpi-tile-label">Sessions</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${att}</div><div class="stats-kpi-tile-label">Attempts</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(i1m,att)}</div><div class="stats-kpi-tile-label">Inside 1m</div></div>
-    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(i2m,att)}</div><div class="stats-kpi-tile-label">Inside 2m</div></div>
+    <div class="stats-kpi-tile kpi-tile-highlight"><div class="stats-kpi-tile-val">${pct(i2m,att)}</div><div class="stats-kpi-tile-label">Inside 2m</div><div class="stats-kpi-tile-sub">target 75%</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(i3m,att)}</div><div class="stats-kpi-tile-label">Inside 3m</div></div>
-  </div>`;
+    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val" style="color:${formCol}">${formArrow}${recentPctVal!=null?recentPctVal.toFixed(0)+'%':'–'}</div><div class="stats-kpi-tile-label">Last 5 sess</div></div>
+  </div>
+  ${distHtml}`;
   const cw=document.getElementById('chipping-chart-wrap');
   if(cw){cw.style.display='block';requestAnimationFrame(()=>drawChippingTrend(data));}
   if(listEl)listEl.innerHTML=`<div class="stats-table-wrap"><table class="stats-table">
@@ -333,15 +358,29 @@ async function loadPuttingSummary(){
   const shortHoled=sum(shortPutts.map(x=>x.holed));
   const shortTotal=sum(shortPutts.map(x=>x.total));
   const shortPct=shortTotal?(shortHoled/shortTotal*100).toFixed(0)+'%':'–';
+  const shortRate=shortTotal?shortHoled/shortTotal*100:null;
+
+  // Recent form: last 5 short-putt sessions vs all-time
+  const recentShort=shortPutts.slice(0,5);
+  const recH=sum(recentShort.map(x=>x.holed)),recT=sum(recentShort.map(x=>x.total));
+  const recRate=recT?recH/recT*100:null;
+  const formArrow=recRate!=null&&shortRate!=null?(recRate>shortRate+3?'↑ ':recRate<shortRate-3?'↓ ':'→ '):'';
+  const formCol=formArrow==='↑ '?'var(--green)':formArrow==='↓ '?'var(--red)':'var(--text2)';
+
+  // Goal tracking: how many sessions ≥ 85%
+  const goalsHit=shortPutts.filter(r=>r.total>0&&r.holed/r.total>=0.85).length;
+  const goalStr=shortPutts.length?`${goalsHit}/${shortPutts.length}`:'–';
 
   const byDist={};data.forEach(r=>{const d=fmt(r.distance_m,1);if(!byDist[d])byDist[d]={holed:0,total:0};byDist[d].holed+=r.holed||0;byDist[d].total+=r.total||0;});
   el.innerHTML=`<div class="stats-kpi-band">
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${data.length}</div><div class="stats-kpi-tile-label">Sessions</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${total}</div><div class="stats-kpi-tile-label">Total Putts</div></div>
-    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(holed,total)}</div><div class="stats-kpi-tile-label">Overall rate</div></div>
     <div class="stats-kpi-tile kpi-tile-highlight"><div class="stats-kpi-tile-val">${shortPct}</div><div class="stats-kpi-tile-label">1m make rate</div><div class="stats-kpi-tile-sub">target 85%</div></div>
+    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val" style="color:${formCol}">${formArrow}${recRate!=null?recRate.toFixed(0)+'%':'–'}</div><div class="stats-kpi-tile-label">Last 5 sess</div></div>
+    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${goalStr}</div><div class="stats-kpi-tile-label">≥85% sessions</div></div>
+    <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(holed,total)}</div><div class="stats-kpi-tile-label">All-dist rate</div></div>
   </div>
-  ${Object.keys(byDist).length>1?`<div class="putt-dist-grid">${Object.entries(byDist).sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([d,v])=>`<div class="putt-dist-card${parseFloat(d)<=1.5?' putt-dist-highlight':''}"><div class="putt-dist-label">${d}m${parseFloat(d)<=1.5?' ★':''}</div><div class="putt-dist-rate">${pct(v.holed,v.total)}</div><div class="putt-dist-sub">${v.holed}/${v.total}</div></div>`).join('')}</div>`:''}`;
+  ${Object.keys(byDist).length>1?`<div class="stats-subsection-title">By Distance</div><div class="putt-dist-grid">${Object.entries(byDist).sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([d,v])=>{const r=v.total?v.holed/v.total*100:0;const cls=parseFloat(d)<=1.5?'putt-dist-highlight':'';return`<div class="putt-dist-card ${cls}"><div class="putt-dist-label">${d}m${parseFloat(d)<=1.5?' ★':''}</div><div class="putt-dist-rate">${pct(v.holed,v.total)}</div><div class="putt-dist-sub">${v.holed}/${v.total}</div></div>`;}).join('')}</div>`:''}`;
   const pw=document.getElementById('putting-chart-wrap');
   if(pw){pw.style.display='block';requestAnimationFrame(()=>drawPuttingTrend(data));}
   if(listEl)listEl.innerHTML=`<div class="stats-table-wrap"><table class="stats-table">
