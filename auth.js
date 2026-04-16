@@ -392,8 +392,8 @@ async function loadClubsOverview(){
     sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').limit(2000)
   ]);
 
-  // Onboarding state: no aliases mapped yet
-  const hasAliases=Object.keys(CA._aliasMap||{}).length>0;
+  // Onboarding state: check via public API (CA._aliasMap is private)
+  const hasAliases=CA.CLUB_DEFINITIONS.some(d=>CA.getRawNamesForKey(d.key).length>0);
   if(!hasAliases){
     el.innerHTML=`<div class="clubs-onboarding">
       <div class="clubs-onboarding-title">Set up your bag</div>
