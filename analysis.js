@@ -9,6 +9,7 @@ let editingRowId   = null;
 let currentProgKey = 'carry';
 let _allFetchedShots = [];
 let openSessions = new Set();
+let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
 
 const FILTER_OPTIONS = [
   { key:'all',           label:'All' },
@@ -88,6 +89,7 @@ function setAnalysisClub(key) {
     t.classList.toggle('on', t.textContent === CA().clubLabel(key))
   );
   openSessions = new Set();
+  analysisMapActiveDates = null;
   analysisShots = _allFetchedShots.filter(s => CA().shotMatchesClub(s, analysisClub));
   renderAnalysis(analysisShots);
 }
@@ -166,16 +168,17 @@ function renderAnalysis(allShots) {
 
   // Preserve accordion open/closed states across club switches and filter changes.
   // On first render (no anacc-overview in DOM yet) fall back to defaults.
-  const _accIds = ['overview', 'consist', 'distance', 'progress', 'shots'];
+  const _accIds = ['overview', 'maps', 'consist', 'distance', 'progress', 'shots'];
   const _firstRender = !document.getElementById('anacc-overview');
   const openAccs = new Set(
     _firstRender
-      ? ['overview', 'progress', 'shots']
+      ? ['overview', 'maps', 'progress', 'shots']
       : _accIds.filter(id => document.getElementById('anacc-' + id)?.classList.contains('open'))
   );
 
   el.innerHTML = unknownBanner + `
     ${renderAnalysisAcc('overview',  'Overview',         renderOverviewKPIs(shots), openAccs.has('overview'))}
+    ${renderAnalysisAcc('maps',      'Shot Maps',        renderShotMaps(shots, allShots), openAccs.has('maps'))}
     ${renderAnalysisAcc('consist',   'Consistency &amp; Direction', renderConsistencyAndDirection(shots), openAccs.has('consist'))}
     ${renderAnalysisAcc('distance',  'Distance Control', renderDistanceControl(shots), openAccs.has('distance'))}
     ${renderAnalysisAcc('progress',  'Progress Over Time', renderProgressSection(allShots), openAccs.has('progress'))}
@@ -184,6 +187,13 @@ function renderAnalysis(allShots) {
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
     drawProgressChart(currentProgKey, applyFilter(analysisShots));
+    const filteredShots = applyFilter(analysisShots);
+    const colorMap2 = buildSessionColorMap(analysisShots);
+    const activeShotsForMaps = filteredShots.filter(s =>
+      analysisMapActiveDates === null || analysisMapActiveDates.has((s.shot_time||s.created_at)?.slice(0,10))
+    );
+    drawTopViewMap(activeShotsForMaps, colorMap2);
+    drawSideViewMap(activeShotsForMaps, colorMap2);
     openSessions.forEach(date => {
       const body = document.getElementById(`session-body-${date}`);
       const head = document.getElementById(`session-head-${date}`);
@@ -728,6 +738,264 @@ async function saveEditRow(id){
   editingRowId=null;showToast('Saved ✓');renderAnalysis(analysisShots);
 }
 
+// ── Shot Maps ─────────────────────────────────────────────────────────────
+function renderShotMaps(shots, allShots) {
+  const colorMap = buildSessionColorMap(allShots);
+  const allDates = [...new Set(shots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
+
+  // Init or prune stale dates
+  if (analysisMapActiveDates === null || ![...analysisMapActiveDates].some(d => allDates.includes(d))) {
+    analysisMapActiveDates = new Set(allDates);
+  } else {
+    [...analysisMapActiveDates].forEach(d => { if (!allDates.includes(d)) analysisMapActiveDates.delete(d); });
+  }
+
+  const pills = allDates.map(d => {
+    const col = colorMap[d] || '#8a9099';
+    const on = analysisMapActiveDates.has(d);
+    return `<button class="map-date-pill${on?' on':''}" style="--pill-color:${col}" onclick="toggleMapDate('${d}')">${d.slice(5)}</button>`;
+  }).join('');
+
+  const allOn = analysisMapActiveDates.size === allDates.length;
+  return `
+    <div class="map-date-filter" id="map-date-filter">
+      <span class="map-date-label">Sessions:</span>
+      <button class="map-date-pill map-date-all${allOn?' on':''}" onclick="selectAllMapDates()">All</button>
+      ${pills}
+    </div>
+    <div class="map-chart-block">
+      <div class="map-chart-title">Top View &nbsp;·&nbsp; landing zone (carry &amp; lateral)</div>
+      <canvas id="top-view-canvas" height="230" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:4px;"></canvas>
+    </div>
+    <div class="map-chart-block" style="margin-top:14px;">
+      <div class="map-chart-title">Side View &nbsp;·&nbsp; ball flight &amp; roll</div>
+      <canvas id="side-view-canvas" height="165" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:4px;"></canvas>
+    </div>`;
+}
+
+function toggleMapDate(date) {
+  if (!analysisMapActiveDates) return;
+  if (analysisMapActiveDates.has(date)) {
+    if (analysisMapActiveDates.size > 1) analysisMapActiveDates.delete(date);
+  } else {
+    analysisMapActiveDates.add(date);
+  }
+  _redrawMaps();
+}
+
+function selectAllMapDates() {
+  const shots = applyFilter(analysisShots);
+  const allDates = [...new Set(shots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
+  analysisMapActiveDates = new Set(allDates);
+  _redrawMaps();
+}
+
+function _redrawMaps() {
+  const shots = applyFilter(analysisShots);
+  const colorMap = buildSessionColorMap(analysisShots);
+  const allDates = [...new Set(shots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
+  const allOn = analysisMapActiveDates.size === allDates.length;
+
+  // Update pill states without full re-render
+  const filterEl = document.getElementById('map-date-filter');
+  if (filterEl) {
+    filterEl.querySelectorAll('.map-date-pill').forEach(btn => btn.classList.remove('on'));
+    if (allOn) filterEl.querySelector('.map-date-all')?.classList.add('on');
+    allDates.forEach(d => {
+      if (analysisMapActiveDates.has(d)) {
+        // find by onclick attribute
+        const btn = [...filterEl.querySelectorAll('.map-date-pill')].find(b => b.getAttribute('onclick')?.includes(d));
+        if (btn) btn.classList.add('on');
+      }
+    });
+  }
+
+  const active = shots.filter(s => analysisMapActiveDates.has((s.shot_time||s.created_at)?.slice(0,10)));
+  drawTopViewMap(active, colorMap);
+  drawSideViewMap(active, colorMap);
+}
+
+function drawTopViewMap(shots, colorMap) {
+  const canvas = document.getElementById('top-view-canvas');
+  if (!canvas) return;
+  const dpr = Math.min(window.devicePixelRatio||2, 3);
+  const w = canvas.parentElement?.clientWidth || 340, h = 230;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+
+  const valid = shots.filter(s => s.carry != null && s.side != null);
+  if (!valid.length) {
+    ctx.fillStyle='#4e5660'; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
+    ctx.fillText('No lateral (side) data for this club', w/2, h/2); return;
+  }
+
+  const carries = valid.map(s=>s.carry), sides = valid.map(s=>s.side);
+  const avgCarry = statAvg(carries);
+  const sdCarry = Math.max(statStdDev(carries)||5, 5);
+  const maxAbsSide = Math.max(...sides.map(Math.abs), 8);
+
+  const pad = {t:22, r:14, b:28, l:48};
+  const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
+
+  // Ranges centred on (0 side, avgCarry)
+  const sideRange = Math.max(maxAbsSide * 1.35, 12);
+  const carryRange = Math.max(sdCarry * 4.5, 20);
+  const carryMin = avgCarry - carryRange * 0.45;
+  const carryMax = carryMin + carryRange;
+
+  const px = sv => pad.l + cw * (sv + sideRange) / (sideRange * 2);
+  const py = cv => pad.t + ch - ch * (cv - carryMin) / (carryMax - carryMin);
+
+  // Grid lines (carry)
+  ctx.font = "9px 'DM Mono',monospace"; ctx.fillStyle='#4e5660';
+  const carryStep = Math.ceil(carryRange/4/5)*5;
+  const cFirst = Math.ceil(carryMin/carryStep)*carryStep;
+  for (let cv=cFirst; cv<=carryMax; cv+=carryStep) {
+    const y = py(cv);
+    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.textAlign='right'; ctx.fillText(Math.round(cv)+'m', pad.l-4, y+3);
+  }
+
+  // Centre line (target)
+  ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(px(0),pad.t); ctx.lineTo(px(0),pad.t+ch); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // L / R axis labels
+  ctx.fillStyle='#4e5660'; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign='center';
+  ctx.fillText('L', pad.l+cw*0.17, pad.t+ch+18);
+  ctx.fillText('0', pad.l+cw*0.5,  pad.t+ch+18);
+  ctx.fillText('R', pad.l+cw*0.83, pad.t+ch+18);
+
+  // Target rings at 5 m, 10 m, 15 m (ellipse — aspect matches data scale)
+  const mPerPxX = (sideRange*2)/cw, mPerPxY = carryRange/ch;
+  const cx0 = px(0), cy0 = py(avgCarry);
+  [5,10,15].forEach((r,i) => {
+    const rx = r/mPerPxX, ry = r/mPerPxY;
+    ctx.strokeStyle = i===0 ? 'rgba(0,214,143,0.35)' : 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = i===0 ? 1.5 : 1;
+    ctx.beginPath(); ctx.ellipse(cx0,cy0,rx,ry,0,0,Math.PI*2); ctx.stroke();
+    if (i===0) {
+      ctx.fillStyle='rgba(0,214,143,0.55)'; ctx.font="8px 'DM Mono',monospace"; ctx.textAlign='left';
+      ctx.fillText('5m', cx0+rx+3, cy0+3);
+    }
+  });
+
+  // Target dot
+  ctx.fillStyle='rgba(0,214,143,0.7)'; ctx.beginPath(); ctx.arc(cx0,cy0,4.5,0,Math.PI*2); ctx.fill();
+
+  // Shot dots
+  valid.forEach(s => {
+    const date = (s.shot_time||s.created_at)?.slice(0,10)||'';
+    const col = colorMap[date]||'#8a9099';
+    const x = px(s.side), y = py(s.carry);
+    if (x<pad.l-4||x>pad.l+cw+4||y<pad.t-4||y>pad.t+ch+4) return;
+    ctx.fillStyle=col; ctx.globalAlpha=0.78;
+    ctx.beginPath(); ctx.arc(x,y,4.5,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Title
+  ctx.fillStyle='#6a7380'; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
+  ctx.fillText('← Left   target ●   Right →', pad.l+2, pad.t-6);
+}
+
+function drawSideViewMap(shots, colorMap) {
+  const canvas = document.getElementById('side-view-canvas');
+  if (!canvas) return;
+  const dpr = Math.min(window.devicePixelRatio||2, 3);
+  const w = canvas.parentElement?.clientWidth || 340, h = 165;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+
+  const valid = shots.filter(s => s.carry != null);
+  if (!valid.length) {
+    ctx.fillStyle='#4e5660'; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
+    ctx.fillText('No carry data', w/2, h/2); return;
+  }
+
+  const carries = valid.map(s=>s.carry);
+  const totals  = valid.map(s=>s.total||s.carry);
+  const heights = valid.map(s=>s.max_height).filter(Boolean);
+
+  const avgCarry = statAvg(carries);
+  const avgTotal = statAvg(totals);
+  const avgApex  = heights.length ? statAvg(heights) : avgCarry * 0.13;
+  const maxTotal = Math.max(...totals) * 1.06;
+  const maxHeight = (heights.length ? Math.max(...heights) : avgApex * 1.4) * 1.15;
+
+  const pad = {t:22, r:16, b:28, l:12};
+  const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
+
+  const px = d  => pad.l + (d/maxTotal)*cw;
+  const py = ht => pad.t + ch - (ht/maxHeight)*ch;
+
+  // Ground line
+  ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,py(0)); ctx.lineTo(pad.l+cw,py(0)); ctx.stroke();
+
+  // Distance grid
+  ctx.font="9px 'DM Mono',monospace"; ctx.fillStyle='#4e5660';
+  const distStep = Math.ceil(maxTotal/4/5)*5;
+  for (let d=distStep; d<=maxTotal; d+=distStep) {
+    const x=px(d);
+    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,py(0)); ctx.stroke();
+    ctx.textAlign='center'; ctx.fillText(Math.round(d)+'m', x, py(0)+17);
+  }
+
+  // Draw each shot arc (faint)
+  valid.forEach(s => {
+    const date=(s.shot_time||s.created_at)?.slice(0,10)||'';
+    const col=colorMap[date]||'#8a9099';
+    const carry=s.carry, total=s.total||carry;
+    const apex=s.max_height||avgApex;
+
+    // Quadratic bezier: control point gives exact peak at t=0.5
+    // cpY = pad.t + ch*(1 - 2*apex/maxHeight); cpX = px(carry*0.40)
+    const cpX=px(carry*0.40);
+    const cpY=Math.max(2, pad.t + ch*(1 - 2*apex/maxHeight));
+
+    ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.globalAlpha=0.42;
+    ctx.beginPath(); ctx.moveTo(px(0),py(0));
+    ctx.quadraticCurveTo(cpX, cpY, px(carry), py(0));
+    ctx.stroke();
+
+    // Roll
+    if (total > carry+0.5) {
+      ctx.globalAlpha=0.28; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(px(carry),py(0)); ctx.lineTo(px(total),py(0)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha=1;
+  });
+
+  // Average arc (bold green)
+  const avgCpX=px(avgCarry*0.40);
+  const avgCpY=Math.max(2, pad.t + ch*(1 - 2*avgApex/maxHeight));
+  ctx.strokeStyle='#00d68f'; ctx.lineWidth=2.5; ctx.globalAlpha=0.9;
+  ctx.beginPath(); ctx.moveTo(px(0),py(0));
+  ctx.quadraticCurveTo(avgCpX, avgCpY, px(avgCarry), py(0));
+  ctx.stroke();
+
+  if (avgTotal > avgCarry+0.5) {
+    ctx.globalAlpha=0.55; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(px(avgCarry),py(0)); ctx.lineTo(px(avgTotal),py(0)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.globalAlpha=1;
+
+  // Label
+  ctx.fillStyle='#6a7380'; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
+  let lbl = `Avg carry ${f(avgCarry)}m`;
+  if (avgTotal > avgCarry+0.5) lbl += `  · roll ${f(avgTotal-avgCarry)}m`;
+  if (heights.length) lbl += `  · apex ${f(avgApex)}m`;
+  ctx.fillText(lbl, pad.l+2, pad.t-6);
+}
+
 // ── Alias Manager ──────────────────────────────────────────────────────────
 async function renderAliasManager(){
   const el=document.getElementById('alias-manager');if(!el)return;
@@ -790,3 +1058,5 @@ window.renderAliasManager     = renderAliasManager;
 window.quickAddAlias          = quickAddAlias;
 window.manualAddAlias         = manualAddAlias;
 window.deleteAliasRow         = deleteAliasRow;
+window.toggleMapDate          = toggleMapDate;
+window.selectAllMapDates      = selectAllMapDates;
