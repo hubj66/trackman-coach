@@ -38,8 +38,8 @@ function getBaselineForMetric(key, club) {
 const KPI_BENCHMARKS = {
   carry:       { good: [110,135], ok: [90,155] },
   smash_factor:{ good: [1.30,1.38], ok: [1.24,1.42] },
-  ball_speed:  { good: [95,115],  ok: [80,125] },
-  club_speed:  { good: [72,95],   ok: [60,105] },
+  ball_speed:  { good: [42,52],   ok: [36,56] },   // m/s
+  club_speed:  { good: [32,43],   ok: [27,47] },   // m/s
   spin_rate:   { good: [5000,7500], ok: [3500,9000] },
   launch_angle:{ good: [17,23],   ok: [13,28] },
 };
@@ -361,8 +361,8 @@ function renderOverviewKPIs(shots) {
     { l:'Median',     raw:medCarry,        disp:f(medCarry)+'m',        cls:kpiColor('carry',medCarry) },
     { l:'Carry ±',    raw:sdCarry,         disp:f(sdCarry)+'m',         cls:carrySDColor(sdCarry) },
     { l:'Smash',      raw:avgSmash,        disp:f(avgSmash,2)+trendArrow(trendSmash,avgSmash,0.01), cls:kpiColor('smash_factor',avgSmash) },
-    { l:'Ball Speed', raw:avgBS,           disp:f(avgBS)+' mph',        cls:kpiColor('ball_speed',avgBS) },
-    { l:'Club Speed', raw:avgCS,           disp:f(avgCS)+' mph',        cls:kpiColor('club_speed',avgCS) },
+    { l:'Ball Speed', raw:avgBS,           disp:f(avgBS)+' m/s',        cls:kpiColor('ball_speed',avgBS) },
+    { l:'Club Speed', raw:avgCS,           disp:f(avgCS)+' m/s',        cls:kpiColor('club_speed',avgCS) },
     { l:'Avg Spin',   raw:avgSpin,         disp:avgSpin?Math.round(avgSpin)+' rpm':'–', cls:kpiColor('spin_rate',avgSpin) },
     { l:'Launch',     raw:avgLaunch,       disp:f(avgLaunch)+'°',       cls:kpiColor('launch_angle',avgLaunch) },
   ];
