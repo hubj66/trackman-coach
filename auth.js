@@ -222,7 +222,7 @@ async function loadTrackmanSummary(){
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${data.length}</div><div class="stats-kpi-tile-label">Total Shots</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${dates.length}</div><div class="stats-kpi-tile-label">Sessions</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${fmt(avgSmash,2)}</div><div class="stats-kpi-tile-label">Smash</div></div>
-      <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${fmt(avgBSp)} mph</div><div class="stats-kpi-tile-label">Ball Spd</div></div>
+      <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${fmt(avgBSp)} m/s</div><div class="stats-kpi-tile-label">Ball Spd</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${avgFace!=null?(avgFace>0?'+':'')+fmt(avgFace):'–'}°</div><div class="stats-kpi-tile-label">Avg Face</div></div>
       <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${avgFTP!=null?(avgFTP>0?'+':'')+fmt(avgFTP):'–'}°</div><div class="stats-kpi-tile-label">Avg FTP</div></div>
     </div>

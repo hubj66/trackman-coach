@@ -11,12 +11,12 @@ const CLUBS = {
       { step: 3, cue: 'Lead thumb', detail: 'Right of logo — face square at address. Weight 60/40 left.' },
     ],
     kpis: [
-      { l: 'Ball speed',   realistic: '90–105 mph',    good: '98–112 mph',    d: 'Directly drives carry distance. Ball speed = club speed × smash factor. The only way to gain distance without better contact is more club speed — but smash is faster to improve.', badge: 'br', bt: 'Critical' },
+      { l: 'Ball speed',   realistic: '40–47 m/s',     good: '44–50 m/s',     d: 'Directly drives carry distance. Ball speed = club speed × smash factor. The only way to gain distance without better contact is more club speed — but smash is faster to improve.', badge: 'br', bt: 'Critical' },
       { l: 'Club path',    realistic: '−6° to +6°',    good: '−4° to +4°',    d: 'Direction the clubhead travels at impact. Negative = out-to-in (slice path). Positive = in-to-out (draw path). Combine with face angle to predict ball curve.', badge: 'br', bt: 'Critical' },
       { l: 'Face angle',   realistic: '±4°',           good: '±2.5°',         d: 'Where the face points at impact. Controls ~75% of start direction. Open (+) = starts right. Closed (−) = starts left. Most important single number for direction.', badge: 'br', bt: 'Critical' },
       { l: 'Launch angle', realistic: '11–16°',        good: '12–15°',        d: 'Vertical angle ball leaves the face. Interact with spin to determine carry. Too low = runs out of height early. Too high = ball balloons and loses distance.', badge: 'by', bt: 'Important' },
       { l: 'Spin rate',    realistic: '2400–3400 rpm', good: '2300–3000 rpm', d: 'Lower spin with driver = more carry and roll. High spin (>3500) causes ballooning. Fix steep attack angle and open face to reduce spin naturally.', badge: 'by', bt: 'Important' },
-      { l: 'Smash factor', realistic: '1.38–1.46',     good: '1.43–1.48',     d: 'Ball speed ÷ club speed. Measures strike efficiency. Every 0.01 gain = ~1.5m carry at 90mph. Max theoretical is ~1.50. Use face tape to find your contact pattern.', badge: 'bg', bt: 'Watch' },
+      { l: 'Smash factor', realistic: '1.38–1.46',     good: '1.43–1.48',     d: 'Ball speed ÷ club speed. Measures strike efficiency. Every 0.01 gain = ~1.5m carry at 40 m/s. Max theoretical is ~1.50. Use face tape to find your contact pattern.', badge: 'bg', bt: 'Watch' },
     ],
     focus: [
       { c: 'dr', t: 'Fix face angle first — it mostly controls where the ball starts' },
@@ -35,11 +35,11 @@ const CLUBS = {
       { id: 'smash',  l: 'Smash factor', unit: '',     min: 100,  max: 150,  def: 140,  realistic: [138, 146], good: [143, 148], scale: 100, dp: 2 },
     ],
     advanced: [
-      { id: 'clubspeed', l: 'Club speed',   unit: ' mph', min: 60,  max: 130, def: 95, realistic: [88, 108], good: [95, 112] },
+      { id: 'clubspeed', l: 'Club speed',   unit: ' m/s', min: 27,  max: 58,  def: 42, realistic: [39, 48],  good: [42, 50] },
       { id: 'dynloft',   l: 'Dynamic loft', unit: '°',    min: 5,   max: 25,  def: 14, realistic: [11, 17], good: [12, 15] },
       { id: 'spinaxis',  l: 'Spin axis',    unit: '°',    min: -20, max: 20,  def: 0,  realistic: [-6, 6], good: [-4, 4] },
     ],
-    askTpl: 'I am a 54 handicap. My driver Trackman: face {face}°, path {path}°, attack {attack}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} mph, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
+    askTpl: 'I am a 54 handicap. My driver Trackman: face {face}°, path {path}°, attack {attack}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} m/s, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
   },
 
   irons: {
@@ -75,11 +75,11 @@ const CLUBS = {
       { id: 'smash',  l: 'Smash factor', unit: '',     min: 100,  max: 145,   def: 132,  realistic: [128, 135], good: [131, 136], scale: 100, dp: 2 },
     ],
     advanced: [
-      { id: 'clubspeed', l: 'Club speed',   unit: ' mph', min: 50, max: 110, def: 80, realistic: [70, 92], good: [76, 96] },
+      { id: 'clubspeed', l: 'Club speed',   unit: ' m/s', min: 22, max: 49,  def: 36, realistic: [31, 41], good: [34, 43] },
       { id: 'dynloft',   l: 'Dynamic loft', unit: '°',    min: 10, max: 35,  def: 22, realistic: [19, 27], good: [20, 25] },
       { id: 'spinaxis',  l: 'Spin axis',    unit: '°',    min: -15, max: 15, def: 0,  realistic: [-6, 6], good: [-4, 4] },
     ],
-    askTpl: 'I am a 54 handicap. My iron Trackman: attack {attack}°, face {face}°, path {path}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} mph, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
+    askTpl: 'I am a 54 handicap. My iron Trackman: attack {attack}°, face {face}°, path {path}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} m/s, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
   },
 
   wedge: {
@@ -115,9 +115,9 @@ const CLUBS = {
       { id: 'smash',  l: 'Smash factor', unit: '',     min: 100,  max: 138,   def: 120,  realistic: [114, 127], good: [118, 128], scale: 100, dp: 2 },
     ],
     advanced: [
-      { id: 'clubspeed', l: 'Club speed', unit: ' mph', min: 30, max: 90, def: 60, realistic: [50, 72], good: [56, 76] },
+      { id: 'clubspeed', l: 'Club speed', unit: ' m/s', min: 13, max: 40, def: 27, realistic: [22, 32], good: [25, 34] },
     ],
-    askTpl: 'I am a 54 handicap. My wedge Trackman: attack {attack}°, face {face}°, path {path}°, spin {spin} rpm, launch {launch}°, club speed {clubspeed} mph. Give me 3 prioritised drills.',
+    askTpl: 'I am a 54 handicap. My wedge Trackman: attack {attack}°, face {face}°, path {path}°, spin {spin} rpm, launch {launch}°, club speed {clubspeed} m/s. Give me 3 prioritised drills.',
   },
 
   putter: {
@@ -148,7 +148,7 @@ const CLUBS = {
       { id: 'path',   l: 'Club path',    unit: '°',    min: -8, max: 8, def: 0, realistic: [-4, 4],      good: [-3, 3] },
     ],
     secondary: [
-      { id: 'speed', l: 'Ball speed (10ft)', unit: ' mph', min: 2, max: 8, def: 4, realistic: [3, 5], good: [3.4, 4.8] },
+      { id: 'speed', l: 'Ball speed (10ft)', unit: ' m/s', min: 0.9, max: 3.6, def: 1.8, realistic: [1.3, 2.2], good: [1.5, 2.1] },
     ],
     advanced: [],
     askTpl: 'I am a 54 handicap. My putting Trackman: face {face}°, launch {launch}°, path {path}°. Give me 3 prioritised drills.',
