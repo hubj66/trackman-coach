@@ -108,6 +108,16 @@ async function loadAnalysis() {
   editingRowId = null;
   await CA().loadAliases();
 
+  const { data: _authData } = await window.supabaseClient.auth.getSession();
+  if (!_authData?.session?.user) {
+    el.innerHTML = `<div class="analysis-empty">
+      <strong>Sign in to view your Trackman data</strong>
+      Your shot history, progress charts and club stats will appear here.
+      <small><button class="analysis-login-btn" onclick="toggleAuthPanel()">Login →</button></small>
+    </div>`;
+    return;
+  }
+
   const sb = window.supabaseClient;
   const { data, error } = await sb
     .from('trackman_shots')
@@ -298,12 +308,25 @@ function renderOverviewKPIs(shots) {
   const avgSmash=statAvg(sm),avgBS=statAvg(bs),avgCS=statAvg(cs);
   const avgSpin=statAvg(sp),avgLaunch=statAvg(la);
 
+  // Trend: compare most recent 20% of shots vs all-time average
+  const recentN=Math.max(3,Math.round(shots.length*0.2));
+  const recent=shots.slice(0,recentN);
+  const trendCarry=statAvg(recent.map(s=>s.carry).filter(Boolean));
+  const trendSmash=statAvg(recent.map(s=>s.smash_factor).filter(Boolean));
+  const trendArrow=(recent,all,thresh)=>{
+    if(recent==null||all==null)return'';
+    const d=recent-all;
+    if(d>thresh)return'<span class="kpi-trend kpi-trend-up">↑</span>';
+    if(d<-thresh)return'<span class="kpi-trend kpi-trend-down">↓</span>';
+    return'<span class="kpi-trend kpi-trend-flat">→</span>';
+  };
+
   const kpis = [
     { l:'Shots',      raw:shots.length,    disp:shots.length,          cls:'' },
-    { l:'Avg Carry',  raw:avgCarry,        disp:f(avgCarry)+'m',        cls:kpiColor('carry',avgCarry) },
+    { l:'Avg Carry',  raw:avgCarry,        disp:f(avgCarry)+'m'+trendArrow(trendCarry,avgCarry,1.5),  cls:kpiColor('carry',avgCarry) },
     { l:'Median',     raw:medCarry,        disp:f(medCarry)+'m',        cls:kpiColor('carry',medCarry) },
     { l:'Carry ±',    raw:sdCarry,         disp:f(sdCarry)+'m',         cls:carrySDColor(sdCarry) },
-    { l:'Smash',      raw:avgSmash,        disp:f(avgSmash,2),          cls:kpiColor('smash_factor',avgSmash) },
+    { l:'Smash',      raw:avgSmash,        disp:f(avgSmash,2)+trendArrow(trendSmash,avgSmash,0.01), cls:kpiColor('smash_factor',avgSmash) },
     { l:'Ball Speed', raw:avgBS,           disp:f(avgBS)+' mph',        cls:kpiColor('ball_speed',avgBS) },
     { l:'Club Speed', raw:avgCS,           disp:f(avgCS)+' mph',        cls:kpiColor('club_speed',avgCS) },
     { l:'Avg Spin',   raw:avgSpin,         disp:avgSpin?Math.round(avgSpin)+' rpm':'–', cls:kpiColor('spin_rate',avgSpin) },

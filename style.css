@@ -5,7 +5,7 @@ html{font-size:16px;-webkit-text-size-adjust:100%;color-scheme:dark}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100dvh;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
 
 /* ══ STICKY APP HEADER ══════════════════════════════════════════════════════ */
-.app-header{position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:0.5px solid var(--border);}
+.app-header{position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:0.5px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,.5);}
 .app-header-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;padding-top:calc(10px + env(safe-area-inset-top,0px));}
 .header-title{font-family:var(--cond);font-size:20px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
 .header-title span{color:var(--accent)}
@@ -193,7 +193,7 @@ button:active{background:var(--surface4)}
 .stats-loading{color:var(--text3);font-size:13px}
 .stats-error{color:var(--red);font-size:13px}
 .stats-empty{color:var(--text3);font-size:14px;padding:4px 0 8px}
-.stats-login-note{color:var(--text3);font-size:13px;padding:8px 14px}
+.stats-login-note{color:var(--text3);font-size:13px;padding:24px 14px;text-align:center;line-height:1.7}
 .stats-note{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:6px}
 .stats-subsection-title{font-family:var(--mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:14px 0 7px}
 .stats-kpi-band{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
@@ -203,6 +203,9 @@ button:active{background:var(--surface4)}
 .stats-kpi-tile-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;white-space:nowrap}
 .stats-kpi-tile-sub{font-family:var(--mono);font-size:9px;color:var(--green);margin-top:1px}
 .kpi-tile-highlight{border-color:rgba(0,214,143,.3)}
+.kpi-tile-green{border-color:rgba(0,214,143,.4);background:rgba(0,214,143,.05)}.kpi-tile-green .stats-kpi-tile-val{color:var(--green)}
+.kpi-tile-amber{border-color:rgba(255,170,0,.4)}.kpi-tile-amber .stats-kpi-tile-val{color:var(--amber)}
+.kpi-tile-red{border-color:rgba(255,77,77,.4)}.kpi-tile-red .stats-kpi-tile-val{color:var(--red)}
 .club-count-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:5px}
 .club-count-item{background:var(--surface2);border:0.5px solid var(--border);border-radius:8px;padding:6px 9px;display:flex;justify-content:space-between;align-items:center}
 .club-count-name{font-family:var(--cond);font-size:13px;font-weight:700}
@@ -390,3 +393,34 @@ button:active{background:var(--surface4)}
   .fault-summary{grid-template-columns:1fr}
   .tournament-kpis{grid-template-columns:repeat(3,1fr)}
 }
+
+/* ══ PROFESSIONAL POLISH ════════════════════════════════════════════════════ */
+
+/* Log-session sub-accordion inside practice sections */
+.log-sub-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--surface);border-top:0.5px solid var(--border);cursor:pointer;user-select:none;transition:background .12s}
+.log-sub-head:active{background:var(--surface2)}
+.log-sub-label{font-size:13px;font-weight:600;color:var(--accent)}
+.log-sub-arrow{font-size:14px;color:var(--text3);transition:transform .2s}
+.log-sub-head.open .log-sub-arrow{transform:rotate(90deg)}
+.log-sub-body{max-height:0;overflow:hidden;opacity:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .2s}
+.log-sub-body.open{max-height:900px;opacity:1}
+
+/* Trend arrow on analysis KPI cards */
+.kpi-trend{font-size:10px;font-family:var(--mono);margin-left:4px;opacity:.8}
+.kpi-trend-up{color:var(--green)}.kpi-trend-down{color:var(--red)}.kpi-trend-flat{color:var(--text3)}
+
+/* Better analysis empty state */
+.analysis-empty{text-align:center;color:var(--text3);padding:36px 20px;font-size:14px;line-height:1.7}
+.analysis-empty strong{color:var(--text2);display:block;font-size:16px;margin-bottom:6px}
+.analysis-empty small{display:block;margin-top:8px;font-size:12px}
+.analysis-login-btn{margin-top:14px;display:inline-block;background:var(--accent);color:#0a0c0e;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;font-family:var(--cond);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+
+/* Practice session list improvements */
+.session-list-header{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px}
+.session-list-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+
+/* Page section intro */
+.page-intro{padding:10px 14px 4px;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase}
+
+/* Subtle row hover on stats tables */
+.stats-table tbody tr:hover td{background:var(--surface2)}

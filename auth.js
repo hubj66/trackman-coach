@@ -298,6 +298,13 @@ async function loadChippingSummary(){
   const formArrow=recentPctVal!=null&&allPctVal!=null?(recentPctVal>allPctVal+3?'↑ ':recentPctVal<allPctVal-3?'↓ ':'→ '):'';
   const formCol=formArrow==='↑ '?'var(--green)':formArrow==='↓ '?'var(--red)':'var(--text2)';
 
+  // Streak: consecutive sessions ≥75% inside 2m (most recent first)
+  const chipSorted=[...data].sort((a,b)=>new Date(b.session_date)-new Date(a.session_date));
+  let chipStreak=0;
+  for(const r of chipSorted){const i2=(r.inside_1m||0)+(r.between_1_2m||0);if(r.attempts&&i2/r.attempts*100>=75)chipStreak++;else break;}
+  const in2Pct=att?i2m/att*100:null;
+  const in2Cls=in2Pct!=null?(in2Pct>=75?'kpi-tile-green':in2Pct>=55?'kpi-tile-amber':'kpi-tile-red'):'kpi-tile-highlight';
+
   // By-distance breakdown
   const byDist={};
   data.forEach(r=>{
@@ -314,10 +321,11 @@ async function loadChippingSummary(){
   el.innerHTML=`<div class="stats-kpi-band">
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${data.length}</div><div class="stats-kpi-tile-label">Sessions</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${att}</div><div class="stats-kpi-tile-label">Attempts</div></div>
+    <div class="stats-kpi-tile ${in2Cls}"><div class="stats-kpi-tile-val">${pct(i2m,att)}</div><div class="stats-kpi-tile-label">Inside 2m</div><div class="stats-kpi-tile-sub">target 75%</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(i1m,att)}</div><div class="stats-kpi-tile-label">Inside 1m</div></div>
-    <div class="stats-kpi-tile kpi-tile-highlight"><div class="stats-kpi-tile-val">${pct(i2m,att)}</div><div class="stats-kpi-tile-label">Inside 2m</div><div class="stats-kpi-tile-sub">target 75%</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(i3m,att)}</div><div class="stats-kpi-tile-label">Inside 3m</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val" style="color:${formCol}">${formArrow}${recentPctVal!=null?recentPctVal.toFixed(0)+'%':'–'}</div><div class="stats-kpi-tile-label">Last 5 sess</div></div>
+    <div class="stats-kpi-tile${chipStreak>=3?' kpi-tile-green':''}"><div class="stats-kpi-tile-val">${chipStreak>0?chipStreak+(chipStreak>=3?' 🔥':''):'0'}</div><div class="stats-kpi-tile-label">Streak</div><div class="stats-kpi-tile-sub">≥75% inside 2m</div></div>
   </div>
   ${distHtml}`;
   const cw=document.getElementById('chipping-chart-wrap');
@@ -371,13 +379,20 @@ async function loadPuttingSummary(){
   const goalsHit=shortPutts.filter(r=>r.total>0&&r.holed/r.total>=0.85).length;
   const goalStr=shortPutts.length?`${goalsHit}/${shortPutts.length}`:'–';
 
+  // Streak: consecutive 1m sessions ≥ 85%
+  const puttSorted=[...shortPutts].sort((a,b)=>new Date(b.session_date)-new Date(a.session_date));
+  let puttStreak=0;
+  for(const r of puttSorted){if(r.total>0&&r.holed/r.total>=0.85)puttStreak++;else break;}
+  const make1mCls=shortRate!=null?(shortRate>=85?'kpi-tile-green':shortRate>=70?'kpi-tile-amber':'kpi-tile-red'):'kpi-tile-highlight';
+
   const byDist={};data.forEach(r=>{const d=fmt(r.distance_m,1);if(!byDist[d])byDist[d]={holed:0,total:0};byDist[d].holed+=r.holed||0;byDist[d].total+=r.total||0;});
   el.innerHTML=`<div class="stats-kpi-band">
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${data.length}</div><div class="stats-kpi-tile-label">Sessions</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${total}</div><div class="stats-kpi-tile-label">Total Putts</div></div>
-    <div class="stats-kpi-tile kpi-tile-highlight"><div class="stats-kpi-tile-val">${shortPct}</div><div class="stats-kpi-tile-label">1m make rate</div><div class="stats-kpi-tile-sub">target 85%</div></div>
+    <div class="stats-kpi-tile ${make1mCls}"><div class="stats-kpi-tile-val">${shortPct}</div><div class="stats-kpi-tile-label">1m make rate</div><div class="stats-kpi-tile-sub">target 85%</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val" style="color:${formCol}">${formArrow}${recRate!=null?recRate.toFixed(0)+'%':'–'}</div><div class="stats-kpi-tile-label">Last 5 sess</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${goalStr}</div><div class="stats-kpi-tile-label">≥85% sessions</div></div>
+    <div class="stats-kpi-tile${puttStreak>=3?' kpi-tile-green':''}"><div class="stats-kpi-tile-val">${puttStreak>0?puttStreak+(puttStreak>=3?' 🔥':''):'0'}</div><div class="stats-kpi-tile-label">Streak</div><div class="stats-kpi-tile-sub">≥85% make rate</div></div>
     <div class="stats-kpi-tile"><div class="stats-kpi-tile-val">${pct(holed,total)}</div><div class="stats-kpi-tile-label">All-dist rate</div></div>
   </div>
   ${Object.keys(byDist).length>1?`<div class="stats-subsection-title">By Distance</div><div class="putt-dist-grid">${Object.entries(byDist).sort((a,b)=>parseFloat(a[0])-parseFloat(b[0])).map(([d,v])=>{const r=v.total?v.holed/v.total*100:0;const cls=parseFloat(d)<=1.5?'putt-dist-highlight':'';return`<div class="putt-dist-card ${cls}"><div class="putt-dist-label">${d}m${parseFloat(d)<=1.5?' ★':''}</div><div class="putt-dist-rate">${pct(v.holed,v.total)}</div><div class="putt-dist-sub">${v.holed}/${v.total}</div></div>`;}).join('')}</div>`:''}`;
@@ -596,6 +611,7 @@ function startEditChippingSession(id){
   document.getElementById('update-chip-btn').style.display='inline-block';
   document.getElementById('cancel-chip-edit-btn').style.display='inline-block';
   updateBucketCounter();updateR12();
+  if(typeof openLogForm==='function')openLogForm('chip-form');
 }
 function cancelEditChippingSession(){editingChipId=null;clearChippingForm();document.getElementById('add-chip-btn').style.display='inline-block';document.getElementById('update-chip-btn').style.display='none';document.getElementById('cancel-chip-edit-btn').style.display='none';}
 async function deleteChippingSession(id){const{error}=await sb.from('chipping_sessions').delete().eq('id',id);if(error){msg(error.message,true);return;}if(editingChipId===id)cancelEditChippingSession();msg('Deleted');await loadChippingSummary();}
@@ -629,7 +645,19 @@ async function updatePuttingSession(){
   if(error){msg(error.message,true);return;}
   msg('Updated');cancelEditPuttingSession();await loadPuttingSummary();
 }
-function startEditPuttingSession(id){const r=puttingCache.find(x=>x.id===id);if(!r)return;editingPuttId=id;document.getElementById('putt-date').value=r.session_date||'';document.getElementById('putt-distance').value=r.distance_m??'';document.getElementById('putt-holed').value=r.holed??'';document.getElementById('putt-total').value=r.total??'';document.getElementById('putt-notes').value=r.notes||'';document.getElementById('add-putt-btn').style.display='none';document.getElementById('update-putt-btn').style.display='inline-block';document.getElementById('cancel-putt-edit-btn').style.display='inline-block';}
+function startEditPuttingSession(id){
+  const r=puttingCache.find(x=>x.id===id);if(!r)return;
+  editingPuttId=id;
+  document.getElementById('putt-date').value=r.session_date||'';
+  document.getElementById('putt-distance').value=r.distance_m??'';
+  document.getElementById('putt-holed').value=r.holed??'';
+  document.getElementById('putt-total').value=r.total??'';
+  document.getElementById('putt-notes').value=r.notes||'';
+  document.getElementById('add-putt-btn').style.display='none';
+  document.getElementById('update-putt-btn').style.display='inline-block';
+  document.getElementById('cancel-putt-edit-btn').style.display='inline-block';
+  if(typeof openLogForm==='function')openLogForm('putt-form');
+}
 function cancelEditPuttingSession(){editingPuttId=null;clearPuttingForm();document.getElementById('add-putt-btn').style.display='inline-block';document.getElementById('update-putt-btn').style.display='none';document.getElementById('cancel-putt-edit-btn').style.display='none';}
 async function deletePuttingSession(id){const{error}=await sb.from('putting_sessions').delete().eq('id',id);if(error){msg(error.message,true);return;}if(editingPuttId===id)cancelEditPuttingSession();msg('Deleted');await loadPuttingSummary();}
 function clearPuttingForm(){['putt-date','putt-distance','putt-holed','putt-total','putt-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}

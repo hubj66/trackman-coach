@@ -106,6 +106,27 @@ function openAcc(id) {
   if (body) { body.style.maxHeight = '4000px'; body.style.opacity = '1'; }
 }
 
+function toggleLogForm(id) {
+  const head = document.getElementById('sub-head-' + id);
+  const body = document.getElementById('sub-body-' + id);
+  if (!head || !body) return;
+  const isOpen = head.classList.contains('open');
+  head.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+  if (!isOpen) { body.style.maxHeight = body.scrollHeight + 400 + 'px'; body.style.opacity = '1'; }
+  else { body.style.maxHeight = '0'; body.style.opacity = '0'; }
+}
+
+function openLogForm(id) {
+  const head = document.getElementById('sub-head-' + id);
+  const body = document.getElementById('sub-body-' + id);
+  if (!head || !body || head.classList.contains('open')) return;
+  head.classList.add('open');
+  body.classList.add('open');
+  body.style.maxHeight = '900px';
+  body.style.opacity = '1';
+}
+
 function toggleSub(id) {
   const head = document.getElementById('sub-head-' + id);
   const body = document.getElementById('sub-body-' + id);
