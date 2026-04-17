@@ -167,7 +167,7 @@ function renderAnalysis(allShots) {
 
   // Preserve accordion open/closed states across club switches and filter changes.
   // On first render (no anacc-overview in DOM yet) fall back to defaults.
-  const _accIds = ['overview', 'maps', 'consist', 'distance', 'progress', 'shots'];
+  const _accIds = ['overview', 'maps', 'consist', 'direction', 'distance', 'progress', 'shots'];
   const _firstRender = !document.getElementById('anacc-overview');
   const openAccs = new Set(
     _firstRender
@@ -176,12 +176,13 @@ function renderAnalysis(allShots) {
   );
 
   el.innerHTML = unknownBanner + `
-    ${renderAnalysisAcc('overview',  'Overview',         renderOverviewKPIs(shots), openAccs.has('overview'))}
-    ${renderAnalysisAcc('maps',      'Shot Maps',        renderShotMaps(shots, allShots), openAccs.has('maps'))}
-    ${renderAnalysisAcc('consist',   'Consistency &amp; Direction', renderConsistencyAndDirection(shots), openAccs.has('consist'))}
-    ${renderAnalysisAcc('distance',  'Distance Control', renderDistanceControl(shots), openAccs.has('distance'))}
-    ${renderAnalysisAcc('progress',  'Progress Over Time', renderProgressSection(allShots), openAccs.has('progress'))}
-    ${renderAnalysisAcc('shots',     'Shot Log',         renderSessionGroups(shots, colorMap), openAccs.has('shots'))}
+    ${renderAnalysisAcc('overview',  'Overview',              renderOverviewKPIs(shots), openAccs.has('overview'))}
+    ${renderAnalysisAcc('maps',      'Shot Maps',             renderShotMaps(shots, allShots), openAccs.has('maps'))}
+    ${renderAnalysisAcc('consist',   'Consistency',           renderConsistency(shots), openAccs.has('consist'))}
+    ${renderAnalysisAcc('direction', 'Direction &amp; Pattern', renderDirection(shots), openAccs.has('direction'))}
+    ${renderAnalysisAcc('distance',  'Distance Control',      renderDistanceControl(shots), openAccs.has('distance'))}
+    ${renderAnalysisAcc('progress',  'Progress Over Time',    renderProgressSection(allShots), openAccs.has('progress'))}
+    ${renderAnalysisAcc('shots',     'Shot Log',              renderSessionGroups(shots, colorMap), openAccs.has('shots'))}
   `;
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -228,6 +229,13 @@ function _cv() {
     sessionSep:  light ? 'rgba(0,0,0,0.08)'   : 'rgba(255,255,255,0.09)',
     gradTop:     light ? 'rgba(0,168,108,0.12)': 'rgba(0,214,143,0.13)',
     gradBot:     light ? 'rgba(0,168,108,0)'   : 'rgba(0,214,143,0)',
+    rough1:      light ? '#c8d8b0'             : '#111b0d',
+    rough2:      light ? '#bfcea4'             : '#0e1709',
+    fw1:         light ? '#7dab60'             : '#1a3214',
+    fw2:         light ? '#6d9e52'             : '#152a10',
+    greenFill:   light ? 'rgba(70,170,40,0.22)' : 'rgba(40,190,80,0.18)',
+    greenStr:    light ? 'rgba(60,160,30,0.55)' : 'rgba(50,220,90,0.45)',
+    fwEdge:      light ? 'rgba(0,0,0,0.18)'    : 'rgba(0,0,0,0.35)',
   };
 }
 
@@ -371,60 +379,127 @@ function renderOverviewKPIs(shots) {
     </div>`;
 }
 
-// ── Consistency + Direction ────────────────────────────────────────────────
-function renderConsistencyAndDirection(shots) {
-  const faces=shots.map(s=>s.face_angle).filter(x=>x!=null);
-  const paths=shots.map(s=>s.club_path).filter(x=>x!=null);
-  const ftps=shots.map(s=>s.face_to_path).filter(x=>x!=null);
-  const sides=shots.map(s=>s.side).filter(x=>x!=null);
-  const carries=shots.map(s=>s.carry).filter(Boolean);
-  const smashes=shots.map(s=>s.smash_factor).filter(Boolean);
-  const avgFace=statAvg(faces),avgPath=statAvg(paths),avgFTP=statAvg(ftps),avgSide=statAvg(sides);
-  const left=sides.filter(s=>s<-2).length,right=sides.filter(s=>s>2).length,tot=sides.length||1;
-  const miss=(()=>{
-    if(!avgFTP)return'–';
-    if(avgFTP>4)return avgPath>3?'Push Draw':'Draw';
-    if(avgFTP<-4)return avgPath<-3?'Pull Fade':'Fade';
-    if(avgFace>2)return'Push';
-    if(avgFace<-2)return'Pull';
-    return'Neutral';
+// ── Consistency ───────────────────────────────────────────────────────────
+function renderConsistency(shots) {
+  const carries = shots.map(s=>s.carry).filter(Boolean);
+  const faces   = shots.map(s=>s.face_angle).filter(x=>x!=null);
+  const paths   = shots.map(s=>s.club_path).filter(x=>x!=null);
+  const smashes = shots.map(s=>s.smash_factor).filter(Boolean);
+  const attacks = shots.map(s=>s.attack_angle).filter(x=>x!=null);
+  const spins   = shots.map(s=>s.spin_rate).filter(Boolean);
+
+  const row = (label, center, sd, sdCls) => `
+    <div class="consist-row">
+      <div class="consist-label">${label}</div>
+      <div class="consist-stats">
+        <span class="consist-center">${center}</span>
+        <span class="consist-sep">·</span>
+        <span class="consist-sd ${sdCls}">±${sd} SD</span>
+      </div>
+    </div>`;
+
+  let rows = '';
+  if (carries.length) {
+    const med = statMedian(carries), sd = statStdDev(carries);
+    rows += row('Carry', f(med,0)+'m', f(sd,1)+'m', carrySDColor(sd));
+  }
+  if (smashes.length) {
+    const avg = statAvg(smashes), sd = statStdDev(smashes);
+    rows += row('Smash', f(avg,2), f(sd,3), kpiColor('smash_factor',avg));
+  }
+  if (faces.length) {
+    const avg = statAvg(faces), sd = statStdDev(faces);
+    rows += row('Face', fSign(avg,1)+'°', f(sd,1)+'°', '');
+  }
+  if (paths.length) {
+    const avg = statAvg(paths), sd = statStdDev(paths);
+    rows += row('Path', fSign(avg,1)+'°', f(sd,1)+'°', '');
+  }
+  if (attacks.length) {
+    const avg = statAvg(attacks), sd = statStdDev(attacks);
+    rows += row('Attack', fSign(avg,1)+'°', f(sd,1)+'°', '');
+  }
+  if (spins.length) {
+    const avg = statAvg(spins), sd = statStdDev(spins);
+    rows += row('Spin', avg?Math.round(avg)+' rpm':'–', avg?Math.round(sd)+' rpm':'–', kpiColor('spin_rate',avg));
+  }
+
+  return `<div class="consist-list">${rows || '<div class="analysis-empty-small">No data</div>'}</div>`;
+}
+
+// ── Direction & Pattern ────────────────────────────────────────────────────
+function renderDirection(shots) {
+  const faces = shots.map(s=>s.face_angle).filter(x=>x!=null);
+  const paths = shots.map(s=>s.club_path).filter(x=>x!=null);
+  const ftps  = shots.map(s=>s.face_to_path).filter(x=>x!=null);
+  const sides = shots.map(s=>s.side).filter(x=>x!=null);
+
+  const avgFace = statAvg(faces), avgPath = statAvg(paths), avgFTP = statAvg(ftps);
+  const tot = sides.length || 1;
+  const left   = sides.filter(s=>s<-5).length;
+  const right  = sides.filter(s=>s>5).length;
+  const center = tot - left - right;
+
+  const miss = (()=>{
+    if (!avgFTP) return '–';
+    if (avgFTP > 4)  return avgPath != null && avgPath > 3 ? 'Push Draw' : 'Draw / Fade';
+    if (avgFTP < -4) return avgPath != null && avgPath < -3 ? 'Pull Fade' : 'Fade / Draw';
+    if (avgFace != null && avgFace > 2)  return 'Push Right';
+    if (avgFace != null && avgFace < -2) return 'Pull Left';
+    return 'Neutral';
   })();
-  const row=(l,v,u='',cls='')=>`<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value ${cls}">${v}${u}</span></div>`;
-  return`<div class="analysis-two-col">
-    <div>
-      <div class="analysis-col-label">StdDev (consistency)</div>
-      <div class="analysis-row-list">
-        ${row('Carry ±',f(statStdDev(carries),1),'m',carrySDColor(statStdDev(carries)))}
-        ${row('Face ±', f(statStdDev(faces),1),'°')}
-        ${row('Path ±', f(statStdDev(paths),1),'°')}
-        ${row('Smash ±',f(statStdDev(smashes),3))}
+
+  const faceDesc = avgFace==null ? '–' : Math.abs(avgFace)<=1 ? `${fSign(avgFace,1)}° neutral` : avgFace>0 ? `${fSign(avgFace,1)}° open` : `${fSign(avgFace,1)}° closed`;
+  const pathDesc = avgPath==null ? '–' : Math.abs(avgPath)<=2 ? `${fSign(avgPath,1)}°` : avgPath>0 ? `${fSign(avgPath,1)}° in-to-out` : `${fSign(avgPath,1)}° out-to-in`;
+  const ftpDesc  = avgFTP==null  ? '–' : Math.abs(avgFTP)<=3  ? `${fSign(avgFTP,1)}° neutral`  : avgFTP>0 ? `${fSign(avgFTP,1)}° slice bias` : `${fSign(avgFTP,1)}° hook bias`;
+
+  const row=(l,v)=>`<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value">${v}</span></div>`;
+
+  return `
+    <div class="analysis-two-col">
+      <div>
+        <div class="analysis-col-label">Angle averages</div>
+        <div class="analysis-row-list">
+          ${faces.length ? row('Face', faceDesc) : ''}
+          ${paths.length ? row('Path', pathDesc) : ''}
+          ${ftps.length  ? row('FTP',  ftpDesc)  : ''}
+          ${!faces.length && !paths.length ? '<div class="analysis-empty-small">No angle data</div>' : ''}
+        </div>
       </div>
-    </div>
-    <div>
-      <div class="analysis-col-label">Direction &amp; miss</div>
-      <div class="analysis-row-list">
-        ${row('Avg Face',fSign(avgFace),'°')}
-        ${row('Avg Path',fSign(avgPath),'°')}
-        ${row('Avg FTP', fSign(avgFTP),'°')}
-        ${row('% Left',((left/tot)*100).toFixed(0),'%')}
-        ${row('% Right',((right/tot)*100).toFixed(0),'%')}
-        ${row('Miss',miss)}
+      <div>
+        <div class="analysis-col-label">Landing bias</div>
+        <div class="analysis-row-list">
+          ${sides.length ? row('Left',   ((left/tot)*100).toFixed(0)+'%') : ''}
+          ${sides.length ? row('Center', ((center/tot)*100).toFixed(0)+'%') : ''}
+          ${sides.length ? row('Right',  ((right/tot)*100).toFixed(0)+'%') : ''}
+          ${row('Pattern', miss)}
+        </div>
       </div>
-    </div>
-  </div>`;
+    </div>`;
 }
 
 // ── Distance control ───────────────────────────────────────────────────────
 function renderDistanceControl(shots) {
-  const c=shots.map(s=>s.carry).filter(Boolean);
-  if(!c.length)return'<div class="analysis-empty-small">No carry data</div>';
-  const s=[...c].sort((a,b)=>a-b);
-  const row=(l,v)=>`<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value">${v}m</span></div>`;
-  return`<div class="analysis-row-list" style="display:grid;grid-template-columns:1fr 1fr;">
-    ${row('Min',f(s[0]))} ${row('Max',f(s[s.length-1]))}
-    ${row('Range',f(s[s.length-1]-s[0]))} ${row('Median',f(statMedian(c)))}
-    ${row('P10',f(statPercentile(c,10)))} ${row('P90',f(statPercentile(c,90)))}
-  </div>`;
+  const c = shots.map(s=>s.carry).filter(Boolean);
+  if (!c.length) return '<div class="analysis-empty-small">No carry data</div>';
+  const sorted = [...c].sort((a,b)=>a-b);
+  const med = statMedian(c), sd = statStdDev(c);
+  const p10 = statPercentile(c,10), p90 = statPercentile(c,90);
+  const row = (l,v) => `<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value">${v}</span></div>`;
+  return `
+    <div class="dist-summary">
+      <div class="dist-main">
+        <span class="dist-median">${f(med,0)}m</span>
+        <span class="dist-sd ${carrySDColor(sd)}">±${f(sd,1)}m</span>
+        <span class="dist-label">median · std dev</span>
+      </div>
+    </div>
+    <div class="analysis-row-list" style="display:grid;grid-template-columns:1fr 1fr;">
+      ${row('Min', f(sorted[0],0)+'m')}
+      ${row('Max', f(sorted[sorted.length-1],0)+'m')}
+      ${row('Range', f(sorted[sorted.length-1]-sorted[0],0)+'m')}
+      ${row('P10 – P90', f(p10,0)+'–'+f(p90,0)+'m')}
+    </div>`;
 }
 
 // ── Progress chart ─────────────────────────────────────────────────────────
@@ -836,14 +911,21 @@ function drawTopViewMap(shots, colorMap) {
   const canvas = document.getElementById('top-view-canvas');
   if (!canvas) return;
   const dpr = Math.min(window.devicePixelRatio||2, 3);
-  const w = canvas.parentElement?.clientWidth || 340, h = 230;
+  const w = canvas.parentElement?.clientWidth || 340, h = 270;
   canvas.width = w*dpr; canvas.height = h*dpr;
   canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  canvas.style.height = h+'px';
   const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const cv = _cv();
 
   const valid = shots.filter(s => s.carry != null && s.side != null);
+
+  // Always draw background even with no data
+  ctx.fillStyle = cv.rough1;
+  ctx.fillRect(0, 0, w, h);
+
   if (!valid.length) {
-    ctx.fillStyle='#4e5660'; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
+    ctx.fillStyle=cv.dim; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
     ctx.fillText('No lateral (side) data for this club', w/2, h/2); return;
   }
 
@@ -852,72 +934,115 @@ function drawTopViewMap(shots, colorMap) {
   const sdCarry = Math.max(statStdDev(carries)||5, 5);
   const maxAbsSide = Math.max(...sides.map(Math.abs), 8);
 
-  const pad = {t:22, r:14, b:28, l:48};
+  const pad = {t:22, r:14, b:28, l:46};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
-  const cv = _cv();
 
-  // Ranges centred on (0 side, avgCarry)
   const sideRange = Math.max(maxAbsSide * 1.35, 12);
   const carryRange = Math.max(sdCarry * 4.5, 20);
   const carryMin = avgCarry - carryRange * 0.45;
   const carryMax = carryMin + carryRange;
 
-  const px = sv => pad.l + cw * (sv + sideRange) / (sideRange * 2);
+  const px = sv  => pad.l + cw * (sv + sideRange) / (sideRange * 2);
   const py = cvv => pad.t + ch - ch * (cvv - carryMin) / (carryMax - carryMin);
+  const mPerPxX = (sideRange*2)/cw, mPerPxY = carryRange/ch;
 
-  // Grid lines (carry)
-  ctx.font = "9px 'DM Mono',monospace"; ctx.fillStyle=cv.dim;
+  // ── 1. Rough background (striped) ─────────────────────────────────────
+  const roughH = 18;
+  for (let i = 0; i * roughH < h; i++) {
+    ctx.fillStyle = i%2===0 ? cv.rough1 : cv.rough2;
+    ctx.fillRect(0, i*roughH, w, roughH);
+  }
+
+  // ── 2. Fairway corridor (25 m wide, centred) ──────────────────────────
+  const fairwayM = 25;
+  const fwL = Math.max(pad.l,   px(-fairwayM/2));
+  const fwR = Math.min(pad.l+cw, px( fairwayM/2));
+  const fwW = fwR - fwL;
+  if (fwW > 8) {
+    const fwH = 22;
+    for (let i = 0; i * fwH < h; i++) {
+      ctx.fillStyle = i%2===0 ? cv.fw1 : cv.fw2;
+      ctx.fillRect(fwL, i*fwH, fwW, fwH);
+    }
+    // Soft edges
+    const fadeW = Math.min(10, fwW * 0.12);
+    const gradL = ctx.createLinearGradient(fwL, 0, fwL+fadeW, 0);
+    gradL.addColorStop(0, cv.fwEdge); gradL.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradL; ctx.fillRect(fwL, 0, fadeW, h);
+    const gradR = ctx.createLinearGradient(fwR, 0, fwR-fadeW, 0);
+    gradR.addColorStop(0, cv.fwEdge); gradR.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradR; ctx.fillRect(fwR-fadeW, 0, fadeW, h);
+  }
+
+  // ── 3. Target green area ───────────────────────────────────────────────
+  const cx0 = px(0), cy0 = py(avgCarry);
+  const greenRx = Math.max(6/mPerPxX, 12), greenRy = Math.max(6/mPerPxY, 9);
+
+  // Glow halo
+  const halo = ctx.createRadialGradient(cx0, cy0, 0, cx0, cy0, greenRx*2.2);
+  halo.addColorStop(0, 'rgba(40,190,80,0.22)');
+  halo.addColorStop(1, 'rgba(40,190,80,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.ellipse(cx0, cy0, greenRx*2.2, greenRy*2.2, 0, 0, Math.PI*2); ctx.fill();
+
+  // Green circle
+  ctx.fillStyle = cv.greenFill;
+  ctx.strokeStyle = cv.greenStr; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(cx0, cy0, greenRx, greenRy, 0, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  // Flag pole + flag
+  const poleTop = cy0 - greenRy * 0.85;
+  ctx.strokeStyle='rgba(255,255,255,0.65)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(cx0, cy0-2); ctx.lineTo(cx0, poleTop-10); ctx.stroke();
+  ctx.fillStyle='rgba(220,50,50,0.92)';
+  ctx.beginPath();
+  ctx.moveTo(cx0, poleTop-10);
+  ctx.lineTo(cx0+10, poleTop-6);
+  ctx.lineTo(cx0, poleTop-2);
+  ctx.closePath(); ctx.fill();
+
+  // ── 4. Carry grid labels ──────────────────────────────────────────────
+  ctx.font = "9px 'DM Mono',monospace";
   const carryStep = Math.ceil(carryRange/4/5)*5;
   const cFirst = Math.ceil(carryMin/carryStep)*carryStep;
   for (let c=cFirst; c<=carryMax; c+=carryStep) {
     const y = py(c);
-    ctx.strokeStyle=cv.grid; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
-    ctx.textAlign='right'; ctx.fillText(Math.round(c)+'m', pad.l-4, y+3);
+    ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+cw, y); ctx.stroke();
+    ctx.fillStyle=cv.dim; ctx.textAlign='right';
+    ctx.fillText(Math.round(c)+'m', pad.l-4, y+3);
   }
 
-  // Centre line (target)
-  ctx.strokeStyle=cv.center; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(px(0),pad.t); ctx.lineTo(px(0),pad.t+ch); ctx.stroke();
+  // ── 5. Centre / target line ───────────────────────────────────────────
+  ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=1; ctx.setLineDash([4,5]);
+  ctx.beginPath(); ctx.moveTo(px(0), pad.t); ctx.lineTo(px(0), pad.t+ch); ctx.stroke();
   ctx.setLineDash([]);
 
-  // L / R axis labels
-  ctx.fillStyle=cv.dim; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign='center';
-  ctx.fillText('L', pad.l+cw*0.17, pad.t+ch+18);
-  ctx.fillText('0', pad.l+cw*0.5,  pad.t+ch+18);
-  ctx.fillText('R', pad.l+cw*0.83, pad.t+ch+18);
+  // ── 6. Target dot (pin position) ─────────────────────────────────────
+  ctx.fillStyle='rgba(0,214,143,0.85)';
+  ctx.beginPath(); ctx.arc(cx0, cy0, 4.5, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(0,214,143,0.35)'; ctx.lineWidth=2; ctx.beginPath();
+  ctx.arc(cx0, cy0, 7, 0, Math.PI*2); ctx.stroke();
 
-  // Target rings at 5 m, 10 m, 15 m (ellipse — aspect matches data scale)
-  const mPerPxX = (sideRange*2)/cw, mPerPxY = carryRange/ch;
-  const cx0 = px(0), cy0 = py(avgCarry);
-  [5,10,15].forEach((r,i) => {
-    const rx = r/mPerPxX, ry = r/mPerPxY;
-    ctx.strokeStyle = i===0 ? 'rgba(0,214,143,0.35)' : 'rgba(255,255,255,0.07)';
-    ctx.lineWidth = i===0 ? 1.5 : 1;
-    ctx.beginPath(); ctx.ellipse(cx0,cy0,rx,ry,0,0,Math.PI*2); ctx.stroke();
-    if (i===0) {
-      ctx.fillStyle='rgba(0,214,143,0.55)'; ctx.font="8px 'DM Mono',monospace"; ctx.textAlign='left';
-      ctx.fillText('5m', cx0+rx+3, cy0+3);
-    }
-  });
-
-  // Target dot
-  ctx.fillStyle='rgba(0,214,143,0.7)'; ctx.beginPath(); ctx.arc(cx0,cy0,4.5,0,Math.PI*2); ctx.fill();
-
-  // Shot dots
+  // ── 7. Shot dots ──────────────────────────────────────────────────────
   valid.forEach(s => {
     const date = (s.shot_time||s.created_at)?.slice(0,10)||'';
     const col = colorMap[date]||'#8a9099';
     const x = px(s.side), y = py(s.carry);
     if (x<pad.l-4||x>pad.l+cw+4||y<pad.t-4||y>pad.t+ch+4) return;
-    ctx.fillStyle=col; ctx.globalAlpha=0.78;
-    ctx.beginPath(); ctx.arc(x,y,4.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=col; ctx.globalAlpha=0.82;
+    ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha=0.35; ctx.strokeStyle=col; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI*2); ctx.stroke();
   });
   ctx.globalAlpha=1;
 
-  // Title
-  ctx.fillStyle=cv.dim; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
-  ctx.fillText('← Left   target ●   Right →', pad.l+2, pad.t-6);
+  // ── 8. Axis labels ────────────────────────────────────────────────────
+  ctx.fillStyle=cv.dim; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign='center';
+  ctx.fillText('← L', pad.l+cw*0.12, pad.t+ch+18);
+  ctx.fillText('0',   pad.l+cw*0.5,  pad.t+ch+18);
+  ctx.fillText('R →', pad.l+cw*0.88, pad.t+ch+18);
 }
 
 function drawSideViewMap(shots, colorMap) {

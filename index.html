@@ -44,7 +44,11 @@
     </div>
 
     <nav class="top-nav" id="top-nav">
-      <button class="top-nav-btn active" id="nav-coach-btn"    onclick="showPage('coach')">
+      <button class="top-nav-btn active" id="nav-today-btn"    onclick="showPage('today')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Today
+      </button>
+      <button class="top-nav-btn" id="nav-coach-btn"    onclick="showPage('coach')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         Coach
       </button>
@@ -63,8 +67,15 @@
     </nav>
   </div>
 
+  <!-- ══ TODAY ════════════════════════════════════════════════════════════════ -->
+  <div id="page-today" class="page-section active">
+    <div class="main today-content-wrap" id="today-content">
+      <div class="today-loading">Loading…</div>
+    </div>
+  </div>
+
   <!-- ══ COACH ════════════════════════════════════════════════════════════════ -->
-  <div id="page-coach" class="page-section active">
+  <div id="page-coach" class="page-section" style="display:none;">
 
     <div id="coach-session-banner" class="coach-session-banner" style="display:none;">
       <span id="coach-session-text"></span>
@@ -341,5 +352,6 @@
   <script src="app.js?v=6"></script>
   <script src="clubAliases.js?v=1"></script>
   <script src="analysis.js?v=5"></script>
+  <script src="today.js?v=1"></script>
 </body>
 </html>

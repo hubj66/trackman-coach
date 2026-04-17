@@ -8,7 +8,7 @@ let activeKPIExplain = null;
 
 // ── Tab memory ─────────────────────────────────────────────────────────────
 function getLastTab() {
-  try { return localStorage.getItem('tc_last_tab') || 'coach'; } catch { return 'coach'; }
+  try { return localStorage.getItem('tc_last_tab') || 'today'; } catch { return 'today'; }
 }
 function setLastTab(page) {
   try { localStorage.setItem('tc_last_tab', page); } catch {}
@@ -538,7 +538,7 @@ function loadLastSessionIntoCoach() {
 }
 
 // ── Page navigation ────────────────────────────────────────────────────────
-const ALL_PAGES = ['coach','stats','clubs','analysis'];
+const ALL_PAGES = ['today','coach','stats','clubs','analysis'];
 
 function showPage(page) {
   ALL_PAGES.forEach(id => {
@@ -553,6 +553,9 @@ function showPage(page) {
   const ap = document.getElementById('auth-panel');
   if (ap) ap.style.display = 'none';
 
+  if (page === 'today' && typeof window.initTodayTab === 'function') {
+    window.initTodayTab();
+  }
   if (page === 'coach') {
     Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
     render();

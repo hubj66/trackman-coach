@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npx *)",
+      "Bash(where node *)",
+      "Bash(cmd /c \"where npx && where node\")",
+      "Bash(cmd /c \"where npx 2>&1 & where node 2>&1 & where python 2>&1\")",
+      "Bash(powershell -Command \"Get-Command npx, node, python, python3, http-server -ErrorAction SilentlyContinue | Select-Object Name, Source\")"
+    ]
+  }
+}
