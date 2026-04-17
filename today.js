@@ -1,5 +1,19 @@
 // today.js — Today coaching screen
 
+let _todayAllShots = [];
+let _todayIssues   = [];
+
+const PICKER_CLUBS = [
+  { ck:'driver', label:'Driver' },
+  { ck:'6',      label:'6i' },
+  { ck:'7',      label:'7i' },
+  { ck:'8',      label:'8i' },
+  { ck:'9',      label:'9i' },
+  { ck:'pw',     label:'PW' },
+  { ck:'58',     label:'58°' },
+  { ck:'putter', label:'Putt' },
+];
+
 async function initTodayTab() {
   const el = document.getElementById('today-content');
   if (!el) return;
@@ -43,6 +57,9 @@ async function initTodayTab() {
   const health    = _buildHealthTiles(allShots, chipSessions, puttSessions);
   const improved  = _detectImprovement(allShots);
   const regression = _detectRegression(allShots);
+
+  _todayAllShots = allShots;
+  _todayIssues   = issues;
 
   el.innerHTML = _renderTodayContent(issues, health, improved, regression, allShots.length);
 }
@@ -311,7 +328,10 @@ function _renderTodayContent(issues, health, improved, regression, shotCount) {
   return `
     ${health.length ? _renderHealthTiles(health) : ''}
     ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
-    ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
+    ${_renderClubPicker(mainIssue?.club || null)}
+    <div id="today-plan-section">
+      ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
+    </div>
     ${(improved || regression) ? _renderProgressCards(improved, regression) : ''}
     ${watchItem ? _renderWatchCard(watchItem) : ''}
     <div class="today-section-label" style="margin-top:16px;">Quick log</div>
@@ -436,4 +456,68 @@ function _renderWatchCard(issue) {
       <div class="today-watch-text">${escapeHtml(issue.simple)}</div>
       <div class="today-watch-support">${escapeHtml(issue.support)}</div>
     </div>`;
+}
+
+function _renderClubPicker(activeCk) {
+  const btns = PICKER_CLUBS.map(({ ck, label }) =>
+    `<button class="today-club-btn${ck === activeCk ? ' on' : ''}" data-club="${ck}" onclick="selectTodayClub('${ck}')">${label}</button>`
+  ).join('');
+  return `
+    <div class="today-section-label" style="margin-top:4px">Focus on a club</div>
+    <div class="today-club-picker">${btns}</div>`;
+}
+
+function selectTodayClub(ck) {
+  // Update button active state
+  document.querySelectorAll('.today-club-btn').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.club === ck);
+  });
+
+  // Find detected issue for this club, or build a generic plan
+  const issue = _todayIssues.find(i => i.club === ck) || _buildGenericPlan(ck, _todayAllShots);
+
+  const section = document.getElementById('today-plan-section');
+  if (section) section.innerHTML = _renderTrainTodayCard(issue);
+}
+
+function _buildGenericPlan(ck, allShots) {
+  const CA = window.clubAliases;
+  const clubName = CA ? CA.clubLabel(ck) : ck;
+  const shots = CA ? allShots.filter(s => CA.shotMatchesClub(s, ck)).slice(0, 30) : [];
+  const carries = shots.map(s => s.carry).filter(Boolean);
+  const med = statMedian(carries);
+  const sd  = statStdDev(carries);
+
+  const isWedge  = ['pw','58','sw'].includes(ck);
+  const isDriver = ck === 'driver';
+  const isPutter = ck === 'putter';
+
+  let drill, goal;
+  if (isPutter) {
+    drill = 'Gate drill: 2 tees as gate, 20 pressure putts from 1–2m';
+    goal  = '80%+ make rate inside 2m';
+  } else if (isWedge) {
+    const t1 = med ? Math.round(med * 0.7) : 25;
+    const t2 = med ? Math.round(med)        : 35;
+    const t3 = med ? Math.round(med * 1.25) : 45;
+    drill = `Distance ladder: 10 balls each to ${t1}m, ${t2}m, ${t3}m — score only balls inside ±5m window`;
+    goal  = 'Carry SD below 8m · Window hit rate 40%+';
+  } else if (isDriver) {
+    drill = 'Fairway width drill: pick a realistic corridor, aim for playable start line — ignore carry';
+    goal  = 'Playable shots (side ≤ 20m) 70%+';
+  } else {
+    const target = med ? Math.round(med) : '—';
+    drill = `Target carry block: 10 shots to ${target}m, consistent swing pace, note misses`;
+    goal  = sd ? `Carry SD below ${Math.round(Math.max(sd * 0.8, 6))}m` : 'Tight and repeatable';
+  }
+
+  return {
+    key: `manual_${ck}`, club: ck, clubName, type: 'manual',
+    score: 0,
+    simple: `${clubName} focused session`,
+    support: carries.length ? `Last ${carries.length} shots · Median ${f(med,0)}m · ±${f(sd,1)}m` : 'No recent Trackman data for this club',
+    drill,
+    goal,
+    durationMin: isPutter || isWedge ? 30 : 40,
+  };
 }

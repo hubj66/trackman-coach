@@ -219,23 +219,29 @@ function renderAnalysisAcc(id, title, content, defaultOpen) {
 function _cv() {
   const light = document.body.classList.contains('light-theme');
   return {
-    grid:        light ? 'rgba(0,0,0,0.07)'   : 'rgba(255,255,255,0.05)',
-    gridMid:     light ? 'rgba(0,0,0,0.13)'   : 'rgba(255,255,255,0.12)',
-    dim:         light ? '#8a8780'             : '#4e5660',
-    baseline:    light ? 'rgba(0,0,0,0.28)'   : 'rgba(255,255,255,0.28)',
-    baselineTxt: light ? 'rgba(0,0,0,0.45)'   : 'rgba(255,255,255,0.4)',
-    ground:      light ? 'rgba(0,0,0,0.18)'   : 'rgba(255,255,255,0.18)',
-    center:      light ? 'rgba(0,0,0,0.13)'   : 'rgba(255,255,255,0.12)',
-    sessionSep:  light ? 'rgba(0,0,0,0.08)'   : 'rgba(255,255,255,0.09)',
-    gradTop:     light ? 'rgba(0,168,108,0.12)': 'rgba(0,214,143,0.13)',
-    gradBot:     light ? 'rgba(0,168,108,0)'   : 'rgba(0,214,143,0)',
-    rough1:      light ? '#c8d8b0'             : '#111b0d',
-    rough2:      light ? '#bfcea4'             : '#0e1709',
-    fw1:         light ? '#7dab60'             : '#1a3214',
-    fw2:         light ? '#6d9e52'             : '#152a10',
-    greenFill:   light ? 'rgba(70,170,40,0.22)' : 'rgba(40,190,80,0.18)',
-    greenStr:    light ? 'rgba(60,160,30,0.55)' : 'rgba(50,220,90,0.45)',
-    fwEdge:      light ? 'rgba(0,0,0,0.18)'    : 'rgba(0,0,0,0.35)',
+    grid:        light ? 'rgba(0,0,0,0.10)'   : 'rgba(255,255,255,0.05)',
+    gridMid:     light ? 'rgba(0,0,0,0.18)'   : 'rgba(255,255,255,0.12)',
+    dim:         light ? '#5a5550'             : '#4e5660',
+    baseline:    light ? 'rgba(0,0,0,0.32)'   : 'rgba(255,255,255,0.28)',
+    baselineTxt: light ? 'rgba(0,0,0,0.50)'   : 'rgba(255,255,255,0.4)',
+    ground:      light ? 'rgba(0,0,0,0.22)'   : 'rgba(255,255,255,0.18)',
+    center:      light ? 'rgba(0,0,0,0.18)'   : 'rgba(255,255,255,0.12)',
+    sessionSep:  light ? 'rgba(0,0,0,0.10)'   : 'rgba(255,255,255,0.09)',
+    gradTop:     light ? 'rgba(0,148,88,0.18)' : 'rgba(0,214,143,0.13)',
+    gradBot:     light ? 'rgba(0,148,88,0)'    : 'rgba(0,214,143,0)',
+    // Golf field
+    rough1:      light ? '#9dbf78'             : '#111b0d',
+    rough2:      light ? '#90b56e'             : '#0e1709',
+    fw1:         light ? '#5fa038'             : '#1a3214',
+    fw2:         light ? '#538e31'             : '#152a10',
+    greenFill:   light ? 'rgba(55,155,25,0.38)' : 'rgba(40,190,80,0.18)',
+    greenStr:    light ? 'rgba(40,130,10,0.75)' : 'rgba(50,220,90,0.45)',
+    fwEdge:      light ? 'rgba(0,0,0,0.25)'    : 'rgba(0,0,0,0.35)',
+    flagPole:    light ? 'rgba(30,20,10,0.70)' : 'rgba(255,255,255,0.65)',
+    // Side view
+    skyTop:      light ? 'rgba(120,185,230,0.40)' : 'rgba(15,28,48,0.70)',
+    skyBot:      light ? 'rgba(120,185,230,0)'    : 'rgba(15,28,48,0)',
+    groundStrip: light ? 'rgba(80,140,45,0.30)'  : 'rgba(18,42,12,0.55)',
   };
 }
 
@@ -911,10 +917,9 @@ function drawTopViewMap(shots, colorMap) {
   const canvas = document.getElementById('top-view-canvas');
   if (!canvas) return;
   const dpr = Math.min(window.devicePixelRatio||2, 3);
-  const w = canvas.parentElement?.clientWidth || 340, h = 270;
+  const w = canvas.parentElement?.clientWidth || 340, h = 320;
   canvas.width = w*dpr; canvas.height = h*dpr;
   canvas.style.width = w+'px'; canvas.style.height = h+'px';
-  canvas.style.height = h+'px';
   const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
   const cv = _cv();
 
@@ -993,7 +998,7 @@ function drawTopViewMap(shots, colorMap) {
 
   // Flag pole + flag
   const poleTop = cy0 - greenRy * 0.85;
-  ctx.strokeStyle='rgba(255,255,255,0.65)'; ctx.lineWidth=1.5;
+  ctx.strokeStyle=cv.flagPole; ctx.lineWidth=1.5;
   ctx.beginPath(); ctx.moveTo(cx0, cy0-2); ctx.lineTo(cx0, poleTop-10); ctx.stroke();
   ctx.fillStyle='rgba(220,50,50,0.92)';
   ctx.beginPath();
@@ -1008,14 +1013,14 @@ function drawTopViewMap(shots, colorMap) {
   const cFirst = Math.ceil(carryMin/carryStep)*carryStep;
   for (let c=cFirst; c<=carryMax; c+=carryStep) {
     const y = py(c);
-    ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1;
+    ctx.strokeStyle=cv.grid; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+cw, y); ctx.stroke();
     ctx.fillStyle=cv.dim; ctx.textAlign='right';
     ctx.fillText(Math.round(c)+'m', pad.l-4, y+3);
   }
 
   // ── 5. Centre / target line ───────────────────────────────────────────
-  ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=1; ctx.setLineDash([4,5]);
+  ctx.strokeStyle=cv.center; ctx.lineWidth=1; ctx.setLineDash([4,5]);
   ctx.beginPath(); ctx.moveTo(px(0), pad.t); ctx.lineTo(px(0), pad.t+ch); ctx.stroke();
   ctx.setLineDash([]);
 
@@ -1053,10 +1058,18 @@ function drawSideViewMap(shots, colorMap) {
   canvas.width = w*dpr; canvas.height = h*dpr;
   canvas.style.width = w+'px'; canvas.style.height = h+'px';
   const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const cv = _cv();
+
+  // Sky gradient + ground strip background
+  const groundY = h - 28;
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+  skyGrad.addColorStop(0, cv.skyTop); skyGrad.addColorStop(1, cv.skyBot);
+  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, w, groundY);
+  ctx.fillStyle = cv.groundStrip; ctx.fillRect(0, groundY, w, h - groundY);
 
   const valid = shots.filter(s => s.carry != null);
   if (!valid.length) {
-    ctx.fillStyle='#4e5660'; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
+    ctx.fillStyle=cv.dim; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
     ctx.fillText('No carry data', w/2, h/2); return;
   }
 
@@ -1072,7 +1085,6 @@ function drawSideViewMap(shots, colorMap) {
 
   const pad = {t:22, r:16, b:28, l:12};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
-  const cv = _cv();
 
   const px = d  => pad.l + (d/maxTotal)*cw;
   const py = ht => pad.t + ch - (ht/maxHeight)*ch;

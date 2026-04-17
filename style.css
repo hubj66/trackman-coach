@@ -493,6 +493,12 @@ button:active{background:var(--surface4)}
 .today-plan-start-btn:active{opacity:.85}
 .today-plan-short-btn{background:var(--surface2);color:var(--text2);border:0.5px solid var(--border2);border-radius:10px;padding:13px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
 
+/* Club focus picker */
+.today-club-picker{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.today-club-btn{padding:6px 12px;border-radius:20px;border:0.5px solid var(--border2);background:var(--surface);color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:background .12s,color .12s,border-color .12s}
+.today-club-btn.on{background:var(--green);color:#0e1012;border-color:var(--green)}
+body.light-theme .today-club-btn.on{color:#fff}
+
 /* Progress / watch cards */
 .today-progress-row{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
 .today-progress-card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px}
