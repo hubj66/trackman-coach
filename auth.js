@@ -28,7 +28,12 @@ function setLoggedOutUI(){
 async function refreshSession(){
   const{data,error}=await sb.auth.getSession();
   if(error){msg(error.message,true);return;}
-  if(data.session?.user){setLoggedInUI(data.session.user);await loadSavedStates();}
+  if(data.session?.user){
+    setLoggedInUI(data.session.user);
+    await loadSavedStates();
+    const meta=data.session.user.user_metadata;
+    if(meta?.theme && typeof applyTheme==='function') applyTheme(meta.theme);
+  }
   else setLoggedOutUI();
 }
 async function signUp(){

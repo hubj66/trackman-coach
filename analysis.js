@@ -89,7 +89,6 @@ function setAnalysisClub(key) {
     t.classList.toggle('on', t.textContent === CA().clubLabel(key))
   );
   openSessions = new Set();
-  analysisMapActiveDates = null;
   analysisShots = _allFetchedShots.filter(s => CA().shotMatchesClub(s, analysisClub));
   renderAnalysis(analysisShots);
 }
@@ -213,6 +212,23 @@ function renderAnalysisAcc(id, title, content, defaultOpen) {
       <div class="analysis-acc-content">${content}</div>
     </div>
   </div>`;
+}
+
+// ── Canvas theme helper ────────────────────────────────────────────────────
+function _cv() {
+  const light = document.body.classList.contains('light-theme');
+  return {
+    grid:        light ? 'rgba(0,0,0,0.07)'   : 'rgba(255,255,255,0.05)',
+    gridMid:     light ? 'rgba(0,0,0,0.13)'   : 'rgba(255,255,255,0.12)',
+    dim:         light ? '#8a8780'             : '#4e5660',
+    baseline:    light ? 'rgba(0,0,0,0.28)'   : 'rgba(255,255,255,0.28)',
+    baselineTxt: light ? 'rgba(0,0,0,0.45)'   : 'rgba(255,255,255,0.4)',
+    ground:      light ? 'rgba(0,0,0,0.18)'   : 'rgba(255,255,255,0.18)',
+    center:      light ? 'rgba(0,0,0,0.13)'   : 'rgba(255,255,255,0.12)',
+    sessionSep:  light ? 'rgba(0,0,0,0.08)'   : 'rgba(255,255,255,0.09)',
+    gradTop:     light ? 'rgba(0,168,108,0.12)': 'rgba(0,214,143,0.13)',
+    gradBot:     light ? 'rgba(0,168,108,0)'   : 'rgba(0,214,143,0)',
+  };
 }
 
 // ── Stat helpers ───────────────────────────────────────────────────────────
@@ -417,7 +433,7 @@ function renderProgressSection(allShots) {
   return`<div class="progress-chart-tabs">
     ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
   </div>
-  <canvas id="progress-canvas" height="190" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:#161819;"></canvas>
+  <canvas id="progress-canvas" height="190" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:var(--canvas-bg);"></canvas>
   <div class="progress-baseline-note" id="progress-baseline-note"></div>`;
 }
 
@@ -456,8 +472,9 @@ function drawProgressChart(key,shots){
   const px=i=>pad.l+(i/(values.length-1))*cw;
   const py=v=>pad.t+ch-((v-min)/(max-min))*ch;
 
-  ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
-  ctx.font="9px 'DM Mono',monospace";ctx.fillStyle='#4e5660';ctx.textAlign='right';
+  const cv=_cv();
+  ctx.strokeStyle=cv.grid;ctx.lineWidth=1;
+  ctx.font="9px 'DM Mono',monospace";ctx.fillStyle=cv.dim;ctx.textAlign='right';
   for(let i=0;i<=4;i++){
     const y=pad.t+(ch/4)*i,val=max-((max-min)/4)*i;
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
@@ -468,21 +485,21 @@ function drawProgressChart(key,shots){
   if(baseline!=null){
     const by=py(baseline);
     ctx.save();
-    ctx.strokeStyle='rgba(255,255,255,0.28)';ctx.lineWidth=1;ctx.globalAlpha=1;
+    ctx.strokeStyle=cv.baseline;ctx.lineWidth=1;ctx.globalAlpha=1;
     ctx.setLineDash([8,5]);
     ctx.beginPath();ctx.moveTo(pad.l,by);ctx.lineTo(w-pad.r,by);ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.textAlign='right';ctx.font="8px 'DM Mono',monospace";
+    ctx.fillStyle=cv.baselineTxt;ctx.textAlign='right';ctx.font="8px 'DM Mono',monospace";
     ctx.fillText('baseline '+(isSign?(baseline>0?'+':'')+baseline:baseline),w-pad.r-2,by-3);
     ctx.restore();
   }
 
-  let prev='';ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(255,255,255,0.09)';ctx.lineWidth=1;
+  let prev='';ctx.setLineDash([3,4]);ctx.strokeStyle=cv.sessionSep;ctx.lineWidth=1;
   dates.forEach((d,i)=>{if(d!==prev&&i>0){ctx.beginPath();ctx.moveTo(px(i),pad.t);ctx.lineTo(px(i),pad.t+ch);ctx.stroke();}prev=d;});
   ctx.setLineDash([]);
 
   const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
-  grad.addColorStop(0,'rgba(0,214,143,0.13)');grad.addColorStop(1,'rgba(0,214,143,0)');
+  grad.addColorStop(0,cv.gradTop);grad.addColorStop(1,cv.gradBot);
   ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(px(0),py(values[0]));
   values.forEach((v,i)=>ctx.lineTo(px(i),py(v)));
   ctx.lineTo(px(values.length-1),pad.t+ch);ctx.lineTo(px(0),pad.t+ch);ctx.closePath();ctx.fill();
@@ -765,11 +782,11 @@ function renderShotMaps(shots, allShots) {
     </div>
     <div class="map-chart-block">
       <div class="map-chart-title">Top View &nbsp;·&nbsp; landing zone (carry &amp; lateral)</div>
-      <canvas id="top-view-canvas" height="230" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:4px;"></canvas>
+      <canvas id="top-view-canvas" height="230" style="width:100%;display:block;border-radius:10px;background:var(--canvas-bg);margin-top:4px;"></canvas>
     </div>
     <div class="map-chart-block" style="margin-top:14px;">
       <div class="map-chart-title">Side View &nbsp;·&nbsp; ball flight &amp; roll</div>
-      <canvas id="side-view-canvas" height="165" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:4px;"></canvas>
+      <canvas id="side-view-canvas" height="165" style="width:100%;display:block;border-radius:10px;background:var(--canvas-bg);margin-top:4px;"></canvas>
     </div>`;
 }
 
@@ -837,6 +854,7 @@ function drawTopViewMap(shots, colorMap) {
 
   const pad = {t:22, r:14, b:28, l:48};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
+  const cv = _cv();
 
   // Ranges centred on (0 side, avgCarry)
   const sideRange = Math.max(maxAbsSide * 1.35, 12);
@@ -845,26 +863,26 @@ function drawTopViewMap(shots, colorMap) {
   const carryMax = carryMin + carryRange;
 
   const px = sv => pad.l + cw * (sv + sideRange) / (sideRange * 2);
-  const py = cv => pad.t + ch - ch * (cv - carryMin) / (carryMax - carryMin);
+  const py = cvv => pad.t + ch - ch * (cvv - carryMin) / (carryMax - carryMin);
 
   // Grid lines (carry)
-  ctx.font = "9px 'DM Mono',monospace"; ctx.fillStyle='#4e5660';
+  ctx.font = "9px 'DM Mono',monospace"; ctx.fillStyle=cv.dim;
   const carryStep = Math.ceil(carryRange/4/5)*5;
   const cFirst = Math.ceil(carryMin/carryStep)*carryStep;
-  for (let cv=cFirst; cv<=carryMax; cv+=carryStep) {
-    const y = py(cv);
-    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+  for (let c=cFirst; c<=carryMax; c+=carryStep) {
+    const y = py(c);
+    ctx.strokeStyle=cv.grid; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
-    ctx.textAlign='right'; ctx.fillText(Math.round(cv)+'m', pad.l-4, y+3);
+    ctx.textAlign='right'; ctx.fillText(Math.round(c)+'m', pad.l-4, y+3);
   }
 
   // Centre line (target)
-  ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.strokeStyle=cv.center; ctx.lineWidth=1; ctx.setLineDash([4,4]);
   ctx.beginPath(); ctx.moveTo(px(0),pad.t); ctx.lineTo(px(0),pad.t+ch); ctx.stroke();
   ctx.setLineDash([]);
 
   // L / R axis labels
-  ctx.fillStyle='#4e5660'; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign='center';
+  ctx.fillStyle=cv.dim; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign='center';
   ctx.fillText('L', pad.l+cw*0.17, pad.t+ch+18);
   ctx.fillText('0', pad.l+cw*0.5,  pad.t+ch+18);
   ctx.fillText('R', pad.l+cw*0.83, pad.t+ch+18);
@@ -898,7 +916,7 @@ function drawTopViewMap(shots, colorMap) {
   ctx.globalAlpha=1;
 
   // Title
-  ctx.fillStyle='#6a7380'; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
+  ctx.fillStyle=cv.dim; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
   ctx.fillText('← Left   target ●   Right →', pad.l+2, pad.t-6);
 }
 
@@ -929,22 +947,23 @@ function drawSideViewMap(shots, colorMap) {
 
   const pad = {t:22, r:16, b:28, l:12};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
+  const cv = _cv();
 
   const px = d  => pad.l + (d/maxTotal)*cw;
   const py = ht => pad.t + ch - (ht/maxHeight)*ch;
 
   // Ground line
-  ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=1;
+  ctx.strokeStyle=cv.ground; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(pad.l,py(0)); ctx.lineTo(pad.l+cw,py(0)); ctx.stroke();
 
   // Distance grid
-  ctx.font="9px 'DM Mono',monospace"; ctx.fillStyle='#4e5660';
+  ctx.font="9px 'DM Mono',monospace"; ctx.fillStyle=cv.dim;
   const distStep = Math.ceil(maxTotal/4/5)*5;
   for (let d=distStep; d<=maxTotal; d+=distStep) {
     const x=px(d);
-    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+    ctx.strokeStyle=cv.grid; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,py(0)); ctx.stroke();
-    ctx.textAlign='center'; ctx.fillText(Math.round(d)+'m', x, py(0)+17);
+    ctx.fillStyle=cv.dim; ctx.textAlign='center'; ctx.fillText(Math.round(d)+'m', x, py(0)+17);
   }
 
   // Draw each shot arc (faint)
@@ -989,7 +1008,7 @@ function drawSideViewMap(shots, colorMap) {
   ctx.globalAlpha=1;
 
   // Label
-  ctx.fillStyle='#6a7380'; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
+  ctx.fillStyle=cv.dim; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
   let lbl = `Avg carry ${f(avgCarry)}m`;
   if (avgTotal > avgCarry+0.5) lbl += `  · roll ${f(avgTotal-avgCarry)}m`;
   if (heights.length) lbl += `  · apex ${f(avgApex)}m`;

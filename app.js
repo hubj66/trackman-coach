@@ -95,7 +95,18 @@ function toggleAccById(id) {
   const el = document.getElementById(id);
   if (!el) return;
   vibrate(10);
-  el.classList.toggle('open');
+  const wasOpen = el.classList.contains('open');
+  el.classList.toggle('open', !wasOpen);
+  const body = el.querySelector('.acc-body');
+  if (body) {
+    if (wasOpen) {
+      body.style.maxHeight = '0';
+      body.style.opacity = '0';
+    } else {
+      body.style.maxHeight = body.scrollHeight + 2000 + 'px';
+      body.style.opacity = '1';
+    }
+  }
 }
 
 function openAcc(id) {
@@ -573,6 +584,41 @@ function applyState(state) {
 }
 
 window.trackmanCoach = { getCurrentState, applyState };
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.body.classList.toggle('light-theme', theme === 'light');
+  try { localStorage.setItem('tc_theme', theme); } catch {}
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙 Dark' : '☀ Light';
+  // Redraw canvases if analysis tab is visible
+  if (typeof drawProgressChart === 'function' && document.getElementById('progress-canvas')) {
+    requestAnimationFrame(() => {
+      drawProgressChart(window.currentProgKey || 'carry', typeof applyFilter === 'function' ? applyFilter(window.analysisShots || []) : []);
+    });
+  }
+}
+
+async function toggleTheme() {
+  const isLight = document.body.classList.contains('light-theme');
+  const newTheme = isLight ? 'dark' : 'light';
+  applyTheme(newTheme);
+  // Save to Supabase if logged in
+  if (window.supabaseClient) {
+    const { data } = await window.supabaseClient.auth.getSession();
+    if (data?.session?.user) {
+      await window.supabaseClient.auth.updateUser({ data: { theme: newTheme } });
+    }
+  }
+}
+
+// Apply theme from localStorage immediately (before auth resolves)
+(function() {
+  try {
+    const t = localStorage.getItem('tc_theme');
+    if (t === 'light') document.body.classList.add('light-theme');
+  } catch {}
+})();
 
 // ── Init ───────────────────────────────────────────────────────────────────
 rangeMode = getSavedRangeMode();

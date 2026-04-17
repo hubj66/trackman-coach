@@ -36,6 +36,7 @@
         <div class="auth-inline-row">
           <span class="auth-email-label" id="user-email"></span>
           <div id="saved-list-inline"></div>
+          <button id="theme-btn" type="button" class="auth-action-btn auth-action-secondary" onclick="toggleTheme()">☀ Light</button>
           <button id="logout-btn" type="button" class="auth-action-btn auth-action-secondary">Log out</button>
         </div>
       </div>
@@ -220,7 +221,7 @@
             <div id="stats-chipping-summary"></div>
             <div id="chipping-chart-wrap" style="margin-top:12px;display:none;">
               <div class="chart-label">Inside 2m % over time</div>
-              <canvas id="chipping-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:6px;"></canvas>
+              <canvas id="chipping-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:var(--canvas-bg);margin-top:6px;"></canvas>
             </div>
             <div class="log-sub-head" id="sub-head-chip-form" onclick="toggleLogForm('chip-form')">
               <span class="log-sub-label">+ Log session</span>
@@ -267,7 +268,7 @@
             <div id="stats-putting-summary"></div>
             <div id="putting-chart-wrap" style="margin-top:12px;display:none;">
               <div class="chart-label">1m make rate % over time</div>
-              <canvas id="putting-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:#161819;margin-top:6px;"></canvas>
+              <canvas id="putting-trend-canvas" height="130" style="width:100%;display:block;border-radius:10px;background:var(--canvas-bg);margin-top:6px;"></canvas>
             </div>
             <div class="log-sub-head" id="sub-head-putt-form" onclick="toggleLogForm('putt-form')">
               <span class="log-sub-label">+ Log session</span>
