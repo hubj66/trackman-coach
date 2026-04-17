@@ -550,8 +550,59 @@ body.light-theme .today-club-btn.on{color:#fff}
 .dist-sd.kpi-bad{color:var(--red)}
 .dist-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
 
+/* Direction stacked bar */
+.dir-miss-wrap{margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)}
+.dir-miss-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.dir-miss-stacked{display:flex;height:24px;border-radius:6px;overflow:hidden;width:100%}
+.dir-miss-seg{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:600;transition:width .3s}
+.dir-miss-left{background:#4a9eff;color:#fff}
+.dir-miss-center{background:var(--green);color:#0e1012}
+.dir-miss-right{background:#ff6b6b;color:#fff}
+.dir-miss-legend{display:flex;align-items:center;gap:10px;margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--text2);flex-wrap:wrap}
+.dml{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:3px;vertical-align:middle}
+.dml-l{background:#4a9eff}.dml-c{background:var(--green)}.dml-r{background:#ff6b6b}
+.dir-pattern-text{margin-left:auto;font-weight:700;color:var(--text);background:var(--surface2);padding:2px 7px;border-radius:6px}
+
+/* Issue card — confidence + detail */
+.today-issue-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:4px}
+.today-issue-conf{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:10px}
+.today-issue-conf-hint{background:rgba(255,170,0,0.15);color:var(--amber)}
+.today-issue-conf-likely{background:rgba(0,214,143,0.12);color:var(--green)}
+.today-issue-conf-confirmed{background:rgba(0,214,143,0.22);color:var(--green);font-weight:700}
+.today-issue-detail-btn{background:none;border:none;color:var(--text3);font-size:11px;padding:4px 0;cursor:pointer;text-align:left;margin-top:4px;display:block}
+.today-issue-detail{display:none;font-size:12px;color:var(--text2);line-height:1.5;margin-top:6px;padding:10px 12px;background:var(--surface2);border-radius:8px;border-left:2px solid var(--green)}
+.today-issue-detail.open{display:block}
+
+/* Session review */
+.today-review-trigger{text-align:right;margin-bottom:10px;margin-top:-4px}
+.today-review-trigger>button{background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:4px 0}
+.today-review-form{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.today-review-form-title{font-family:var(--cond);font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+.today-review-goal{font-family:var(--mono);font-size:10px;color:var(--green);margin-bottom:10px}
+.today-review-options{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.today-review-opt{flex:1;padding:8px 6px;border-radius:8px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;transition:background .12s,color .12s}
+.today-review-opt.selected{background:var(--green);color:#0e1012;border-color:var(--green)}
+.today-review-note{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:12px;padding:8px;box-sizing:border-box;resize:none;margin-bottom:8px}
+.today-review-submit{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text2);padding:10px;font-size:13px;font-weight:600;cursor:pointer}
+.today-review-result{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;margin-bottom:10px;background:var(--surface)}
+.today-review-result-good{border:0.5px solid var(--green)}
+.today-review-result-ok{border:0.5px solid var(--amber)}
+.today-review-result-warn{border:0.5px solid var(--red)}
+.today-review-result-icon{font-size:20px;flex-shrink:0}
+.today-review-result-label{font-family:var(--cond);font-size:14px;font-weight:700;color:var(--text)}
+.today-review-result-note{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* Fixed issue card */
+.today-fixed-card{display:flex;align-items:flex-start;gap:10px;background:rgba(0,214,143,0.08);border:0.5px solid rgba(0,214,143,0.3);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.today-fixed-icon{font-size:20px;flex-shrink:0}
+.today-fixed-label{font-family:var(--mono);font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.today-fixed-text{font-size:13px;color:var(--text2);line-height:1.4}
+
 /* Light theme overrides for today */
 body.light-theme .today-health-tile{background:var(--surface)}
 body.light-theme .today-issue-card,body.light-theme .today-plan-card,body.light-theme .today-progress-card,body.light-theme .today-watch-card{background:var(--surface)}
 body.light-theme .today-plan-start-btn{color:#fff}
+body.light-theme .today-review-form,body.light-theme .today-review-result{background:var(--surface)}
+body.light-theme .today-review-opt.selected{color:#fff}
+body.light-theme .dir-miss-center{color:#fff}
 body.light-theme .dist-summary{background:var(--surface2)}

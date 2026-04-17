@@ -61,10 +61,26 @@ async function initTodayTab() {
   _todayAllShots = allShots;
   _todayIssues   = issues;
 
-  el.innerHTML = _renderTodayContent(issues, health, improved, regression, allShots.length);
+  // Detect fixed issues (present last time, gone now)
+  const today10 = new Date().toISOString().slice(0,10);
+  const sevenDaysAgo = new Date(Date.now()-7*24*3600*1000).toISOString().slice(0,10);
+  let fixedIssues = [];
+  try {
+    const prev = JSON.parse(localStorage.getItem('today_prev_issues')||'[]');
+    fixedIssues = prev.filter(pi=>pi.date>=sevenDaysAgo && !issues.find(ci=>ci.key===pi.key)).slice(0,1);
+    localStorage.setItem('today_prev_issues', JSON.stringify(
+      issues.map(i=>({key:i.key,simple:i.simple,date:today10}))
+    ));
+  } catch(e) {}
+
+  el.innerHTML = _renderTodayContent(issues, health, improved, regression, allShots.length, fixedIssues);
 }
 
 // ── Issue detection ────────────────────────────────────────────────────────
+
+function _confLabel(conf) {
+  return conf < 0.4 ? 'Hint' : conf < 0.7 ? 'Likely' : 'Confirmed';
+}
 
 function _detectTodayIssues(allShots, puttSessions) {
   const CA = window.clubAliases;
@@ -75,11 +91,18 @@ function _detectTodayIssues(allShots, puttSessions) {
 
   for (const [ck, impact] of Object.entries(CLUB_IMPACT)) {
     const clubShots = allShots.filter(s => CA.shotMatchesClub(s, ck)).slice(0, 40);
-    if (clubShots.length < 10) continue;
+    if (clubShots.length < 12) continue;
 
     const n    = clubShots.length;
     const conf = Math.min(n / 30, 1);
     const clubName = CA.clubLabel(ck);
+    const confLabel = _confLabel(conf);
+    const lowConf   = n < 30;
+
+    // Recency: exponential decay with 21-day half-life
+    const daysSince = clubShots[0]?.shot_time
+      ? (Date.now() - new Date(clubShots[0].shot_time)) / 86400000 : 0;
+    const recency = Math.max(0.5, Math.exp(-daysSince / 21));
 
     const faces   = clubShots.map(s=>s.face_angle).filter(x=>x!=null);
     const ftps    = clubShots.map(s=>s.face_to_path).filter(x=>x!=null);
@@ -102,11 +125,15 @@ function _detectTodayIssues(allShots, puttSessions) {
         ].filter(Boolean).join(' · ');
         issues.push({
           key: `face_${ck}`, club: ck, clubName, type: 'direction',
-          score: sev * conf * impact,
+          n, conf, confLabel, lowConf,
+          score: sev * conf * impact * recency,
           simple: isOpen
             ? (sliceBias ? `${clubName} face is open — ball starts and curves right` : `${clubName} face is open — ball starting right`)
             : (hookBias  ? `${clubName} face is closed — ball starts and curves left` : `${clubName} face is closed — ball starting left`),
           support,
+          deeper: isOpen
+            ? `Face angle is what starts the ball's direction. Averaging ${fSign(avgFace,1)}° open means the ball launches right of target.${sliceBias ? ` Face-to-path of ${fSign(avgFTP,1)}° compounds it — the ball keeps curving right throughout the flight. This is the root cause, not the path.` : ''}`
+            : `A closed face starts the ball left.${hookBias ? ` Face-to-path of ${fSign(avgFTP,1)}° adds curve to the left. Address grip and face awareness at impact first.` : ''}`,
           drill: isOpen
             ? 'Face control: half-swings, feel face neutral at impact (target -1° to +2°)'
             : 'Face control: check grip, practice feeling the face square through the ball',
@@ -123,9 +150,11 @@ function _detectTodayIssues(allShots, puttSessions) {
         const sev = Math.min((avgAttack + 2) / 5, 1);
         issues.push({
           key: `attack_${ck}`, club: ck, clubName, type: 'contact',
-          score: sev * conf * impact * 1.1,
+          n, conf, confLabel, lowConf,
+          score: sev * conf * impact * 1.1 * recency,
           simple: `${clubName} — not hitting down enough, ball getting scooped`,
           support: `Attack angle: ${fSign(avgAttack,1)}° (needs to be below -2°)`,
+          deeper: `Irons should strike with a descending blow. TrackMan defines negative attack angle as the club moving downward into the ball, compressing it properly. At ${fSign(avgAttack,1)}° you're scooping through impact — this produces inconsistent carry distances and weak ball flight.`,
           drill: 'Low-point drill: ball position back, hands forward, hit down and through',
           goal:  `Attack angle below -2° on 6+ of 10 shots`,
           durationMin: 40,
@@ -142,9 +171,11 @@ function _detectTodayIssues(allShots, puttSessions) {
         const med = statMedian(carries);
         issues.push({
           key: `consist_${ck}`, club: ck, clubName, type: 'consistency',
-          score: sev * conf * impact * 0.85,
+          n, conf, confLabel, lowConf,
+          score: sev * conf * impact * 0.85 * recency,
           simple: `${clubName} distance is unreliable — carry spread too wide`,
           support: `Median ${f(med,0)}m · spread ±${f(sdCarry,1)}m`,
+          deeper: `Carry SD of ${f(sdCarry,1)}m (target below ${thresh}m) means your distances are unpredictable under pressure. The goal isn't hitting it further — it's knowing exactly how far you'll carry each shot so club selection isn't a guess.`,
           drill: 'Consistency block: 10 shots to one target, same swing pace each time',
           goal:  `Carry SD below ${thresh}m`,
           durationMin: 30,
@@ -160,9 +191,11 @@ function _detectTodayIssues(allShots, puttSessions) {
         const sev = Math.min((target - avgSmash) / 0.10, 1);
         issues.push({
           key: `smash_${ck}`, club: ck, clubName, type: 'contact',
-          score: sev * conf * impact * 0.9,
+          n, conf, confLabel, lowConf,
+          score: sev * conf * impact * 0.9 * recency,
           simple: `${clubName} contact is off-centre — energy transfer too low`,
           support: `Smash factor: ${f(avgSmash,2)} (target ${target}+)`,
+          deeper: `Smash factor = ball speed ÷ club speed. At ${f(avgSmash,2)} you're losing energy to off-centre strikes. Every 0.05 smash improvement is roughly 5m more carry with the same swing — no extra effort required.`,
           drill: 'Strike drill: impact tape / tee-peg on ground, focus on centre strike',
           goal:  `Smash above ${target}`,
           durationMin: 35,
@@ -180,11 +213,14 @@ function _detectTodayIssues(allShots, puttSessions) {
       const makeRate = holed / total;
       if (makeRate < 0.75) {
         const sev = Math.min((0.85 - makeRate) * 3, 1);
+        const pConf = Math.min(sp.length/5,1);
         issues.push({
           key: 'putting_short', club: 'putter', clubName: 'Putting', type: 'putting',
-          score: sev * Math.min(sp.length/5,1) * 1.3,
+          n: total, conf: pConf, confLabel: _confLabel(pConf), lowConf: sp.length < 5,
+          score: sev * pConf * 1.3,
           simple: `Short putts leaking strokes — ${Math.round(makeRate*100)}% make rate inside 2m`,
           support: `${holed}/${total} made · target is 80%+`,
+          deeper: `Short putts inside 2m should be your highest conversion rate. Every miss drops a free stroke and puts pressure on your approach game. Gate drills build the consistent stroke needed to convert these under pressure.`,
           drill: 'Gate drill: 2 tees as gate, 20 pressure putts at 1m then 1.5m',
           goal:  '80%+ make rate inside 2m',
           durationMin: 25,
@@ -308,7 +344,7 @@ function _detectRegression(allShots) {
 
 // ── Render ────────────────────────────────────────────────────────────────
 
-function _renderTodayContent(issues, health, improved, regression, shotCount) {
+function _renderTodayContent(issues, health, improved, regression, shotCount, fixedIssues=[]) {
   const mainIssue = issues[0] || null;
   const watchItem = issues[1] || null;
 
@@ -327,6 +363,7 @@ function _renderTodayContent(issues, health, improved, regression, shotCount) {
 
   return `
     ${health.length ? _renderHealthTiles(health) : ''}
+    ${fixedIssues.length ? _renderFixedCard(fixedIssues[0]) : ''}
     ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
     ${_renderClubPicker(mainIssue?.club || null)}
     <div id="today-plan-section">
@@ -365,11 +402,19 @@ function _renderHealthTiles(tiles) {
 }
 
 function _renderMainIssueCard(issue) {
+  const confCls = issue.conf < 0.4 ? 'hint' : issue.conf < 0.7 ? 'likely' : 'confirmed';
+  const detailId = `issue-detail-${issue.key.replace(/[^a-z0-9]/g,'_')}`;
   return `
     <div class="today-issue-card">
-      <div class="today-issue-tag">Main issue</div>
+      <div class="today-issue-meta">
+        <div class="today-issue-tag">Main issue</div>
+        ${issue.confLabel ? `<div class="today-issue-conf today-issue-conf-${confCls}">${issue.confLabel}${issue.n ? ' · '+issue.n+' shots' : ''}</div>` : ''}
+      </div>
       <div class="today-issue-title">${escapeHtml(issue.simple)}</div>
       <div class="today-issue-support">${escapeHtml(issue.support)}</div>
+      ${issue.deeper ? `
+        <button class="today-issue-detail-btn" onclick="toggleIssueDetail('${detailId}', this)">Why this issue? ▾</button>
+        <div class="today-issue-detail" id="${detailId}">${escapeHtml(issue.deeper)}</div>` : ''}
     </div>`;
 }
 
@@ -382,7 +427,10 @@ function _renderNoIssueCard() {
     </div>`;
 }
 
+let _todayActivePlanIssue = null;
+
 function _renderTrainTodayCard(issue) {
+  _todayActivePlanIssue = issue;
   const dur   = issue.durationMin || 40;
   const short = Math.max(dur - 15, 20);
   const blocks = _buildPlanBlocks(issue, dur);
@@ -409,8 +457,11 @@ function _renderTrainTodayCard(issue) {
       </div>
       <div class="today-plan-cta-row">
         <button class="today-plan-start-btn" onclick="showPage('analysis')">Start on Trackman tab →</button>
-        <button class="today-plan-short-btn" id="today-short-btn">Make it ${short} min</button>
+        <button class="today-plan-short-btn" onclick="shrinkTodayPlan(${short})">Make it ${short} min</button>
       </div>
+    </div>
+    <div class="today-review-trigger" id="today-review-trigger">
+      <button onclick="openSessionReview()">Log session result →</button>
     </div>`;
 }
 
@@ -520,4 +571,90 @@ function _buildGenericPlan(ck, allShots) {
     goal,
     durationMin: isPutter || isWedge ? 30 : 40,
   };
+}
+
+// ── Issue detail toggle ───────────────────────────────────────────────────
+
+function toggleIssueDetail(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.classList.toggle('open');
+  if (btn) btn.textContent = open ? 'Hide detail ▴' : 'Why this issue? ▾';
+}
+
+// ── Shrink plan ───────────────────────────────────────────────────────────
+
+function shrinkTodayPlan(shortDur) {
+  const issue = _todayActivePlanIssue;
+  if (!issue) return;
+  const section = document.getElementById('today-plan-section');
+  if (!section) return;
+  section.innerHTML = _renderTrainTodayCard({...issue, durationMin: shortDur});
+}
+
+// ── Session review ────────────────────────────────────────────────────────
+
+function openSessionReview() {
+  const trigger = document.getElementById('today-review-trigger');
+  if (!trigger) return;
+  const issue = _todayActivePlanIssue;
+  const goal = issue?.goal || 'Hit your target';
+  trigger.innerHTML = `
+    <div class="today-review-form">
+      <div class="today-review-form-title">How did today's session go?</div>
+      <div class="today-review-goal">Goal: ${escapeHtml(goal)}</div>
+      <div class="today-review-options">
+        <button class="today-review-opt" data-result="hit"    onclick="selectReviewResult(this)">✓ Hit target</button>
+        <button class="today-review-opt" data-result="close"  onclick="selectReviewResult(this)">~ Close</button>
+        <button class="today-review-opt" data-result="miss"   onclick="selectReviewResult(this)">✗ Not yet</button>
+      </div>
+      <textarea class="today-review-note" id="today-review-note" placeholder="Optional note…" rows="2"></textarea>
+      <button class="today-review-submit" onclick="submitSessionReview()">Save result</button>
+    </div>`;
+}
+
+function selectReviewResult(btn) {
+  document.querySelectorAll('.today-review-opt').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function submitSessionReview() {
+  const resultBtn = document.querySelector('.today-review-opt.selected');
+  if (!resultBtn) { showToast('Pick a result first'); return; }
+  const result = resultBtn.dataset.result;
+  const note   = document.getElementById('today-review-note')?.value?.trim() || '';
+  const issue  = _todayActivePlanIssue;
+  const today10 = new Date().toISOString().slice(0,10);
+
+  try {
+    const reviews = JSON.parse(localStorage.getItem('today_reviews')||'[]');
+    reviews.unshift({ date:today10, issueKey:issue?.key, issueSimple:issue?.simple, goal:issue?.goal, result, note });
+    localStorage.setItem('today_reviews', JSON.stringify(reviews.slice(0,20)));
+  } catch(e) {}
+
+  const icon  = result==='hit' ? '✓' : result==='close' ? '~' : '✗';
+  const cls   = result==='hit' ? 'good' : result==='close' ? 'ok' : 'warn';
+  const label = result==='hit' ? 'Hit target' : result==='close' ? 'Getting close' : 'Not yet — keep at it';
+  const trigger = document.getElementById('today-review-trigger');
+  if (trigger) trigger.innerHTML = `
+    <div class="today-review-result today-review-result-${cls}">
+      <span class="today-review-result-icon">${icon}</span>
+      <div>
+        <div class="today-review-result-label">${label}</div>
+        ${note ? `<div class="today-review-result-note">${escapeHtml(note)}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+// ── "You fixed this" card ─────────────────────────────────────────────────
+
+function _renderFixedCard(fixed) {
+  return `
+    <div class="today-fixed-card">
+      <div class="today-fixed-icon">🎯</div>
+      <div>
+        <div class="today-fixed-label">Fixed!</div>
+        <div class="today-fixed-text">${escapeHtml(fixed.simple)} is no longer showing as an issue.</div>
+      </div>
+    </div>`;
 }

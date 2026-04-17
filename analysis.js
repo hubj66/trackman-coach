@@ -445,6 +445,9 @@ function renderDirection(shots) {
   const left   = sides.filter(s=>s<-5).length;
   const right  = sides.filter(s=>s>5).length;
   const center = tot - left - right;
+  const lPct = sides.length ? Math.round(left/tot*100)   : 0;
+  const rPct = sides.length ? Math.round(right/tot*100)  : 0;
+  const cPct = 100 - lPct - rPct;
 
   const miss = (()=>{
     if (!avgFTP) return '–';
@@ -461,6 +464,22 @@ function renderDirection(shots) {
 
   const row=(l,v)=>`<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value">${v}</span></div>`;
 
+  const stackedBar = sides.length >= 3 ? `
+    <div class="dir-miss-wrap">
+      <div class="dir-miss-label">Landing distribution (±5m = centre)</div>
+      <div class="dir-miss-stacked">
+        ${lPct > 0 ? `<div class="dir-miss-seg dir-miss-left" style="width:${lPct}%">${lPct >= 14 ? lPct+'%' : ''}</div>` : ''}
+        ${cPct > 0 ? `<div class="dir-miss-seg dir-miss-center" style="width:${cPct}%">${cPct >= 14 ? cPct+'%' : ''}</div>` : ''}
+        ${rPct > 0 ? `<div class="dir-miss-seg dir-miss-right" style="width:${rPct}%">${rPct >= 14 ? rPct+'%' : ''}</div>` : ''}
+      </div>
+      <div class="dir-miss-legend">
+        <span class="dml dml-l"></span>L ${lPct}%
+        <span class="dml dml-c"></span>C ${cPct}%
+        <span class="dml dml-r"></span>R ${rPct}%
+        ${avgFTP != null ? `<span class="dir-pattern-text">${miss}</span>` : ''}
+      </div>
+    </div>` : '';
+
   return `
     <div class="analysis-two-col">
       <div>
@@ -473,15 +492,14 @@ function renderDirection(shots) {
         </div>
       </div>
       <div>
-        <div class="analysis-col-label">Landing bias</div>
+        <div class="analysis-col-label">Pattern</div>
         <div class="analysis-row-list">
-          ${sides.length ? row('Left',   ((left/tot)*100).toFixed(0)+'%') : ''}
-          ${sides.length ? row('Center', ((center/tot)*100).toFixed(0)+'%') : ''}
-          ${sides.length ? row('Right',  ((right/tot)*100).toFixed(0)+'%') : ''}
           ${row('Pattern', miss)}
+          ${sides.length ? row('Shots', sides.length+'') : ''}
         </div>
       </div>
-    </div>`;
+    </div>
+    ${stackedBar}`;
 }
 
 // ── Distance control ───────────────────────────────────────────────────────
@@ -510,7 +528,7 @@ function renderDistanceControl(shots) {
 
 // ── Progress chart ─────────────────────────────────────────────────────────
 function renderProgressSection(allShots) {
-  const metrics=['carry','smash_factor','ball_speed','spin_rate','launch_angle','face_angle','club_path','face_to_path','attack_angle'];
+  const metrics=['carry','smash_factor','ball_speed','spin_rate','launch_angle','face_angle','club_path','face_to_path','attack_angle','playable_rate'];
   return`<div class="progress-chart-tabs">
     ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
   </div>
@@ -518,7 +536,7 @@ function renderProgressSection(allShots) {
   <div class="progress-baseline-note" id="progress-baseline-note"></div>`;
 }
 
-function progLabel(k){return{carry:'Carry',smash_factor:'Smash',ball_speed:'Ball Spd',spin_rate:'Spin',launch_angle:'Launch',face_angle:'Face',club_path:'Path',face_to_path:'FTP',attack_angle:'Attack'}[k]||k;}
+function progLabel(k){return{carry:'Carry',smash_factor:'Smash',ball_speed:'Ball Spd',spin_rate:'Spin',launch_angle:'Launch',face_angle:'Face',club_path:'Path',face_to_path:'FTP',attack_angle:'Attack',playable_rate:'Playable %'}[k]||k;}
 
 function switchProgChart(key,btn){
   currentProgKey=key;
@@ -535,6 +553,59 @@ function drawProgressChart(key,shots){
   canvas.width=w*dpr;canvas.height=h*dpr;
   canvas.style.width=w+'px';canvas.style.height=h+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+
+  // ── Special: rolling playable-rate chart ──────────────────────────────
+  if (key === 'playable_rate') {
+    const cv2=_cv();
+    const sortedAll=[...shots].sort((a,b)=>new Date(a.shot_time||a.created_at)-new Date(b.shot_time||b.created_at));
+    const sideShots=sortedAll.filter(s=>s.side!=null);
+    const winSize=10;
+    const pts=sideShots.map((_,i)=>{
+      const win=sideShots.slice(Math.max(0,i-winSize+1),i+1);
+      return win.filter(s=>Math.abs(s.side)<=20).length/win.length*100;
+    });
+    if(pts.length<3){
+      ctx.fillStyle=cv2.dim;ctx.font="13px 'Barlow',sans-serif";ctx.textAlign='center';
+      ctx.fillText('Not enough side data (need 3+ shots)',w/2,h/2);return;
+    }
+    const pad2={t:28,r:20,b:38,l:48};
+    const cw2=w-pad2.l-pad2.r,ch2=h-pad2.t-pad2.b;
+    const px2=i=>pad2.l+(i/(pts.length-1))*cw2;
+    const py2=v=>pad2.t+ch2-(v/100)*ch2;
+    ctx.font="9px 'DM Mono',monospace";ctx.textAlign='right';
+    for(const pct of [0,25,50,75,100]){
+      const y=py2(pct);
+      ctx.strokeStyle=cv2.grid;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pad2.l,y);ctx.lineTo(w-pad2.r,y);ctx.stroke();
+      ctx.fillStyle=cv2.dim;ctx.fillText(pct+'%',pad2.l-6,y+3);
+    }
+    const tY=py2(70);
+    ctx.strokeStyle=cv2.baseline;ctx.lineWidth=1;ctx.setLineDash([8,5]);
+    ctx.beginPath();ctx.moveTo(pad2.l,tY);ctx.lineTo(w-pad2.r,tY);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=cv2.baselineTxt;ctx.textAlign='right';ctx.font="8px 'DM Mono',monospace";
+    ctx.fillText('target 70%',w-pad2.r-2,tY-3);
+    const grad2=ctx.createLinearGradient(0,pad2.t,0,pad2.t+ch2);
+    grad2.addColorStop(0,cv2.gradTop);grad2.addColorStop(1,cv2.gradBot);
+    ctx.fillStyle=grad2;ctx.beginPath();ctx.moveTo(px2(0),py2(pts[0]));
+    pts.forEach((v,i)=>ctx.lineTo(px2(i),py2(v)));
+    ctx.lineTo(px2(pts.length-1),pad2.t+ch2);ctx.lineTo(px2(0),pad2.t+ch2);ctx.closePath();ctx.fill();
+    pts.forEach((v,i)=>{
+      ctx.fillStyle=v>=70?'#00d68f':v>=50?'#ffaa00':'#ff4d4d';ctx.globalAlpha=0.85;
+      ctx.beginPath();ctx.arc(px2(i),py2(v),3.5,0,Math.PI*2);ctx.fill();
+    });
+    ctx.globalAlpha=1;
+    const roll2=pts.map((_,i)=>{const s2=pts.slice(Math.max(0,i-4),i+1);return s2.reduce((a,b)=>a+b,0)/s2.length;});
+    ctx.strokeStyle='#00d68f';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();roll2.forEach((v,i)=>i===0?ctx.moveTo(px2(i),py2(v)):ctx.lineTo(px2(i),py2(v)));ctx.stroke();
+    const lastRate=pts[pts.length-1];
+    const rCol=lastRate>=70?'#00d68f':lastRate>=50?'#ffaa00':'#ff4d4d';
+    ctx.font="700 11px 'Barlow Condensed',sans-serif";ctx.textAlign='left';ctx.fillStyle=rCol;
+    ctx.fillText(`PLAYABLE % · ${pts.length} shots · last ${Math.round(lastRate)}%`,pad2.l,pad2.t-12);
+    const noteEl2=document.getElementById('progress-baseline-note');
+    if(noteEl2)noteEl2.textContent='Rolling 10-shot playable rate · dashed = 70% target';
+    return;
+  }
+
   const isSign=['face_angle','club_path','face_to_path','attack_angle'].includes(key);
   const colorMap=buildSessionColorMap(shots);
   const ordered=[...shots].sort((a,b)=>new Date(a.shot_time||a.created_at)-new Date(b.shot_time||b.created_at)).filter(s=>s[key]!=null&&!isNaN(s[key]));
