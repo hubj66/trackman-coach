@@ -413,38 +413,46 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
 
   const manualClubArg = mainIssue ? `'${mainIssue.club}'` : 'null';
   return `
-    ${_renderCoachSummaryCard(mainIssue, watchItem)}
-    <div id="today-plan-section">
-      ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
+    <div class="today-layer-toggle">
+      <button class="today-layer-btn today-layer-coach active" onclick="toggleTodayLayer('coach')">Coach</button>
+      <button class="today-layer-btn today-layer-stats" onclick="toggleTodayLayer('stats')">Stats</button>
     </div>
-    <div class="today-section-label" style="margin-top:4px;">Quick log</div>
-    <div class="today-quick-log-row" style="margin-bottom:20px;">
-      <button class="today-log-btn" onclick="showPage('analysis')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        Trackman
-      </button>
-      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
-        Chipping
-      </button>
-      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
-        Putting
-      </button>
-      <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Manual
-      </button>
+    <div class="today-coach-layer">
+      ${_renderCoachSummaryCard(mainIssue, watchItem)}
+      <div id="today-plan-section">
+        ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
+      </div>
+      <div class="today-section-label" style="margin-top:4px;">Quick log</div>
+      <div class="today-quick-log-row" style="margin-bottom:20px;">
+        <button class="today-log-btn" onclick="showPage('analysis')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Trackman
+        </button>
+        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
+          Chipping
+        </button>
+        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
+          Putting
+        </button>
+        <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Manual
+        </button>
+      </div>
+      ${_renderWhatImprovedCard(improved, fixedIssues)}
+      ${health.length ? _renderHealthTiles(health) : ''}
+      ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
+      ${_renderDrillHistoryCard()}
     </div>
-    ${_renderWhatImprovedCard(improved, fixedIssues)}
-    ${health.length ? _renderHealthTiles(health) : ''}
-    ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
-    ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
-    ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
-    ${_renderClubPicker(mainIssue?.club || null)}
-    ${regression ? _renderRegressionCard(regression) : ''}
-    ${watchItem ? _renderWatchCard(watchItem) : ''}
-    ${_renderDrillHistoryCard()}`;
+    <div class="today-stats-layer">
+      ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
+      ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
+      ${_renderClubPicker(mainIssue?.club || null)}
+      ${regression ? _renderRegressionCard(regression) : ''}
+      ${watchItem ? _renderWatchCard(watchItem) : ''}
+    </div>`;
 }
 
 function _renderHealthTiles(tiles) {
@@ -471,9 +479,11 @@ function _renderMainIssueCard(issue) {
       </div>
       <div class="today-issue-title">${escapeHtml(issue.simple)}</div>
       <div class="today-issue-support">${escapeHtml(issue.support)}</div>
-      ${issue.deeper ? `
-        <button class="today-issue-detail-btn" onclick="toggleIssueDetail('${detailId}', this)">Why this issue? ▾</button>
-        <div class="today-issue-detail" id="${detailId}">${escapeHtml(issue.deeper)}</div>` : ''}
+      <div class="today-issue-action-row">
+        ${issue.deeper ? `<button class="today-issue-detail-btn" onclick="toggleIssueDetail('${detailId}', this)">Why this? ▾</button>` : ''}
+        <button class="today-issue-stats-btn" onclick="toggleTodayLayer('stats')">View stats →</button>
+      </div>
+      ${issue.deeper ? `<div class="today-issue-detail" id="${detailId}">${escapeHtml(issue.deeper)}</div>` : ''}
     </div>`;
 }
 
@@ -1243,6 +1253,18 @@ function _renderDrillHistoryCard() {
       ${drills.length ? '<div class="today-drill-sep"></div>' : ''}
       ${recentHtml}
     </div>`;
+}
+
+// ── Coach / Stats layer toggle ────────────────────────────────────────────
+
+function toggleTodayLayer(mode) {
+  const wrap = document.getElementById('today-content');
+  if (!wrap) return;
+  const isStats = mode === 'stats';
+  wrap.classList.toggle('today-mode-stats', isStats);
+  wrap.querySelectorAll('.today-layer-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.classList.contains('today-layer-' + mode));
+  });
 }
 
 // ── Glossary overlay (Feature 6) ──────────────────────────────────────────

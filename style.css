@@ -779,3 +779,17 @@ body.light-theme .today-pattern-left,body.light-theme .today-pattern-right{backg
 body.light-theme .today-pattern-center{background:rgba(0,180,115,.12);color:rgba(0,150,100,.9)}
 body.light-theme .manual-log-backdrop,body.light-theme .glossary-backdrop{background:rgba(0,0,0,.25)}
 body.light-theme .today-improved-card{background:rgba(0,180,115,.06);border-color:rgba(0,180,115,.25)}
+
+/* ── Coach / Stats layer toggle ─────────────────────────────────────────── */
+.today-layer-toggle{display:flex;background:var(--surface2);border-radius:10px;padding:3px;margin:0 14px 14px;gap:2px}
+.today-layer-btn{flex:1;padding:7px 0;border:none;border-radius:7px;background:transparent;color:var(--text2);font-family:var(--cond);font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:background .15s,color .15s}
+.today-layer-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.today-stats-layer{display:none}
+.today-mode-stats .today-stats-layer{display:block}
+.today-mode-stats .today-coach-layer{display:none}
+body.light-theme .today-layer-btn.active{box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* ── Issue card action row (Why + View stats) ────────────────────────────── */
+.today-issue-action-row{display:flex;align-items:center;gap:4px;margin-top:6px}
+.today-issue-stats-btn{background:none;border:none;color:var(--text3);font-size:12px;font-family:var(--sans);padding:6px 0;cursor:pointer;margin-left:auto;transition:color .15s;min-height:32px}
+.today-issue-stats-btn:active{color:var(--text2)}
