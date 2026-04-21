@@ -553,21 +553,6 @@ function _buildPlanBlocks(issue, dur, phase = 'technical') {
   ];
 }
 
-function _renderProgressCards(improved, regression) {
-  return `
-    <div class="today-progress-row">
-      ${improved ? `
-        <div class="today-progress-card today-progress-good">
-          <div class="today-progress-label">Getting better</div>
-          <div class="today-progress-text">${escapeHtml(improved.text)}</div>
-        </div>` : ''}
-      ${regression ? `
-        <div class="today-progress-card today-progress-warn">
-          <div class="today-progress-label">Watch this</div>
-          <div class="today-progress-text">${escapeHtml(regression.text)}</div>
-        </div>` : ''}
-    </div>`;
-}
 
 function _renderWatchCard(issue) {
   return `
@@ -715,18 +700,6 @@ function submitSessionReview() {
     </div>`;
 }
 
-// ── "You fixed this" card (kept for backward compat) ─────────────────────
-
-function _renderFixedCard(fixed) {
-  return `
-    <div class="today-fixed-card">
-      <div class="today-fixed-icon">🎯</div>
-      <div>
-        <div class="today-fixed-label">Fixed!</div>
-        <div class="today-fixed-text">${escapeHtml(fixed.simple)} is no longer showing as an issue.</div>
-      </div>
-    </div>`;
-}
 
 // ── Regression card ───────────────────────────────────────────────────────
 
