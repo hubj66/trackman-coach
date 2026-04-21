@@ -486,6 +486,7 @@ button:active{background:var(--surface4)}
 .today-plan-block{display:flex;gap:12px;padding:8px 0;border-bottom:0.5px solid var(--border)}
 .today-plan-block:last-child{border-bottom:none}
 .today-plan-block-time{font-family:var(--mono);font-size:10px;color:var(--text3);min-width:54px;padding-top:1px;flex-shrink:0}
+.today-plan-block-body{flex:1;min-width:0}
 .today-plan-block-name{font-family:var(--cond);font-size:14px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.03em}
 .today-plan-block-desc{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.4}
 .today-plan-cta-row{display:flex;gap:8px;flex-wrap:wrap}
@@ -524,6 +525,7 @@ body.light-theme .today-club-btn.on{color:#fff}
 .today-empty-title{font-family:var(--cond);font-size:20px;font-weight:700;color:var(--text)}
 .today-empty-text{font-size:14px;color:var(--text2);max-width:280px;line-height:1.5}
 .today-login-btn{background:var(--green);color:#0e1012;border:none;border-radius:10px;padding:12px 24px;font-family:var(--cond);font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+body.light-theme .today-login-btn{color:#fff}
 .today-loading{text-align:center;padding:60px 24px;font-size:13px;color:var(--text3);font-family:var(--mono)}
 
 /* ══ CONSISTENCY / DIRECTION ACCORDIONS ════════════════════════════════════ */
@@ -706,6 +708,7 @@ body.light-theme .dist-summary{background:var(--surface2)}
 .today-coach-conf{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;align-self:flex-start}
 .today-coach-conf-hint{background:rgba(255,170,0,.12);color:var(--amber)}
 .today-coach-conf-likely{background:rgba(0,170,255,.12);color:#4db8ff}
+body.light-theme .today-coach-conf-likely{background:rgba(0,120,220,.1);color:#0077cc}
 .today-coach-conf-confirmed{background:rgba(0,214,143,.12);color:var(--green)}
 .today-coach-lowconf{font-family:var(--mono);font-size:10px;color:var(--amber);background:rgba(255,170,0,.1);border-radius:6px;padding:5px 8px;margin-bottom:8px}
 
@@ -729,3 +732,39 @@ body.light-theme .dist-summary{background:var(--surface2)}
 body.light-theme .manual-log-sheet{background:var(--surface)}
 body.light-theme .manual-log-save-btn{color:#fff}
 body.light-theme .manual-log-club-btn.on,body.light-theme .manual-log-opt.on{color:#fff}
+
+/* ── Drill history card (Feature 4) ─────────────────────────────────────── */
+.today-drill-card{background:var(--surface);border:0.5px solid var(--border);border-radius:13px;padding:13px 14px;margin-bottom:10px}
+.today-drill-agg-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border)}
+.today-drill-agg-label{font-size:12px;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:10px}
+.today-drill-agg-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.today-drill-agg-pct{font-family:var(--mono);font-size:13px;font-weight:700}
+.today-drill-agg-n{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.today-drill-sep{height:0.5px;background:var(--border);margin:8px 0}
+.today-drill-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border)}
+.today-drill-row:last-child{border-bottom:none}
+.today-drill-icon{font-family:var(--mono);font-size:12px;font-weight:700;min-width:14px;text-align:center;flex-shrink:0}
+.today-drill-hit{color:var(--green)}
+.today-drill-close{color:var(--amber)}
+.today-drill-miss{color:var(--red)}
+.today-drill-name{flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.today-drill-date{font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0}
+
+/* ── Glossary overlay (Feature 6) ───────────────────────────────────────── */
+.glossary-overlay{position:fixed;inset:0;z-index:9997;display:flex;flex-direction:column;justify-content:flex-end}
+.glossary-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.glossary-sheet{position:relative;background:var(--surface);border-radius:20px 20px 0 0;max-height:70vh;overflow-y:auto;z-index:1}
+.glossary-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:0.5px solid var(--border)}
+.glossary-term-label{font-family:var(--cond);font-size:19px;font-weight:700;color:var(--text)}
+.glossary-close{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px;line-height:1}
+.glossary-body{padding:16px 20px calc(24px + var(--safe-bottom, 0px))}
+.glossary-def{font-size:14px;color:var(--text2);line-height:1.65;margin-bottom:14px}
+.glossary-tip-block{background:var(--green-dim);border:0.5px solid rgba(0,214,143,.2);border-radius:10px;padding:10px 12px}
+.glossary-tip-eyebrow{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--green);margin-bottom:5px}
+.glossary-tip-text{font-size:13px;color:var(--text);line-height:1.5}
+body.light-theme .glossary-sheet{background:var(--surface)}
+
+/* ── Glossary trigger button ─────────────────────────────────────────────── */
+.gloss-btn{background:rgba(255,255,255,.07);border:0.5px solid rgba(255,255,255,.11);border-radius:10px;color:var(--text3);font-family:var(--mono);font-size:9px;font-weight:700;padding:1px 5px;cursor:pointer;margin-left:4px;line-height:1.5;vertical-align:middle;transition:background .1s}
+.gloss-btn:active{background:rgba(255,255,255,.16)}
+body.light-theme .gloss-btn{background:rgba(0,0,0,.06);border-color:rgba(0,0,0,.1);color:var(--text3)}
