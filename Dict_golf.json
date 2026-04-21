@@ -1,0 +1,1534 @@
+{
+  "metadata": {
+    "library_name": "hcp_30_54_issue_library",
+    "version": "1.0",
+    "audience": "high_handicap_30_54",
+    "language": "en-US",
+    "assumptions": {
+      "trackman_raw_shot_data_grouped_into_sessions": true,
+      "manual_chipping_sessions": true,
+      "manual_putting_sessions": true,
+      "supabase_postgres_backend": true,
+      "repo_url": "unspecified",
+      "repo_review_status": "no repo claims yet; use 'based on repo review' later"
+    },
+    "design_rules": [
+      "plain English first",
+      "drills before deeper theory in the UI",
+      "hybrid benchmark logic: starter benchmark + personal baseline",
+      "store detected issue separately from suspected cause",
+      "for mirrored left-right patterns, invert signs of face_angle, club_path, face_to_path, and launch_direction"
+    ]
+  },
+  "severity_scale": {
+    "high": "ball-in-play problem, chunk/blade problem, or major scoring leak",
+    "medium": "clear scoring leak or reliability issue that should be trained soon",
+    "low": "optimization issue after bigger problems are stable"
+  },
+  "root_cause_principles": [
+    "Ball flight shows impact result first, not exact body motion.",
+    "Do not diagnose grip, backswing, or release from one shot pattern alone.",
+    "For hooks and slices, check face angle, face-to-path, launch direction, and strike location before blaming one body part.",
+    "For fat and thin shots, check low point consistency and setup before adding complex swing thoughts.",
+    "For wedges, chipping, and putting, prioritize start line and distance control over advanced mechanics."
+  ],
+  "diagnostic_input_sets": {
+    "full_swing_setup": [
+      "grip_strength_tag",
+      "alignment_feet_tag",
+      "alignment_face_tag",
+      "ball_position_tag",
+      "stance_width_tag",
+      "shoulder_tilt_tag",
+      "shot_shape_intent_tag"
+    ],
+    "full_swing_process": [
+      "tempo_tag",
+      "transition_tag",
+      "release_feel_tag",
+      "finish_balance_tag",
+      "start_line_intent_tag",
+      "swing_thought_tag"
+    ],
+    "driver_specific": [
+      "tee_height_tag",
+      "ball_forward_tag",
+      "impact_height_tag",
+      "impact_offset_tag"
+    ],
+    "iron_specific": [
+      "divot_start_relative_to_ball_tag",
+      "ground_contact_tag",
+      "handle_forward_feel_tag",
+      "low_point_feel_tag"
+    ],
+    "wedge_specific": [
+      "distance_target_m",
+      "trajectory_intent_tag",
+      "clock_system_tag",
+      "landing_zone_intent_tag"
+    ],
+    "chipping_specific": [
+      "landing_spot_choice_tag",
+      "ball_position_tag",
+      "weight_forward_tag",
+      "wrist_activity_tag",
+      "contact_cleanliness_tag"
+    ],
+    "putting_specific": [
+      "start_line_gate_result_tag",
+      "pace_intent_tag",
+      "green_speed_note",
+      "break_read_confidence_tag"
+    ]
+  },
+  "issue_groups": [
+    {
+      "category": "driver",
+      "issues": [
+        {
+          "issue_id": "drv_open_face_slice",
+          "severity": "high",
+          "beginner_description": "Your driver starts right and curves more right.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "launch_direction_avg_deg", "starter_trigger": "> 2.0", "personal_baseline_rule": "recent_30 > own_60_median + 1.5"},
+              {"metric": "face_angle_avg_deg", "starter_trigger": "> 2.0", "personal_baseline_rule": "recent_30 > own_60_median + 1.5"},
+              {"metric": "face_to_path_avg_deg", "starter_trigger": "> 3.0", "personal_baseline_rule": "recent_30 > own_60_median + 2.0"},
+              {"metric": "right_miss_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_30 > own_60_median + 15"}
+            ],
+            "secondary_checks": [
+              "smash_factor_avg < 1.42 can make the pattern worse",
+              "heel strike can add fade curvature even if face_to_path is not extreme"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["grip too weak", "clubface aimed open at address", "ball too far forward with poor face control"],
+            "swing_process": ["face left open through impact", "out-to-in path with open face", "late release", "poor awareness of start line"],
+            "decision_process": ["trying to steer it into play", "aiming left and leaving face open"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "driver_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Face control start-line gate",
+              "priority": 1,
+              "balls_or_time": "20 balls or 10 minutes",
+              "steps": [
+                "Place an intermediate target 2-3 meters in front of the ball.",
+                "Hit 10 half-speed drivers and log only start direction.",
+                "Hit 10 normal-speed drivers with the goal that the ball starts inside a narrow gate."
+              ]
+            },
+            {
+              "name": "Split-hand release drill",
+              "priority": 2,
+              "balls_or_time": "12 balls",
+              "steps": [
+                "Grip with trail hand 2-3 cm lower on the handle.",
+                "Make slow practice swings feeling the face close earlier.",
+                "Hit 12 shots at 70% speed and monitor face angle."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "launch_direction_avg_deg between -1.5 and +1.5",
+              "face_angle_avg_deg below +1.5",
+              "face_to_path_avg_deg below +2.0",
+              "right_miss_rate_pct below 45"
+            ],
+            "behavioral": [
+              "player can call the start line before seeing the full flight",
+              "player stops chasing distance during the fix"
+            ]
+          },
+          "coaching_notes": [
+            "Start line matters more than total distance here.",
+            "If impact_offset is strongly heel-side, fix strike before over-correcting release."
+          ],
+          "common_pitfalls": [
+            "trying to fix slice by only swinging more to the right",
+            "adding more speed before face control improves"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "driver_specific"],
+            "custom_tags": ["slice", "open_face", "start_right", "curves_right"],
+            "metrics": ["face_angle_avg_deg", "face_to_path_avg_deg", "launch_direction_avg_deg", "smash_factor_avg", "impact_offset_avg_mm"],
+            "note_prompts": ["Did the ball start right or just curve right?", "Did heel strike feel obvious?", "What face-control feel helped most?"]
+          }
+        },
+        {
+          "issue_id": "drv_block_right",
+          "severity": "high",
+          "beginner_description": "Your driver starts right and stays mostly right without much curve.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "launch_direction_avg_deg", "starter_trigger": "> 2.5", "personal_baseline_rule": "recent_30 > own_60_median + 1.5"},
+              {"metric": "face_angle_avg_deg", "starter_trigger": "> 2.0", "personal_baseline_rule": "recent_30 > own_60_median + 1.5"},
+              {"metric": "face_to_path_avg_deg", "starter_trigger": "between -1.0 and +1.5", "personal_baseline_rule": "stable near personal median"},
+              {"metric": "right_finish_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_30 > own_60_median + 15"}
+            ],
+            "secondary_checks": [
+              "club_path may also be slightly right",
+              "this is more a start-line problem than a curvature problem"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["face aimed right", "feet and shoulders aimed right", "ball too far forward with passive face"],
+            "swing_process": ["holding face open", "push release", "not rotating through"],
+            "decision_process": ["fear of left miss", "over-committing to keep it in play"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "driver_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Start-line only challenge",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Ignore curve and distance.",
+                "Score each shot only as left of gate, in gate, or right of gate.",
+                "Do not change target for 15 balls."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "launch_direction_avg_deg within +/- 1.5",
+              "face_angle_avg_deg within +/- 1.5"
+            ],
+            "behavioral": [
+              "player trusts starting the ball nearer the target",
+              "player stops aiming excessively left or right to compensate"
+            ]
+          },
+          "coaching_notes": [
+            "A block is often simpler than a slice: fix the face relative to target first.",
+            "If face_to_path is neutral, avoid big path changes."
+          ],
+          "common_pitfalls": [
+            "trying to manufacture draw without fixing the start line",
+            "changing aim every swing"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "driver_specific"],
+            "custom_tags": ["block", "push", "start_right"],
+            "metrics": ["launch_direction_avg_deg", "face_angle_avg_deg", "face_to_path_avg_deg"],
+            "note_prompts": ["Did the ball start right immediately?", "Was aim right at address?"]
+          }
+        },
+        {
+          "issue_id": "drv_closed_face_hook",
+          "severity": "high",
+          "beginner_description": "Your driver starts left or near target and turns too far left.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "face_angle_avg_deg", "starter_trigger": "< -2.0", "personal_baseline_rule": "recent_30 < own_60_median - 1.5"},
+              {"metric": "face_to_path_avg_deg", "starter_trigger": "< -3.0", "personal_baseline_rule": "recent_30 < own_60_median - 2.0"},
+              {"metric": "left_miss_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_30 > own_60_median + 15"}
+            ],
+            "secondary_checks": [
+              "toe strike can add hook curvature",
+              "launch_direction may be left or slightly right depending on path"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["grip too strong", "face aimed closed", "ball too far back"],
+            "swing_process": ["excessive hand roll", "face closing too early", "path too far right with face not matching target"],
+            "decision_process": ["trying to avoid slice by over-releasing the club"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "driver_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Hold-off finish drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Hit 5 half-speed drivers holding the chest open through finish.",
+                "Hit 5 normal-speed drivers with a softer hand-roll feel.",
+                "Hit 5 target drivers and watch only start line and curve."
+              ]
+            },
+            {
+              "name": "Neutral-grip checkpoint",
+              "priority": 2,
+              "balls_or_time": "5 minutes",
+              "steps": [
+                "Check grip strength before every shot.",
+                "Rehearse three slow-motion swings with quieter forearms.",
+                "Then hit a short block of 8 balls."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "face_angle_avg_deg above -1.5",
+              "face_to_path_avg_deg above -2.0",
+              "left_miss_rate_pct below 45"
+            ],
+            "behavioral": [
+              "player can hit one straight ball and one planned small fade on demand"
+            ]
+          },
+          "coaching_notes": [
+            "A hook is an impact result, not automatically a grip problem.",
+            "Always check toe strike before making grip weaker."
+          ],
+          "common_pitfalls": [
+            "making the grip much weaker too fast",
+            "trying to fix a toe-strike hook only with path thoughts"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "driver_specific"],
+            "custom_tags": ["hook", "starts_left", "curves_left", "closed_face"],
+            "metrics": ["face_angle_avg_deg", "face_to_path_avg_deg", "impact_offset_avg_mm", "left_miss_rate_pct"],
+            "note_prompts": ["Did the shot start left or curve left late?", "Did it feel like toe strike?"]
+          }
+        },
+        {
+          "issue_id": "drv_heel_strike_fade",
+          "severity": "high",
+          "beginner_description": "You miss the driver toward the heel and the ball leaks right.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "impact_offset_avg_mm", "starter_trigger": "< -6", "personal_baseline_rule": "recent_30 < own_60_median - 3"},
+              {"metric": "smash_factor_avg", "starter_trigger": "< 1.40", "personal_baseline_rule": "recent_30 < own_60_median - 0.03"},
+              {"metric": "right_miss_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_30 > own_60_median + 15"}
+            ],
+            "secondary_checks": [
+              "face_to_path may not fully explain the right curve",
+              "ball speed loss supports strike-quality issue"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["standing too far from ball", "reaching at address", "tee too far away from lead heel"],
+            "swing_process": ["handle pulling toward body", "poor balance", "glancing strike through impact"],
+            "decision_process": ["trying to steer away from left miss"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "driver_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Toe-side tee gate",
+              "priority": 1,
+              "balls_or_time": "12 balls",
+              "steps": [
+                "Place an empty tee just outside the toe side as a strike feedback cue.",
+                "Hit 6 slow drivers trying to miss the heel side.",
+                "Hit 6 normal drivers and check impact offset."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "impact_offset_avg_mm between -3 and +3",
+              "smash_factor_avg above 1.42",
+              "right_miss_rate_pct below 45"
+            ],
+            "behavioral": [
+              "player feels centered contact more often",
+              "ball speed becomes less random"
+            ]
+          },
+          "coaching_notes": [
+            "Do not over-diagnose path when strike location already explains much of the fade.",
+            "If balance is poor, fix setup and distance from ball first."
+          ],
+          "common_pitfalls": [
+            "chasing face-to-path changes before fixing strike",
+            "standing closer without checking posture"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "driver_specific"],
+            "custom_tags": ["heel_strike", "fade", "low_smash"],
+            "metrics": ["impact_offset_avg_mm", "smash_factor_avg", "face_to_path_avg_deg"],
+            "note_prompts": ["Did strike feel heel-side?", "Did moving closer help?"]
+          }
+        },
+        {
+          "issue_id": "drv_toe_strike_hook",
+          "severity": "high",
+          "beginner_description": "You hit the driver off the toe and the ball dives left.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "impact_offset_avg_mm", "starter_trigger": "> 6", "personal_baseline_rule": "recent_30 > own_60_median + 3"},
+              {"metric": "smash_factor_avg", "starter_trigger": "< 1.40", "personal_baseline_rule": "recent_30 < own_60_median - 0.03"},
+              {"metric": "left_miss_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_30 > own_60_median + 15"}
+            ],
+            "secondary_checks": [
+              "curvature may look too left for the measured face_to_path alone"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["standing too close", "crowded posture", "tee too close to body line"],
+            "swing_process": ["club thrown outward", "over-rotation through strike", "poor spacing"],
+            "decision_process": ["trying too hard to draw it"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "driver_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Center-strike spray and freeze",
+              "priority": 1,
+              "balls_or_time": "10 balls",
+              "steps": [
+                "Use face spray or impact tape.",
+                "Hit 5 slow shots holding finish for balance.",
+                "Hit 5 normal shots only if the first 5 move closer to center."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "impact_offset_avg_mm between -3 and +3",
+              "left_miss_rate_pct below 45"
+            ],
+            "behavioral": [
+              "player recognizes toe strike immediately",
+              "finish looks balanced instead of falling toward ball"
+            ]
+          },
+          "coaching_notes": [
+            "Toe strike can create hook curvature even when the player thinks the face did it all.",
+            "Fix spacing before giving complicated release advice."
+          ],
+          "common_pitfalls": [
+            "weakening grip when contact is the bigger issue",
+            "adding more speed before strike centers up"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "driver_specific"],
+            "custom_tags": ["toe_strike", "hook", "spacing_issue"],
+            "metrics": ["impact_offset_avg_mm", "smash_factor_avg", "left_miss_rate_pct"],
+            "note_prompts": ["Did toe strike feel obvious?", "Was spacing too close?"]
+          }
+        },
+        {
+          "issue_id": "drv_high_spin_balloon",
+          "severity": "medium",
+          "beginner_description": "The drive goes high and weak and does not carry as well as it should.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "dynamic_loft_avg_deg", "starter_trigger": "> 17.0", "personal_baseline_rule": "recent_30 > own_60_median + 2.0"},
+              {"metric": "spin_loft_avg_deg", "starter_trigger": "> 19.0", "personal_baseline_rule": "recent_30 > own_60_median + 2.0"},
+              {"metric": "launch_angle_avg_deg", "starter_trigger": "> 15.0", "personal_baseline_rule": "recent_30 > own_60_median + 2.0"},
+              {"metric": "smash_factor_avg", "starter_trigger": "< 1.42", "personal_baseline_rule": "recent_30 < own_60_median - 0.02"}
+            ],
+            "secondary_checks": [
+              "spin_rate above own driver baseline supports the diagnosis",
+              "high-face strike and equipment fit can change the picture"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["too much loft delivered by setup", "ball too far back with a steep hit", "poor tee height"],
+            "swing_process": ["adding loft", "hitting too far down", "glancing contact"],
+            "decision_process": ["trying to help the ball up"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "driver_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Sweep-the-tee drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Tee the ball normally.",
+                "Make 5 practice swings trying to brush the tee forward of bottom.",
+                "Hit 15 drivers focusing on a shallower, more sweeping strike."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "dynamic_loft_avg_deg down by 1.5 to 2.0",
+              "spin_loft_avg_deg down by 1.5 to 2.0",
+              "smash_factor_avg up by at least 0.02"
+            ],
+            "behavioral": [
+              "flight looks flatter and stronger",
+              "player stops trying to lift the ball"
+            ]
+          },
+          "coaching_notes": [
+            "This is often a delivered-loft and contact problem, not just a backswing problem."
+          ],
+          "common_pitfalls": [
+            "reducing loft by changing equipment before improving delivery",
+            "trying to hit harder into the same bad impact"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "driver_specific"],
+            "custom_tags": ["balloon", "high_spin", "adds_loft"],
+            "metrics": ["dynamic_loft_avg_deg", "spin_loft_avg_deg", "launch_angle_avg_deg", "smash_factor_avg"],
+            "note_prompts": ["Did the ball feel weak even on centered contact?", "Was the player trying to lift it?"]
+          }
+        },
+        {
+          "issue_id": "drv_two_way_miss",
+          "severity": "high",
+          "beginner_description": "You do not miss in one pattern. Some go left, some go right, and it feels random.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "face_angle_sd_deg", "starter_trigger": "> 3.0", "personal_baseline_rule": "recent_30 > own_60_sd + 0.8"},
+              {"metric": "launch_direction_sd_deg", "starter_trigger": "> 3.0", "personal_baseline_rule": "recent_30 > own_60_sd + 0.8"},
+              {"metric": "playable_shot_rate_pct", "starter_trigger": "< 40", "personal_baseline_rule": "recent_30 < own_60_median - 15"}
+            ],
+            "secondary_checks": [
+              "both left_miss_rate_pct and right_miss_rate_pct above 25 support chaos rather than one bias"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["address changes from shot to shot", "inconsistent grip and ball position"],
+            "swing_process": ["tempo changes", "different release each swing", "balance instability"],
+            "decision_process": ["too many swing thoughts", "constantly changing target or shape intention"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "driver_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Same setup, same target, same finish drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Use one target for all 15 balls.",
+                "Freeze setup for 3 seconds before each swing.",
+                "Hold finish after each shot and log only whether contact and start line were stable."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "face_angle_sd_deg below 2.5",
+              "launch_direction_sd_deg below 2.5",
+              "playable_shot_rate_pct above 50"
+            ],
+            "behavioral": [
+              "routine looks the same each shot",
+              "player can describe one intended shot shape"
+            ]
+          },
+          "coaching_notes": [
+            "Do not over-prescribe body mechanics until chaos reduces.",
+            "Stability beats optimization here."
+          ],
+          "common_pitfalls": [
+            "giving the player three fixes at once",
+            "changing club, target, and feel every swing"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "driver_specific"],
+            "custom_tags": ["two_way_miss", "chaos", "consistency_issue"],
+            "metrics": ["face_angle_sd_deg", "launch_direction_sd_deg", "playable_shot_rate_pct"],
+            "note_prompts": ["Did setup feel repeatable?", "Was tempo the same every swing?"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "long_irons_and_hybrids",
+      "issues": [
+        {
+          "issue_id": "lng_push_slice",
+          "severity": "high",
+          "beginner_description": "Your long iron or hybrid starts right and keeps leaking right.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "launch_direction_avg_deg", "starter_trigger": "> 2.0", "personal_baseline_rule": "recent_25 > own_50_median + 1.5"},
+              {"metric": "face_angle_avg_deg", "starter_trigger": "> 2.0", "personal_baseline_rule": "recent_25 > own_50_median + 1.5"},
+              {"metric": "face_to_path_avg_deg", "starter_trigger": "> 2.5", "personal_baseline_rule": "recent_25 > own_50_median + 1.5"},
+              {"metric": "right_miss_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_25 > own_50_median + 15"}
+            ],
+            "secondary_checks": [
+              "carry often falls below club baseline because of weak strike"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["ball too far forward", "face aimed open", "fear of left miss"],
+            "swing_process": ["face open through strike", "out-to-in path with low confidence", "stalled rotation"],
+            "decision_process": ["trying to lift the long club instead of compressing it"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "iron_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Hybrid/long-iron start-line ladder",
+              "priority": 1,
+              "balls_or_time": "12 balls",
+              "steps": [
+                "Hit 6 half-swings trying to start the ball just left of target.",
+                "Hit 6 normal swings and log only start direction and curvature."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "face_angle_avg_deg below +1.5",
+              "face_to_path_avg_deg below +2.0",
+              "right_miss_rate_pct below 45"
+            ],
+            "behavioral": [
+              "player stops trying to lift the ball high"
+            ]
+          },
+          "coaching_notes": [
+            "Long-club fear often shows up as a face-control problem."
+          ],
+          "common_pitfalls": [
+            "adding more path bias without fixing the face"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "iron_specific"],
+            "custom_tags": ["push_slice", "long_club", "start_right"],
+            "metrics": ["face_angle_avg_deg", "face_to_path_avg_deg", "launch_direction_avg_deg", "right_miss_rate_pct"],
+            "note_prompts": ["Did it start right immediately?", "Was the player trying to help it up?"]
+          }
+        },
+        {
+          "issue_id": "lng_fat",
+          "severity": "high",
+          "beginner_description": "You hit behind the ball with the long iron or hybrid and lose most of the distance.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "carry_avg_vs_baseline_pct", "starter_trigger": "< -15", "personal_baseline_rule": "recent_25 < own_50_median - 12"},
+              {"metric": "smash_factor_avg", "starter_trigger": "< baseline - 0.06", "personal_baseline_rule": "recent_25 < own_50_median - 0.06"},
+              {"metric": "ground_contact_fat_rate_pct", "starter_trigger": "> 20", "personal_baseline_rule": "recent_25 > own_50_median + 10"}
+            ],
+            "secondary_checks": [
+              "low_point variability often rises",
+              "launch can be inconsistent and carry spread widens"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["ball too far forward", "weight back", "poor distance from ball"],
+            "swing_process": ["low point behind ball", "early extension", "loss of posture"],
+            "decision_process": ["trying to scoop the ball up"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "iron_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Line-in-the-sand low-point drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Draw a line on the ground and put the ball just ahead of it.",
+                "Make swings trying to strike ground after the line.",
+                "Hit 15 balls and tag fat vs clean vs thin."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "ground_contact_fat_rate_pct below 10",
+              "carry_avg_vs_baseline_pct better than -8",
+              "smash_factor_avg recovers by at least 0.04"
+            ],
+            "behavioral": [
+              "divot or turf contact moves more target-side of the ball"
+            ]
+          },
+          "coaching_notes": [
+            "With long irons and hybrids, low point control is often a bigger issue than club path."
+          ],
+          "common_pitfalls": [
+            "telling the player to swing harder at the same bad low point"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "iron_specific"],
+            "custom_tags": ["fat", "ground_first", "low_point_behind"],
+            "metrics": ["carry_avg_vs_baseline_pct", "smash_factor_avg", "ground_contact_fat_rate_pct"],
+            "note_prompts": ["Did turf happen before the ball?", "Did ball position feel too far forward?"]
+          }
+        },
+        {
+          "issue_id": "lng_thin",
+          "severity": "medium",
+          "beginner_description": "You catch the long club too high on the ball and hit a weak low shot.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "impact_height_avg_mm", "starter_trigger": "< -4", "personal_baseline_rule": "recent_25 < own_50_median - 2"},
+              {"metric": "launch_angle_avg_deg", "starter_trigger": "< baseline - 3.0", "personal_baseline_rule": "recent_25 < own_50_median - 2.5"},
+              {"metric": "carry_avg_vs_baseline_pct", "starter_trigger": "< -12", "personal_baseline_rule": "recent_25 < own_50_median - 10"}
+            ],
+            "secondary_checks": [
+              "smash can stay mediocre rather than catastrophically low"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["standing too tall", "ball too far back", "handle too far forward at address"],
+            "swing_process": ["low point too far ahead", "lifting chest through impact", "poor depth through strike"],
+            "decision_process": ["trying to trap too much without enough balance"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "iron_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Brush-the-ground drill",
+              "priority": 1,
+              "balls_or_time": "12 balls",
+              "steps": [
+                "Make 5 rehearsal swings trying to brush the grass in the same place.",
+                "Hit 12 balls at 70% speed.",
+                "Log contact quality only."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "impact_height_avg_mm closer to face center",
+              "launch_angle_avg_deg up by 1.5 to 2.5",
+              "carry_avg_vs_baseline_pct better than -6"
+            ],
+            "behavioral": [
+              "strike feels less stingy and more centered"
+            ]
+          },
+          "coaching_notes": [
+            "Thin is often a low-point and posture problem, not a need for more aggression."
+          ],
+          "common_pitfalls": [
+            "moving ball too far forward and turning thin into fat"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "iron_specific"],
+            "custom_tags": ["thin", "low_launch", "low_contact"],
+            "metrics": ["impact_height_avg_mm", "launch_angle_avg_deg", "carry_avg_vs_baseline_pct"],
+            "note_prompts": ["Did the strike feel low on face?", "Was posture stable?"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "mid_short_irons",
+      "issues": [
+        {
+          "issue_id": "iron_pull_left",
+          "severity": "medium",
+          "beginner_description": "Your mid or short iron starts left and stays left or keeps drifting left.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "launch_direction_avg_deg", "starter_trigger": "< -2.0", "personal_baseline_rule": "recent_30 < own_60_median - 1.5"},
+              {"metric": "face_angle_avg_deg", "starter_trigger": "< -2.0", "personal_baseline_rule": "recent_30 < own_60_median - 1.5"},
+              {"metric": "left_miss_rate_pct", "starter_trigger": "> 50", "personal_baseline_rule": "recent_30 > own_60_median + 12"}
+            ],
+            "secondary_checks": [
+              "face_to_path near zero suggests pull; more negative suggests pull-draw or hook"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["alignment left", "face aimed left", "ball too far back"],
+            "swing_process": ["face closed at impact", "handle too far forward", "release pattern too left"],
+            "decision_process": ["aiming right and over-compensating with hands"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "iron_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Alignment stick start-line drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Set one stick on feet line and one on target line.",
+                "Hit 15 shots and score only whether they started left, center, or right.",
+                "Check setup before every ball."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "launch_direction_avg_deg within +/- 1.5",
+              "face_angle_avg_deg within +/- 1.5",
+              "left_miss_rate_pct below 40"
+            ],
+            "behavioral": [
+              "setup looks square and repeatable",
+              "player can aim and trust it"
+            ]
+          },
+          "coaching_notes": [
+            "Many pulls are setup-driven, especially for high handicappers."
+          ],
+          "common_pitfalls": [
+            "rewriting backswing when alignment was the bigger issue"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "iron_specific"],
+            "custom_tags": ["pull", "starts_left", "alignment_left"],
+            "metrics": ["launch_direction_avg_deg", "face_angle_avg_deg", "left_miss_rate_pct"],
+            "note_prompts": ["Did it start left right away?", "Was alignment checked?"]
+          }
+        },
+        {
+          "issue_id": "iron_contact_inconsistent",
+          "severity": "high",
+          "beginner_description": "Your iron contact changes too much, so distance and direction are unreliable.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "carry_sd_m", "starter_trigger": "> 12", "personal_baseline_rule": "recent_30 > own_60_sd + 2"},
+              {"metric": "smash_factor_sd", "starter_trigger": "> 0.04", "personal_baseline_rule": "recent_30 > own_60_sd + 0.01"},
+              {"metric": "playable_shot_rate_pct", "starter_trigger": "< 50", "personal_baseline_rule": "recent_30 < own_60_median - 12"}
+            ],
+            "secondary_checks": [
+              "impact height/offset variance supports strike inconsistency",
+              "left and right misses may both appear"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["inconsistent ball position", "posture changes shot to shot"],
+            "swing_process": ["moving low point", "tempo changes", "poor balance"],
+            "decision_process": ["changing swing thought every ball"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "iron_specific"],
+          "prioritized_drills": [
+            {
+              "name": "10-ball repeatability block",
+              "priority": 1,
+              "balls_or_time": "10 balls",
+              "steps": [
+                "Use one club and one target.",
+                "Keep the exact same pre-shot routine for all 10 shots.",
+                "Score only clean strike and playable finish."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "carry_sd_m down by 2 to 4 meters",
+              "smash_factor_sd below 0.03",
+              "playable_shot_rate_pct above 60"
+            ],
+            "behavioral": [
+              "routine looks calmer",
+              "misses become more one-sided instead of random"
+            ]
+          },
+          "coaching_notes": [
+            "Consistency is often a stability problem before it is a mechanics problem."
+          ],
+          "common_pitfalls": [
+            "working on shape before contact is stable"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "full_swing_process", "iron_specific"],
+            "custom_tags": ["inconsistent_contact", "carry_spread", "repeatability"],
+            "metrics": ["carry_sd_m", "smash_factor_sd", "playable_shot_rate_pct"],
+            "note_prompts": ["Was the routine the same each swing?", "Did contact pattern feel random?"]
+          }
+        },
+        {
+          "issue_id": "iron_fat",
+          "severity": "high",
+          "beginner_description": "Your iron hits the ground too early and comes out short and heavy.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "ground_contact_fat_rate_pct", "starter_trigger": "> 20", "personal_baseline_rule": "recent_30 > own_60_median + 10"},
+              {"metric": "carry_avg_vs_baseline_pct", "starter_trigger": "< -12", "personal_baseline_rule": "recent_30 < own_60_median - 10"},
+              {"metric": "smash_factor_avg", "starter_trigger": "< baseline - 0.05", "personal_baseline_rule": "recent_30 < own_60_median - 0.05"}
+            ],
+            "secondary_checks": [
+              "low_point consistency often worsens"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["ball too far forward", "weight back", "wider than needed stance"],
+            "swing_process": ["low point behind ball", "early release", "poor pressure shift"],
+            "decision_process": ["trying to help the iron airborne"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "iron_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Ball-then-turf line drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Draw a line and place the ball just ahead of it.",
+                "Rehearse striking line after the ball.",
+                "Hit 15 balls and tag contact each time."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "ground_contact_fat_rate_pct below 10",
+              "carry_avg_vs_baseline_pct better than -6"
+            ],
+            "behavioral": [
+              "player stops trying to scoop the ball"
+            ]
+          },
+          "coaching_notes": [
+            "For high handicappers, ball position and pressure shift are often the first checks."
+          ],
+          "common_pitfalls": [
+            "moving ball too far back and creating low left pulls"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "iron_specific"],
+            "custom_tags": ["fat", "heavy", "ground_first"],
+            "metrics": ["ground_contact_fat_rate_pct", "carry_avg_vs_baseline_pct", "smash_factor_avg"],
+            "note_prompts": ["Was turf before the ball?", "Did weight stay back?"]
+          }
+        },
+        {
+          "issue_id": "iron_thin",
+          "severity": "medium",
+          "beginner_description": "Your iron catches too much ball and not enough turf, and the shot comes out low or hot.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "impact_height_avg_mm", "starter_trigger": "< -3", "personal_baseline_rule": "recent_30 < own_60_median - 2"},
+              {"metric": "launch_angle_avg_deg", "starter_trigger": "< baseline - 2.5", "personal_baseline_rule": "recent_30 < own_60_median - 2"},
+              {"metric": "thin_tag_rate_pct", "starter_trigger": "> 18", "personal_baseline_rule": "recent_30 > own_60_median + 8"}
+            ],
+            "secondary_checks": [
+              "carry may be inconsistent rather than always short"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["standing too tall", "ball too far back", "handle too far forward"],
+            "swing_process": ["low point too far ahead", "lifting chest through strike", "poor ground interaction"],
+            "decision_process": ["trying to trap too much instead of brushing turf properly"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "iron_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Brush-and-hold drill",
+              "priority": 1,
+              "balls_or_time": "12 balls",
+              "steps": [
+                "Make rehearsal swings with a small brush of turf after the ball.",
+                "Hit 12 balls at 70-80% speed.",
+                "Hold finish and log only contact quality."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "thin_tag_rate_pct below 10",
+              "launch_angle_avg_deg recovers by 1.5 to 2.0"
+            ],
+            "behavioral": [
+              "contact sound becomes less clicky and more compressed"
+            ]
+          },
+          "coaching_notes": [
+            "Thin and fat are often neighbors. Fix low point without overcorrecting."
+          ],
+          "common_pitfalls": [
+            "shoving the ball too far forward and turning thin into fat"
+          ],
+          "logging": {
+            "field_set_refs": ["full_swing_setup", "iron_specific"],
+            "custom_tags": ["thin", "low_bullet", "contact_issue"],
+            "metrics": ["impact_height_avg_mm", "launch_angle_avg_deg", "thin_tag_rate_pct"],
+            "note_prompts": ["Did strike feel low on face?", "Was posture rising?"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "wedges",
+      "issues": [
+        {
+          "issue_id": "wedge_distance_control_unstable",
+          "severity": "high",
+          "beginner_description": "Your wedge goes different distances too often, even when the swing feels similar.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "target_window_hit_rate_pct", "starter_trigger": "< 40", "personal_baseline_rule": "recent_30 < own_60_median - 12"},
+              {"metric": "absolute_carry_error_m", "starter_trigger": "> 5 from 30-50m or > 8 from 50-80m", "personal_baseline_rule": "recent_30 > own_60_median + 1.5"},
+              {"metric": "carry_sd_pct_of_target", "starter_trigger": "> 12", "personal_baseline_rule": "recent_30 > own_60_sd + 3"}
+            ],
+            "secondary_checks": [
+              "face_angle_sd and spin_loft variability can support the diagnosis"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["changing ball position", "unclear distance system", "poor target picture"],
+            "swing_process": ["variable length and tempo", "low point moving", "adding or losing loft inconsistently"],
+            "decision_process": ["no clear flight/landing intention"]
+          },
+          "diagnostic_inputs_needed": ["full_swing_setup", "full_swing_process", "wedge_specific"],
+          "prioritized_drills": [
+            {
+              "name": "3-distance ladder",
+              "priority": 1,
+              "balls_or_time": "30 balls",
+              "steps": [
+                "Choose 3 distances such as 25m, 35m, and 45m.",
+                "Hit 10 balls to each target using the same routine.",
+                "Score only balls inside the window."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "target_window_hit_rate_pct above 50",
+              "absolute_carry_error_m reduced by at least 1.5",
+              "carry_sd_pct_of_target below 10"
+            ],
+            "behavioral": [
+              "player uses one clear landing plan per shot",
+              "tempo looks more repeatable"
+            ]
+          },
+          "coaching_notes": [
+            "For wedge training, averages matter less than window rate and miss size."
+          ],
+          "common_pitfalls": [
+            "only tracking average carry",
+            "changing backswing length and tempo together"
+          ],
+          "logging": {
+            "field_set_refs": ["wedge_specific", "full_swing_process"],
+            "custom_tags": ["wedge_distance", "unstable_carry", "window_miss"],
+            "metrics": ["target_window_hit_rate_pct", "absolute_carry_error_m", "carry_sd_pct_of_target", "face_angle_sd_deg"],
+            "note_prompts": ["What distance system was used?", "Was tempo constant?", "Where did the ball land vs intended spot?"]
+          }
+        },
+        {
+          "issue_id": "wedge_fat",
+          "severity": "high",
+          "beginner_description": "You hit behind the wedge and the ball comes out short and heavy.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "carry_avg_vs_baseline_pct", "starter_trigger": "< -20", "personal_baseline_rule": "recent_20 < own_40_median - 15"},
+              {"metric": "fat_tag_rate_pct", "starter_trigger": "> 20", "personal_baseline_rule": "recent_20 > own_40_median + 10"},
+              {"metric": "smash_factor_avg", "starter_trigger": "< baseline - 0.06", "personal_baseline_rule": "recent_20 < own_40_median - 0.05"}
+            ],
+            "secondary_checks": [
+              "low point variability usually supports the diagnosis"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["ball too far forward", "weight too centered or back", "too much handle drag in setup"],
+            "swing_process": ["low point behind ball", "wrist throw", "deceleration"],
+            "decision_process": ["fear of hitting it hard enough"]
+          },
+          "diagnostic_inputs_needed": ["wedge_specific", "full_swing_setup", "full_swing_process"],
+          "prioritized_drills": [
+            {
+              "name": "Lead-side pressure wedge drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Set 60-70% pressure on lead side at address.",
+                "Hit 15 short wedges keeping chest moving through.",
+                "Tag each shot as clean, fat, or thin."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "fat_tag_rate_pct below 10",
+              "carry_avg_vs_baseline_pct better than -10"
+            ],
+            "behavioral": [
+              "player keeps turning through strike instead of stalling"
+            ]
+          },
+          "coaching_notes": [
+            "With high handicappers, deceleration is often as important as technique."
+          ],
+          "common_pitfalls": [
+            "slowing down too much in fear of blading it"
+          ],
+          "logging": {
+            "field_set_refs": ["wedge_specific", "full_swing_setup", "full_swing_process"],
+            "custom_tags": ["fat", "heavy", "wedge_contact"],
+            "metrics": ["carry_avg_vs_baseline_pct", "fat_tag_rate_pct", "smash_factor_avg"],
+            "note_prompts": ["Did the body keep turning?", "Was pressure more lead-side?"]
+          }
+        },
+        {
+          "issue_id": "wedge_blade",
+          "severity": "high",
+          "beginner_description": "You catch the wedge too high on the ball and it shoots low and too far.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "blade_tag_rate_pct", "starter_trigger": "> 12", "personal_baseline_rule": "recent_20 > own_40_median + 6"},
+              {"metric": "launch_angle_avg_deg", "starter_trigger": "< baseline - 4.0", "personal_baseline_rule": "recent_20 < own_40_median - 3"},
+              {"metric": "long_miss_rate_pct", "starter_trigger": "> 25", "personal_baseline_rule": "recent_20 > own_40_median + 10"}
+            ],
+            "secondary_checks": [
+              "impact height and spin rate can help when available"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["ball too far back", "handle too far forward", "stance too narrow and unstable"],
+            "swing_process": ["standing up through strike", "low point too far forward", "fear-driven jab"],
+            "decision_process": ["trying not to hit it fat"]
+          },
+          "diagnostic_inputs_needed": ["wedge_specific", "full_swing_setup", "full_swing_process"],
+          "prioritized_drills": [
+            {
+              "name": "Brush-the-grass wedge ladder",
+              "priority": 1,
+              "balls_or_time": "12 balls",
+              "steps": [
+                "Make three rehearsal swings brushing the grass.",
+                "Hit 12 wedges at one target with steady tempo.",
+                "Log launch feel and finish distance."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "blade_tag_rate_pct below 6",
+              "launch_angle_avg_deg improves by at least 2.0",
+              "long_miss_rate_pct below 15"
+            ],
+            "behavioral": [
+              "strike sounds softer and more controlled",
+              "player stops stabbing at the ball"
+            ]
+          },
+          "coaching_notes": [
+            "Many blade fixes start with reducing fear, not adding technique words."
+          ],
+          "common_pitfalls": [
+            "trying to fix blades by dramatically flipping the club"
+          ],
+          "logging": {
+            "field_set_refs": ["wedge_specific", "full_swing_setup", "full_swing_process"],
+            "custom_tags": ["blade", "low_launch", "long_miss"],
+            "metrics": ["blade_tag_rate_pct", "launch_angle_avg_deg", "long_miss_rate_pct"],
+            "note_prompts": ["Was the player afraid of fat contact?", "Did chest rise through impact?"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "chipping",
+      "issues": [
+        {
+          "issue_id": "chip_chunk",
+          "severity": "high",
+          "beginner_description": "The chip comes out short because the club hits the ground too early.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "chunk_tag_rate_pct", "starter_trigger": "> 15", "personal_baseline_rule": "recent_30 > own_60_median + 8"},
+              {"metric": "inside_2m_rate_pct", "starter_trigger": "< 35", "personal_baseline_rule": "recent_30 < own_60_median - 10"},
+              {"metric": "leave_short_rate_pct", "starter_trigger": "> 40", "personal_baseline_rule": "recent_30 > own_60_median + 12"}
+            ],
+            "secondary_checks": [
+              "low point inconsistency supports the diagnosis when measured"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["weight not forward enough", "ball too far forward", "handle neutral or leaning back"],
+            "swing_process": ["low point behind ball", "wrist throw", "stopping body rotation"],
+            "decision_process": ["trying to scoop the ball up"]
+          },
+          "diagnostic_inputs_needed": ["chipping_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Weight-forward chip block",
+              "priority": 1,
+              "balls_or_time": "20 balls",
+              "steps": [
+                "Set 60-70% weight on lead side.",
+                "Hit 20 chips from one lie and one distance.",
+                "Score only clean contact and leave bucket."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "chunk_tag_rate_pct below 8",
+              "inside_2m_rate_pct above 45"
+            ],
+            "behavioral": [
+              "player turns through without scooping"
+            ]
+          },
+          "coaching_notes": [
+            "Keep the first fix simple: setup and low point."
+          ],
+          "common_pitfalls": [
+            "adding too much wrist hinge in a panic"
+          ],
+          "logging": {
+            "field_set_refs": ["chipping_specific"],
+            "custom_tags": ["chunk", "chip_short", "scoop"],
+            "metrics": ["chunk_tag_rate_pct", "inside_2m_rate_pct", "leave_short_rate_pct"],
+            "note_prompts": ["Was weight forward?", "Did the player stop turning?"]
+          }
+        },
+        {
+          "issue_id": "chip_blade",
+          "severity": "high",
+          "beginner_description": "The chip shoots low and too far because contact is too high on the ball.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "blade_tag_rate_pct", "starter_trigger": "> 10", "personal_baseline_rule": "recent_30 > own_60_median + 5"},
+              {"metric": "leave_long_rate_pct", "starter_trigger": "> 25", "personal_baseline_rule": "recent_30 > own_60_median + 10"},
+              {"metric": "inside_2m_rate_pct", "starter_trigger": "< 35", "personal_baseline_rule": "recent_30 < own_60_median - 10"}
+            ],
+            "secondary_checks": [
+              "launch looks too low and speed too hot"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["ball too far back", "hands too far forward", "standing too close"],
+            "swing_process": ["standing up", "jabbing at ball", "low point too far ahead"],
+            "decision_process": ["trying not to chunk it"]
+          },
+          "diagnostic_inputs_needed": ["chipping_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Soft-landing brush drill",
+              "priority": 1,
+              "balls_or_time": "15 balls",
+              "steps": [
+                "Pick a landing spot close to the edge of the green.",
+                "Hit 15 chips with a soft tempo and brush-the-grass feel.",
+                "Log whether the ball landed near the spot."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "blade_tag_rate_pct below 5",
+              "leave_long_rate_pct below 15"
+            ],
+            "behavioral": [
+              "contact sounds softer and trajectory softens"
+            ]
+          },
+          "coaching_notes": [
+            "Fear of chunk and fear of blade often alternate. Do not fix one by causing the other."
+          ],
+          "common_pitfalls": [
+            "adding too much shaft lean"
+          ],
+          "logging": {
+            "field_set_refs": ["chipping_specific"],
+            "custom_tags": ["blade", "chip_long", "jab"],
+            "metrics": ["blade_tag_rate_pct", "leave_long_rate_pct", "inside_2m_rate_pct"],
+            "note_prompts": ["Did the player jab at it?", "Was landing spot realistic?"]
+          }
+        },
+        {
+          "issue_id": "chip_distance_unstable",
+          "severity": "medium",
+          "beginner_description": "Your chip contact may be okay, but the leave distance is too random.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "inside_2m_rate_pct", "starter_trigger": "< 40", "personal_baseline_rule": "recent_30 < own_60_median - 10"},
+              {"metric": "leave_distance_sd_m", "starter_trigger": "> 1.3", "personal_baseline_rule": "recent_30 > own_60_sd + 0.3"},
+              {"metric": "distance_target_hit_rate_pct", "starter_trigger": "< 45", "personal_baseline_rule": "recent_30 < own_60_median - 10"}
+            ],
+            "secondary_checks": [
+              "inconsistent landing spot choice often explains the pattern"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["changing club choice randomly", "poor rehearsal of landing spot"],
+            "swing_process": ["variable length and tempo", "different strike pattern shot to shot"],
+            "decision_process": ["no clear carry-versus-roll plan"]
+          },
+          "diagnostic_inputs_needed": ["chipping_specific"],
+          "prioritized_drills": [
+            {
+              "name": "One club, three landing spots",
+              "priority": 1,
+              "balls_or_time": "18 balls",
+              "steps": [
+                "Use one chipping club only.",
+                "Pick three landing spots and hit 6 balls to each.",
+                "Score only whether the ball finished in the target leave bucket."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "inside_2m_rate_pct above 50",
+              "leave_distance_sd_m below 1.0"
+            ],
+            "behavioral": [
+              "player describes carry and roll plan before each chip"
+            ]
+          },
+          "coaching_notes": [
+            "Distance control is often a planning issue before it is a technique issue."
+          ],
+          "common_pitfalls": [
+            "switching clubs every rep during learning"
+          ],
+          "logging": {
+            "field_set_refs": ["chipping_specific"],
+            "custom_tags": ["distance_control", "chip_leave", "landing_spot"],
+            "metrics": ["inside_2m_rate_pct", "leave_distance_sd_m", "distance_target_hit_rate_pct"],
+            "note_prompts": ["Was landing spot chosen clearly?", "Was the same club used?"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "putting",
+      "issues": [
+        {
+          "issue_id": "putt_push",
+          "severity": "medium",
+          "beginner_description": "The putt starts right of where you intended.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "start_right_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_40 > own_80_median + 12"},
+              {"metric": "make_rate_1_2m_pct", "starter_trigger": "< 65", "personal_baseline_rule": "recent_40 < own_80_median - 8"}
+            ],
+            "secondary_checks": [
+              "if face data is available, putter face open at impact supports the call"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["face aimed right", "eyes too far inside", "ball too far back"],
+            "swing_process": ["open face through impact", "deceleration", "poor start-line control"],
+            "decision_process": ["steering the putt instead of rolling it"
+            ]
+          },
+          "diagnostic_inputs_needed": ["putting_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Short putt start-line gate",
+              "priority": 1,
+              "balls_or_time": "20 putts",
+              "steps": [
+                "Set a tee gate 30-50 cm in front of the ball.",
+                "Hit 20 putts from 1-2 meters through the gate.",
+                "Score only gate success first, make result second."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "start_right_rate_pct below 45",
+              "make_rate_1_2m_pct above 75"
+            ],
+            "behavioral": [
+              "student commits to line and pace together"
+            ]
+          },
+          "coaching_notes": [
+            "Start-line skill should usually be trained before break-reading complexity."
+          ],
+          "common_pitfalls": [
+            "looking up early and blaming the read"
+          ],
+          "logging": {
+            "field_set_refs": ["putting_specific"],
+            "custom_tags": ["push_putt", "start_right", "open_face"],
+            "metrics": ["start_right_rate_pct", "make_rate_1_2m_pct"],
+            "note_prompts": ["Was the face aimed right at address?", "Did pace feel jabby or smooth?"]
+          }
+        },
+        {
+          "issue_id": "putt_pull",
+          "severity": "medium",
+          "beginner_description": "The putt starts left of where you intended.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "start_left_rate_pct", "starter_trigger": "> 55", "personal_baseline_rule": "recent_40 > own_80_median + 12"},
+              {"metric": "make_rate_1_2m_pct", "starter_trigger": "< 65", "personal_baseline_rule": "recent_40 < own_80_median - 8"}
+            ],
+            "secondary_checks": [
+              "if face data is available, face closed at impact supports the diagnosis"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["face aimed left", "ball too far forward", "eyes too far over ball"],
+            "swing_process": ["closed face through impact", "hit impulse instead of roll impulse"],
+            "decision_process": ["trying to hold the line too tightly"]
+          },
+          "diagnostic_inputs_needed": ["putting_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Two-tee gate from 1.5m",
+              "priority": 1,
+              "balls_or_time": "20 putts",
+              "steps": [
+                "Create a small gate just wider than the ball.",
+                "Roll 20 putts through the gate.",
+                "Log start line before makes."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "start_left_rate_pct below 45",
+              "make_rate_1_2m_pct above 75"
+            ],
+            "behavioral": [
+              "player feels a smoother roll rather than a hit"
+            ]
+          },
+          "coaching_notes": [
+            "Pulls often blend aim and face-control issues. Check both."
+          ],
+          "common_pitfalls": [
+            "changing read when start line was the bigger issue"
+          ],
+          "logging": {
+            "field_set_refs": ["putting_specific"],
+            "custom_tags": ["pull_putt", "start_left", "closed_face"],
+            "metrics": ["start_left_rate_pct", "make_rate_1_2m_pct"],
+            "note_prompts": ["Was the face aimed left?", "Did it feel like a hit instead of a roll?"]
+          }
+        },
+        {
+          "issue_id": "putt_lag_long",
+          "severity": "medium",
+          "beginner_description": "Your lag putts finish too far past the hole too often.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "avg_leave_past_m", "starter_trigger": "> 1.5 on putts 8m+", "personal_baseline_rule": "recent_30 > own_60_median + 0.4"},
+              {"metric": "past_hole_rate_pct", "starter_trigger": "> 50", "personal_baseline_rule": "recent_30 > own_60_median + 10"},
+              {"metric": "inside_1m_leave_rate_pct", "starter_trigger": "< 50", "personal_baseline_rule": "recent_30 < own_60_median - 10"}
+            ],
+            "secondary_checks": [
+              "green-speed note matters a lot here"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["poor distance picture", "backswing too large for target"],
+            "swing_process": ["tempo too hot", "poor pace calibration"],
+            "decision_process": ["trying to avoid being short at all costs"]
+          },
+          "diagnostic_inputs_needed": ["putting_specific"],
+          "prioritized_drills": [
+            {
+              "name": "Past-hole line drill",
+              "priority": 1,
+              "balls_or_time": "15 putts",
+              "steps": [
+                "Set a stop line 50-80 cm past the hole.",
+                "Roll 15 lag putts from 8-12 meters.",
+                "Score only whether the ball finishes between hole and stop line."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "avg_leave_past_m below 1.0",
+              "inside_1m_leave_rate_pct above 60"
+            ],
+            "behavioral": [
+              "player matches pace to landing point, not fear"
+            ]
+          },
+          "coaching_notes": [
+            "Lag putting is usually a pace skill, not a stroke rebuild."
+          ],
+          "common_pitfalls": [
+            "practicing only on one green speed"
+          ],
+          "logging": {
+            "field_set_refs": ["putting_specific"],
+            "custom_tags": ["lag_long", "pace_hot", "past_hole"],
+            "metrics": ["avg_leave_past_m", "past_hole_rate_pct", "inside_1m_leave_rate_pct"],
+            "note_prompts": ["What green speed did it feel like?", "Was the intent defensive or aggressive?"]
+          }
+        },
+        {
+          "issue_id": "putt_lag_short",
+          "severity": "medium",
+          "beginner_description": "Your lag putts die short too often.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "avg_leave_short_m", "starter_trigger": "> 1.5 on putts 8m+", "personal_baseline_rule": "recent_30 > own_60_median + 0.4"},
+              {"metric": "short_of_hole_rate_pct", "starter_trigger": "> 50", "personal_baseline_rule": "recent_30 > own_60_median + 10"},
+              {"metric": "inside_1m_leave_rate_pct", "starter_trigger": "< 50", "personal_baseline_rule": "recent_30 < own_60_median - 10"}
+            ],
+            "secondary_checks": [
+              "fear of long comeback putts often shows up in notes"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["backswing too small", "poor pace picture"],
+            "swing_process": ["deceleration", "tentative stroke"],
+            "decision_process": ["fear of going long"]
+          },
+          "diagnostic_inputs_needed": ["putting_specific"],
+          "prioritized_drills": [
+            {
+              "name": "To-the-hole-plus drill",
+              "priority": 1,
+              "balls_or_time": "15 putts",
+              "steps": [
+                "Create a landing zone 30-60 cm past the hole.",
+                "Roll 15 lag putts trying to finish in the zone.",
+                "Do not count makes; count finish zone only."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "avg_leave_short_m below 1.0",
+              "inside_1m_leave_rate_pct above 60"
+            ],
+            "behavioral": [
+              "stroke length looks committed"
+            ]
+          },
+          "coaching_notes": [
+            "Short lag putts are often fear-driven, not mechanically broken."
+          ],
+          "common_pitfalls": [
+            "trying to fix lag pace with only technical stroke thoughts"
+          ],
+          "logging": {
+            "field_set_refs": ["putting_specific"],
+            "custom_tags": ["lag_short", "pace_slow", "decel"],
+            "metrics": ["avg_leave_short_m", "short_of_hole_rate_pct", "inside_1m_leave_rate_pct"],
+            "note_prompts": ["Did the player fear the comeback putt?", "Did stroke decelerate?"]
+          }
+        },
+        {
+          "issue_id": "putt_short_conversion_low",
+          "severity": "high",
+          "beginner_description": "Short putts are costing too many easy strokes.",
+          "measurable_signals": {
+            "primary_metrics": [
+              {"metric": "make_rate_1m_pct", "starter_trigger": "< 80", "personal_baseline_rule": "recent_40 < own_80_median - 8"},
+              {"metric": "make_rate_2m_pct", "starter_trigger": "< 50", "personal_baseline_rule": "recent_40 < own_80_median - 8"},
+              {"metric": "pressure_make_rate_pct", "starter_trigger": "< 60", "personal_baseline_rule": "recent_40 < own_80_median - 10"}
+            ],
+            "secondary_checks": [
+              "start-line gate misses can explain a lot of this"
+            ]
+          },
+          "likely_causes": {
+            "setup": ["inconsistent aim", "routine changes under pressure"],
+            "swing_process": ["jab, decel, or quit through impact"],
+            "decision_process": ["too outcome-focused", "fear of missing"]
+          },
+          "diagnostic_inputs_needed": ["putting_specific"],
+          "prioritized_drills": [
+            {
+              "name": "5-in-a-row ladder",
+              "priority": 1,
+              "balls_or_time": "15 to 20 putts",
+              "steps": [
+                "Start at 1 meter and make 5 in a row before moving back.",
+                "If one misses, restart at the same distance.",
+                "Track both make rate and start-line quality."
+              ]
+            }
+          ],
+          "success_criteria": {
+            "numeric": [
+              "make_rate_1m_pct above 90",
+              "make_rate_2m_pct above 60",
+              "pressure_make_rate_pct above 70"
+            ],
+            "behavioral": [
+              "routine stays the same under pressure"
+            ]
+          },
+          "coaching_notes": [
+            "Do not bury this inside big dashboards. This is often one of the most important scoring leaks."
+          ],
+          "common_pitfalls": [
+            "working on full-stroke mechanics when short-putt routine is the bigger issue"
+          ],
+          "logging": {
+            "field_set_refs": ["putting_specific"],
+            "custom_tags": ["short_putts", "conversion", "pressure"],
+            "metrics": ["make_rate_1m_pct", "make_rate_2m_pct", "pressure_make_rate_pct"],
+            "note_prompts": ["Did the player rush?", "Was the routine identical on every rep?"]
+          }
+        }
+      ]
+    }
+  ]
+}
