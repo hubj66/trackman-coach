@@ -2,6 +2,8 @@
 
 let _todayAllShots = [];
 let _todayIssues   = [];
+let _trendIssue    = null;
+let _trendShots    = null;
 
 const PICKER_CLUBS = [
   { ck:'driver', label:'Driver' },
@@ -62,6 +64,96 @@ const GLOSSARY_TERMS = {
   },
 };
 
+// ── Drill catalog ─────────────────────────────────────────────────────────
+
+const DRILL_CATALOG = [
+  // Driver
+  { id:'drv_gate',     name:'Face control gate',         category:'driver',  categoryLabel:'Driver',
+    balls:20, min:10, issue:'Slice / open face',
+    desc:'Two tees just outside the ball form a gate. Swing through without the face catching the right tee. Builds face awareness at impact.',
+    cue:'Face stays square, not open.' },
+  { id:'drv_split',    name:'Split-hand release',         category:'driver',  categoryLabel:'Driver',
+    balls:12, min:8,  issue:'Hook / over-release',
+    desc:'Grip with a gap between hands. Swing at 70% focusing on a controlled release through impact. Prevents over-rotating the face.',
+    cue:'Hold the finish off.' },
+  { id:'drv_start',    name:'Start-line challenge',       category:'driver',  categoryLabel:'Driver',
+    balls:15, min:10, issue:'Block / push right',
+    desc:'Pick a specific start line — not the target. Score only on whether the ball launches on that line, ignoring distance.',
+    cue:'Control the launch, not the flight.' },
+  { id:'drv_sweep',    name:'Sweep-the-tee',              category:'driver',  categoryLabel:'Driver',
+    balls:15, min:10, issue:'High spin / balloon',
+    desc:'Tee high and focus on brushing the tee forward. Promotes positive attack angle and low spin. No hitting down.',
+    cue:'Brush the tee forward.' },
+  { id:'drv_same',     name:'Same setup drill',           category:'driver',  categoryLabel:'Driver',
+    balls:15, min:10, issue:'Two-way miss',
+    desc:'Same address, same target, same finish every ball — no compensations. Builds a repeatable pattern over variability.',
+    cue:'Process over outcome.' },
+  // Irons
+  { id:'iron_align',   name:'Alignment stick start-line', category:'irons',   categoryLabel:'Irons',
+    balls:15, min:10, issue:'Pull left',
+    desc:'Place an alignment stick 1m ahead on the target line. Every ball must start right of the stick.',
+    cue:'Launch right, let it draw back.' },
+  { id:'iron_repeat',  name:'10-ball repeatability block',category:'irons',   categoryLabel:'Irons',
+    balls:10, min:8,  issue:'Contact inconsistency',
+    desc:'10 balls to the same target at the same pace. Score only clean contacts. No heroics — build pattern first.',
+    cue:'Repeat, repeat, repeat.' },
+  { id:'iron_turf',    name:'Ball-then-turf drill',       category:'irons',   categoryLabel:'Irons',
+    balls:15, min:10, issue:'Fat shots',
+    desc:'Draw a line in the turf. The club must strike ball before line — every time. No exceptions allowed.',
+    cue:'Ball first, then turf.' },
+  { id:'iron_brush',   name:'Brush-and-hold',             category:'irons',   categoryLabel:'Irons',
+    balls:12, min:8,  issue:'Thin shots',
+    desc:'Brush the turf with a long, low follow-through and hold the finish for 3 seconds. Removes scooping habit.',
+    cue:'Brush low and hold.' },
+  { id:'lng_lowpoint', name:'Long-iron low point',        category:'irons',   categoryLabel:'Long irons',
+    balls:15, min:10, issue:'Fat / contact loss',
+    desc:'Draw a line in sand or on a mat. Leave a divot starting at or forward of the line on every swing.',
+    cue:'Forward low point, every rep.' },
+  // Wedges
+  { id:'wedge_ladder', name:'3-distance ladder',          category:'wedges',  categoryLabel:'Wedges',
+    balls:30, min:20, issue:'Distance control',
+    desc:'Pick 3 distances (e.g. 50 / 70 / 90m). 10 balls each. Score only balls inside ±5m window. Rotate through.',
+    cue:'Same swing, different length.' },
+  { id:'wedge_press',  name:'Lead-side pressure wedge',   category:'wedges',  categoryLabel:'Wedges',
+    balls:15, min:10, issue:'Fat wedge',
+    desc:'60% weight on lead foot at address, stay there through impact. Eliminates hanging back and chunking.',
+    cue:'Stay left all the way through.' },
+  { id:'wedge_brush',  name:'Brush-the-grass ladder',     category:'wedges',  categoryLabel:'Wedges',
+    balls:12, min:8,  issue:'Blade / thin',
+    desc:'Focus on brushing the grass before the ball. Progress from 30m to 70m — ground contact must come first.',
+    cue:'Brush first, launch second.' },
+  // Short game
+  { id:'chip_weight',  name:'Weight-forward chip block',  category:'short',   categoryLabel:'Short game',
+    balls:20, min:12, issue:'Chunk / fat chip',
+    desc:'70% weight on lead foot at address, keep it there all the way through. 20 chips from tight lies — clean contacts only.',
+    cue:'Lead side stays loaded.' },
+  { id:'chip_spots',   name:'One club, three spots',      category:'short',   categoryLabel:'Short game',
+    balls:18, min:12, issue:'Distance control',
+    desc:'Pick 3 landing spots at different distances. 6 balls to each. Score on landing accuracy, not proximity to hole.',
+    cue:'Land it precisely.' },
+  { id:'chip_soft',    name:'Soft-landing brush',         category:'short',   categoryLabel:'Short game',
+    balls:15, min:10, issue:'Blade / thin chip',
+    desc:'Brush the turf an inch before the ball. Aim for a soft landing on a specific spot, not the hole.',
+    cue:'Brush the ground, land softly.' },
+  // Putting
+  { id:'putt_gate',    name:'Gate putting drill',         category:'putting', categoryLabel:'Putting',
+    balls:20, min:15, issue:'Push / pull start line',
+    desc:'Two tees 30cm ahead as a gate, slightly wider than the putter. Every putt must roll through.',
+    cue:'Gate first, hole second.' },
+  { id:'putt_5row',    name:'5-in-a-row ladder',          category:'putting', categoryLabel:'Putting',
+    balls:20, min:15, issue:'Short putt conversion',
+    desc:'Make 5 in a row from 1m before stepping back 25cm each time. Miss — return to start. Progress to 2.5m.',
+    cue:'No misses inside 1m.' },
+  { id:'putt_lag_past',name:'Past-the-hole lag',          category:'putting', categoryLabel:'Putting',
+    balls:15, min:12, issue:'Lag short / under pace',
+    desc:'From 8–12m: every putt must finish at least 30cm past the hole. Trains committing to distance.',
+    cue:'Never short.' },
+  { id:'putt_zone',    name:'Lag zone drill',             category:'putting', categoryLabel:'Putting',
+    balls:15, min:12, issue:'Lag long / over pace',
+    desc:'Two tees 60cm past the hole. Every lag must stop between the hole and the tees. Trains pace control.',
+    cue:'Die in the zone.' },
+];
+
 async function initTodayTab() {
   const el = document.getElementById('today-content');
   if (!el) return;
@@ -108,6 +200,8 @@ async function initTodayTab() {
 
   _todayAllShots = allShots;
   _todayIssues   = issues;
+  _trendIssue    = issues[0] || null;
+  _trendShots    = allShots;
 
   // Detect fixed issues (present last time, gone now)
   const today10 = new Date().toISOString().slice(0,10);
@@ -413,38 +507,50 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
 
   const manualClubArg = mainIssue ? `'${mainIssue.club}'` : 'null';
   return `
-    ${_renderCoachSummaryCard(mainIssue, watchItem)}
-    <div id="today-plan-section">
-      ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
+    <div class="today-layer-toggle">
+      <button class="today-layer-btn today-layer-coach active" onclick="toggleTodayLayer('coach')">Coach</button>
+      <button class="today-layer-btn today-layer-stats" onclick="toggleTodayLayer('stats')">Stats</button>
     </div>
-    <div class="today-section-label" style="margin-top:4px;">Quick log</div>
-    <div class="today-quick-log-row" style="margin-bottom:20px;">
-      <button class="today-log-btn" onclick="showPage('analysis')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        Trackman
-      </button>
-      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
-        Chipping
-      </button>
-      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
-        Putting
-      </button>
-      <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Manual
-      </button>
+    <div class="today-coach-layer">
+      ${_renderCoachSummaryCard(mainIssue, watchItem)}
+      <div id="today-plan-section">
+        ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
+      </div>
+      <div class="today-section-label" style="margin-top:4px;">Quick log</div>
+      <div class="today-quick-log-row" style="margin-bottom:20px;">
+        <button class="today-log-btn" onclick="showPage('analysis')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Trackman
+        </button>
+        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
+          Chipping
+        </button>
+        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
+          Putting
+        </button>
+        <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Manual
+        </button>
+      </div>
+      ${_renderWhatImprovedCard(improved, fixedIssues)}
+      ${health.length ? _renderHealthTiles(health) : ''}
+      ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
+      ${_renderDrillHistoryCard()}
     </div>
-    ${_renderWhatImprovedCard(improved, fixedIssues)}
-    ${health.length ? _renderHealthTiles(health) : ''}
-    ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
-    ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
-    ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
-    ${_renderClubPicker(mainIssue?.club || null)}
-    ${regression ? _renderRegressionCard(regression) : ''}
-    ${watchItem ? _renderWatchCard(watchItem) : ''}
-    ${_renderDrillHistoryCard()}`;
+    <div class="today-stats-layer">
+      ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
+      ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
+      ${mainIssue ? _renderTrendCard(mainIssue) : ''}
+      ${_renderClubPicker(mainIssue?.club || null)}
+      ${regression ? _renderRegressionCard(regression) : ''}
+      ${watchItem ? _renderWatchCard(watchItem) : ''}
+      <div class="today-drill-library-row">
+        <button class="today-drill-library-btn" onclick="openDrillCatalog('${mainIssue ? _issueToDrillCategory(mainIssue) : ''}')">Browse drill library →</button>
+      </div>
+    </div>`;
 }
 
 function _renderHealthTiles(tiles) {
@@ -471,9 +577,11 @@ function _renderMainIssueCard(issue) {
       </div>
       <div class="today-issue-title">${escapeHtml(issue.simple)}</div>
       <div class="today-issue-support">${escapeHtml(issue.support)}</div>
-      ${issue.deeper ? `
-        <button class="today-issue-detail-btn" onclick="toggleIssueDetail('${detailId}', this)">Why this issue? ▾</button>
-        <div class="today-issue-detail" id="${detailId}">${escapeHtml(issue.deeper)}</div>` : ''}
+      <div class="today-issue-action-row">
+        ${issue.deeper ? `<button class="today-issue-detail-btn" onclick="toggleIssueDetail('${detailId}', this)">Why this? ▾</button>` : ''}
+        <button class="today-issue-stats-btn" onclick="toggleTodayLayer('stats')">View stats →</button>
+      </div>
+      ${issue.deeper ? `<div class="today-issue-detail" id="${detailId}">${escapeHtml(issue.deeper)}</div>` : ''}
     </div>`;
 }
 
@@ -1243,6 +1351,220 @@ function _renderDrillHistoryCard() {
       ${drills.length ? '<div class="today-drill-sep"></div>' : ''}
       ${recentHtml}
     </div>`;
+}
+
+// ── Coach / Stats layer toggle ────────────────────────────────────────────
+
+function toggleTodayLayer(mode) {
+  const wrap = document.getElementById('today-content');
+  if (!wrap) return;
+  const isStats = mode === 'stats';
+  wrap.classList.toggle('today-mode-stats', isStats);
+  wrap.querySelectorAll('.today-layer-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.classList.contains('today-layer-' + mode));
+  });
+  if (isStats) requestAnimationFrame(() => requestAnimationFrame(() => _drawTodayTrendChart()));
+}
+
+// ── Trend chart ───────────────────────────────────────────────────────────
+
+function _issueToDrillCategory(issue) {
+  if (!issue) return '';
+  if (issue.type === 'putting') return 'putting';
+  if (issue.club === 'driver') return 'driver';
+  if (['pw','sw','58','60','gw','aw'].includes(issue.club)) return 'wedges';
+  if (['chip_chunk','chip_blade','chip_distance_unstable'].includes(issue.key)) return 'short';
+  return 'irons';
+}
+
+function _renderTrendCard(issue) {
+  return `
+    <div class="today-trend-card" id="today-trend-card">
+      <div class="today-trend-header">
+        <div class="today-trend-label">${escapeHtml(issue.clubName)} · trend</div>
+        <div class="today-trend-metric-label" id="today-trend-metric-label"></div>
+      </div>
+      <canvas id="today-trend-canvas" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-top:8px;"></canvas>
+      <div class="today-trend-footer" id="today-trend-footer"></div>
+    </div>`;
+}
+
+function _groupBySession(shots, club) {
+  const CA = window.clubAliases;
+  const filtered = club && CA
+    ? shots.filter(s => CA.shotMatchesClub(s, club) && !s._isManual)
+    : shots.filter(s => !s._isManual);
+  const map = {};
+  filtered.forEach(s => {
+    const d = (s.shot_time || s.created_at || '').substring(0, 10);
+    if (!d) return;
+    if (!map[d]) map[d] = [];
+    map[d].push(s);
+  });
+  return Object.entries(map)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-10);
+}
+
+function _drawTodayTrendChart() {
+  if (!_trendIssue || !_trendShots) return;
+  const canvas = document.getElementById('today-trend-canvas');
+  const card   = document.getElementById('today-trend-card');
+  if (!canvas || !card) return;
+
+  const issue    = _trendIssue;
+  const sessions = _groupBySession(_trendShots, issue.club);
+
+  let points = [], goalLine = null, metricLabel = '', lowerBetter = true;
+
+  if (issue.type === 'direction') {
+    points = sessions.map(([d, sh]) => {
+      const vals = sh.filter(s => s.face_angle != null).map(s => Math.abs(s.face_angle));
+      return vals.length >= 2 ? { date: d, v: statAvg(vals) } : null;
+    }).filter(Boolean);
+    goalLine = 2; metricLabel = '|Face angle| °'; lowerBetter = true;
+
+  } else if (issue.type === 'contact') {
+    points = sessions.map(([d, sh]) => {
+      const vals = sh.filter(s => s.smash_factor > 0.5 && s.smash_factor < 2).map(s => s.smash_factor);
+      return vals.length >= 2 ? { date: d, v: statAvg(vals) } : null;
+    }).filter(Boolean);
+    goalLine = 1.32; metricLabel = 'Smash factor avg'; lowerBetter = false;
+
+  } else if (issue.type === 'consistency') {
+    points = sessions.map(([d, sh]) => {
+      const vals = sh.filter(s => s.carry > 0 && s.is_full_shot).map(s => s.carry);
+      return vals.length >= 3 ? { date: d, v: statStdDev(vals) } : null;
+    }).filter(Boolean);
+    const isWedge = ['pw','sw','58','60','gw','aw'].includes(issue.club);
+    goalLine = issue.club === 'driver' ? 15 : isWedge ? 8 : 10;
+    metricLabel = 'Carry SD (m)'; lowerBetter = true;
+
+  } else {
+    card.style.display = 'none'; return;
+  }
+
+  if (points.length < 3) { card.style.display = 'none'; return; }
+
+  const metricEl = document.getElementById('today-trend-metric-label');
+  if (metricEl) metricEl.textContent = metricLabel;
+
+  const latest = points[points.length - 1].v;
+  const isImproving = lowerBetter ? latest < points[0].v : latest > points[0].v;
+  const footerEl = document.getElementById('today-trend-footer');
+  if (footerEl) {
+    footerEl.innerHTML = `
+      <span class="today-trend-dir${isImproving ? ' today-trend-up' : ''}">${isImproving ? '↑ Improving' : '→ Stable'}</span>
+      ${goalLine != null ? `<span class="today-trend-goal-text">Goal: ${goalLine}</span>` : ''}`;
+  }
+
+  const isLight = document.body.classList.contains('light-theme');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.offsetWidth;
+  const h = 110;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  ctx.fillStyle = isLight ? '#e3ddd5' : '#161819';
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = { top:10, right:16, bottom:22, left:34 };
+  const pw = w - pad.left - pad.right;
+  const ph = h - pad.top - pad.bottom;
+
+  const vals    = points.map(p => p.v);
+  const allV    = goalLine != null ? [...vals, goalLine] : vals;
+  const spread  = (Math.max(...allV) - Math.min(...allV)) || 1;
+  const lo = Math.min(...allV) - spread * 0.15;
+  const hi = Math.max(...allV) + spread * 0.15;
+  const range = hi - lo;
+
+  const xOf = i => pad.left + (i / (points.length - 1)) * pw;
+  const yOf = v => pad.top + ph - ((v - lo) / range) * ph;
+
+  if (goalLine != null) {
+    const gy = yOf(goalLine);
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(0,214,143,.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + pw, gy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = isLight ? 'rgba(0,150,100,.7)' : 'rgba(0,214,143,.6)';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('goal', pad.left + pw, gy - 3);
+  }
+
+  const lineClr = isImproving
+    ? (isLight ? 'rgba(0,160,100,.9)' : 'rgba(0,214,143,.9)')
+    : (isLight ? 'rgba(190,120,0,.9)'  : 'rgba(255,170,0,.9)');
+
+  ctx.beginPath();
+  points.forEach((p, i) => { i === 0 ? ctx.moveTo(xOf(i), yOf(p.v)) : ctx.lineTo(xOf(i), yOf(p.v)); });
+  ctx.strokeStyle = lineClr;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  points.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(xOf(i), yOf(p.v), 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = lineClr;
+    ctx.fill();
+  });
+
+  const textClr = isLight ? 'rgba(70,65,60,.5)' : 'rgba(138,144,153,.5)';
+  ctx.fillStyle = textClr; ctx.font = '9px monospace'; ctx.textAlign = 'right';
+  ctx.fillText(Math.max(...vals).toFixed(1), pad.left - 3, pad.top + 9);
+  ctx.fillText(Math.min(...vals).toFixed(1), pad.left - 3, h - pad.bottom + 4);
+  ctx.textAlign = 'center'; ctx.fillStyle = textClr; ctx.font = '8px monospace';
+  [0, points.length - 1].forEach(i => ctx.fillText(points[i].date.substring(5), xOf(i), h - 4));
+}
+
+// ── Drill catalog ──────────────────────────────────────────────────────────
+
+function openDrillCatalog(category) {
+  const overlay = document.getElementById('drill-catalog-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  const cats = ['all','driver','irons','wedges','short','putting'];
+  const catLabels = { all:'All', driver:'Driver', irons:'Irons', wedges:'Wedges', short:'Short game', putting:'Putting' };
+  const active = category || 'all';
+  overlay.innerHTML = `
+    <div class="drill-catalog-backdrop" onclick="closeDrillCatalog()"></div>
+    <div class="drill-catalog-sheet">
+      <div class="drill-catalog-header">
+        <div class="drill-catalog-title">Drill library</div>
+        <button class="drill-catalog-close" onclick="closeDrillCatalog()">✕</button>
+      </div>
+      <div class="drill-catalog-filters">
+        ${cats.map(c => `<button class="drill-cat-btn${active===c?' active':''}" onclick="openDrillCatalog('${c==='all'?'':c}')">${catLabels[c]}</button>`).join('')}
+      </div>
+      <div class="drill-catalog-list">${_renderDrillItems(category)}</div>
+    </div>`;
+}
+
+function _renderDrillItems(category) {
+  const items = category ? DRILL_CATALOG.filter(d => d.category === category) : DRILL_CATALOG;
+  if (!items.length) return '<div style="padding:20px;text-align:center;color:var(--text2);font-size:13px;">No drills in this category yet.</div>';
+  return items.map(d => `
+    <div class="drill-item">
+      <div class="drill-item-top">
+        <div class="drill-item-name">${escapeHtml(d.name)}</div>
+        <div class="drill-item-meta">${d.balls} balls · ${d.min} min</div>
+      </div>
+      <div class="drill-item-issue">For: ${escapeHtml(d.issue)}</div>
+      <div class="drill-item-desc">${escapeHtml(d.desc)}</div>
+      <div class="drill-item-cue">Cue — <em>${escapeHtml(d.cue)}</em></div>
+    </div>`).join('');
+}
+
+function closeDrillCatalog() {
+  const overlay = document.getElementById('drill-catalog-overlay');
+  if (overlay) overlay.style.display = 'none';
 }
 
 // ── Glossary overlay (Feature 6) ──────────────────────────────────────────
