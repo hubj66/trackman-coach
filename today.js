@@ -362,14 +362,15 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
   }
 
   return `
+    ${_renderCoachSummaryCard(mainIssue, watchItem)}
+    ${_renderWhatImprovedCard(improved, fixedIssues)}
     ${health.length ? _renderHealthTiles(health) : ''}
-    ${fixedIssues.length ? _renderFixedCard(fixedIssues[0]) : ''}
     ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
     ${_renderClubPicker(mainIssue?.club || null)}
     <div id="today-plan-section">
       ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
     </div>
-    ${(improved || regression) ? _renderProgressCards(improved, regression) : ''}
+    ${regression ? _renderRegressionCard(regression) : ''}
     ${watchItem ? _renderWatchCard(watchItem) : ''}
     <div class="today-section-label" style="margin-top:16px;">Quick log</div>
     <div class="today-quick-log-row">
@@ -431,15 +432,17 @@ let _todayActivePlanIssue = null;
 
 function _renderTrainTodayCard(issue) {
   _todayActivePlanIssue = issue;
-  const dur   = issue.durationMin || 40;
-  const short = Math.max(dur - 15, 20);
-  const blocks = _buildPlanBlocks(issue, dur);
+  const dur    = issue.durationMin || 40;
+  const short  = Math.max(dur - 15, 20);
+  const phase  = _detectPracticePhase(issue);
+  const blocks = _buildPlanBlocks(issue, dur, phase);
+  const phaseLabel = phase === 'transfer' ? 'Transfer' : 'Technical';
 
   return `
     <div class="today-plan-card">
       <div class="today-plan-header">
         <div>
-          <div class="today-plan-label">Train today</div>
+          <div class="today-plan-label">Train today · <span class="today-plan-phase-badge today-plan-phase-${phase}">${phaseLabel}</span></div>
           <div class="today-plan-title">${escapeHtml(issue.clubName)} · ${dur} min</div>
         </div>
         <div class="today-plan-duration">${dur}<span>min</span></div>
@@ -465,10 +468,11 @@ function _renderTrainTodayCard(issue) {
     </div>`;
 }
 
-function _buildPlanBlocks(issue, dur) {
+function _buildPlanBlocks(issue, dur, phase = 'technical') {
+  const isTransfer = phase === 'transfer';
   const warmup   = 5;
-  const drill    = Math.round((dur - 15) * 0.55);
-  const transfer = Math.round((dur - 15) * 0.30);
+  const drill    = Math.round((dur - 15) * (isTransfer ? 0.30 : 0.55));
+  const transfer = Math.round((dur - 15) * (isTransfer ? 0.50 : 0.30));
   const pressure = dur - warmup - drill - transfer;
   let t = 0;
   const bl = (name, min, desc) => {
@@ -476,10 +480,19 @@ function _buildPlanBlocks(issue, dur) {
     t += min;
     return b;
   };
+  const goalFocus = (issue.goal || '').split('·')[0].trim().toLowerCase() || issue.goal;
+  if (isTransfer) {
+    return [
+      bl('Warm-up',  warmup,   '9-iron and 7-iron. Loosen up, no pressure.'),
+      bl('Drill',    drill,    `${issue.drill} — blocked sets of 5.`),
+      bl('Transfer', transfer, `Normal routine every shot. Vary targets. Focus: ${goalFocus}.`),
+      bl('Pressure', pressure, '10-ball test. Full routine each shot. Log the final result.'),
+    ];
+  }
   return [
     bl('Warm-up',  warmup,   '9-iron and 7-iron. Loosen up, no pressure.'),
     bl('Drill',    drill,    issue.drill),
-    bl('Transfer', transfer, `Pick one target. Normal routine. Focus: ${(issue.goal||'').split('·')[0].trim().toLowerCase() || issue.goal}.`),
+    bl('Transfer', transfer, `Pick one target. Normal routine. Focus: ${goalFocus}.`),
     bl('Pressure', pressure, '10-ball test. No swing thoughts. Log the final result.'),
   ];
 }
@@ -646,7 +659,7 @@ function submitSessionReview() {
     </div>`;
 }
 
-// ── "You fixed this" card ─────────────────────────────────────────────────
+// ── "You fixed this" card (kept for backward compat) ─────────────────────
 
 function _renderFixedCard(fixed) {
   return `
@@ -657,4 +670,188 @@ function _renderFixedCard(fixed) {
         <div class="today-fixed-text">${escapeHtml(fixed.simple)} is no longer showing as an issue.</div>
       </div>
     </div>`;
+}
+
+// ── Regression card ───────────────────────────────────────────────────────
+
+function _renderRegressionCard(regression) {
+  if (!regression) return '';
+  return `
+    <div class="today-regression-card">
+      <div class="today-regression-label">Watch this</div>
+      <div class="today-regression-text">${escapeHtml(regression.text)}</div>
+    </div>`;
+}
+
+// ── Practice phase detection ──────────────────────────────────────────────
+
+function _detectPracticePhase(issue) {
+  if (!issue || !_todayAllShots || _todayAllShots.length < 20) return 'technical';
+  const CA = window.clubAliases;
+  if (!CA) return 'technical';
+
+  const clubShots = _todayAllShots.filter(s => CA.shotMatchesClub(s, issue.club));
+  if (clubShots.length < 20) return 'technical';
+
+  const recent = clubShots.slice(0, 10);
+  const prev   = clubShots.slice(10, 20);
+
+  if (issue.type === 'direction') {
+    const rFaces = recent.map(s => s.face_angle).filter(x => x != null);
+    const pFaces = prev.map(s => s.face_angle).filter(x => x != null);
+    if (rFaces.length >= 5 && pFaces.length >= 5) {
+      const rAbs = Math.abs(statAvg(rFaces) || 0);
+      const pAbs = Math.abs(statAvg(pFaces) || 0);
+      if (pAbs - rAbs > 0.8) return 'transfer';
+    }
+  } else if (issue.type === 'consistency') {
+    const rSD = statStdDev(recent.map(s => s.carry).filter(Boolean));
+    const pSD = statStdDev(prev.map(s => s.carry).filter(Boolean));
+    if (rSD != null && pSD != null && pSD - rSD > 2) return 'transfer';
+  } else if (issue.type === 'contact') {
+    const rSmash = statAvg(recent.map(s => s.smash_factor).filter(Boolean));
+    const pSmash = statAvg(prev.map(s => s.smash_factor).filter(Boolean));
+    if (rSmash != null && pSmash != null && rSmash - pSmash > 0.02) return 'transfer';
+  }
+
+  return 'technical';
+}
+
+// ── Coach summary card (Feature 3) ───────────────────────────────────────
+
+function _renderCoachSummaryCard(mainIssue, watchItem) {
+  const phase      = mainIssue ? _detectPracticePhase(mainIssue) : null;
+  const isTransfer = phase === 'transfer';
+
+  if (!mainIssue) {
+    return `
+      <div class="today-coach-card today-coach-good">
+        <div class="today-coach-eyebrow">Coach</div>
+        <div class="today-coach-headline">Looking solid right now</div>
+        <div class="today-coach-body">No major issue stands out from your recent shots. Keep logging to build a clearer picture — consistency improvements will show here first.</div>
+      </div>`;
+  }
+
+  const phaseLabel = isTransfer ? 'Transfer phase' : 'Technical phase';
+  const phaseDesc  = isTransfer
+    ? 'You\'re improving — take this to normal play conditions. Use your routine, vary targets.'
+    : 'Repetition first. Drill it before taking it to targets.';
+
+  const ignoreText = watchItem
+    ? watchItem.simple.split('—')[0].replace(/[—–]/g, '').trim()
+    : null;
+
+  return `
+    <div class="today-coach-card">
+      <div class="today-coach-top-row">
+        <div class="today-coach-eyebrow">Coach</div>
+        <button class="today-coach-practice-btn" onclick="openPrePracticeMode()">Practice mode →</button>
+      </div>
+      <div class="today-coach-headline">${escapeHtml(mainIssue.simple)}</div>
+      <div class="today-coach-body">${escapeHtml(mainIssue.deeper || 'Work on this before anything else.')}</div>
+      <div class="today-coach-divider"></div>
+      <div class="today-coach-phase-row">
+        <span class="today-coach-phase-badge today-coach-phase-${isTransfer ? 'transfer' : 'technical'}">${phaseLabel}</span>
+        <span class="today-coach-phase-desc">${escapeHtml(phaseDesc)}</span>
+      </div>
+      ${ignoreText ? `<div class="today-coach-ignore">Set aside for now: <em>${escapeHtml(ignoreText)}</em></div>` : ''}
+    </div>`;
+}
+
+// ── What improved card (Feature 10) ──────────────────────────────────────
+
+function _buildImprovedMessage(rawText) {
+  const spreadMatch = rawText.match(/(\S+) carry spread improved.*?±(\d+)m.*?±(\d+)m/);
+  if (spreadMatch) {
+    return `${spreadMatch[1]} distances are getting more reliable — spread dropped from ±${spreadMatch[2]}m to ±${spreadMatch[3]}m. More consistent carry means more confident club selection.`;
+  }
+  if (rawText.includes('carry spread')) {
+    return 'Carry distances are getting more consistent. That\'s a real improvement under pressure.';
+  }
+  if (rawText.includes('face angle')) {
+    return 'Start line is tightening up — the ball is launching closer to your target more often. Face control is clicking.';
+  }
+  return rawText;
+}
+
+function _renderWhatImprovedCard(improved, fixedIssues) {
+  const hasFixed = fixedIssues && fixedIssues.length > 0;
+  if (!improved && !hasFixed) return '';
+
+  if (hasFixed) {
+    return `
+      <div class="today-improved-card">
+        <div class="today-improved-icon">🎯</div>
+        <div class="today-improved-content">
+          <div class="today-improved-label">Fixed!</div>
+          <div class="today-improved-headline">${escapeHtml(fixedIssues[0].simple)} is no longer your main issue.</div>
+          <div class="today-improved-sub">Keep it going — shift focus to what's next.</div>
+        </div>
+      </div>`;
+  }
+
+  const msg = _buildImprovedMessage(improved.text);
+  return `
+    <div class="today-improved-card">
+      <div class="today-improved-icon">↑</div>
+      <div class="today-improved-content">
+        <div class="today-improved-label">Getting better</div>
+        <div class="today-improved-headline">${escapeHtml(msg)}</div>
+        <div class="today-improved-raw">${escapeHtml(improved.text)}</div>
+      </div>
+    </div>`;
+}
+
+// ── Pre-practice mode (Feature 5) ────────────────────────────────────────
+
+function openPrePracticeMode() {
+  const issue = _todayActivePlanIssue;
+  if (!issue) { showToast('Open a practice plan below first'); return; }
+
+  const overlay = document.getElementById('prepractice-overlay');
+  if (!overlay) return;
+
+  const phase      = _detectPracticePhase(issue);
+  const isTransfer = phase === 'transfer';
+  const drillText  = isTransfer
+    ? `${issue.drill} — vary targets each rep, use your full routine.`
+    : issue.drill;
+
+  overlay.innerHTML = `
+    <div class="prepractice-panel">
+      <div class="prepractice-topbar">
+        <button class="prepractice-back-btn" onclick="closePrePracticeMode()">← Today</button>
+        <div class="prepractice-topbar-label">Practice mode</div>
+      </div>
+      <div class="prepractice-body">
+        <div class="prepractice-eyebrow">Today's focus</div>
+        <div class="prepractice-headline">${escapeHtml(issue.simple)}</div>
+
+        <div class="prepractice-block">
+          <div class="prepractice-block-label">Your drill</div>
+          <div class="prepractice-block-text">${escapeHtml(drillText)}</div>
+        </div>
+
+        <div class="prepractice-block">
+          <div class="prepractice-block-label">Done when</div>
+          <div class="prepractice-block-text prepractice-goal">${escapeHtml(issue.goal)}</div>
+        </div>
+
+        ${isTransfer ? `<div class="prepractice-phase-note">Transfer phase — normal routine every shot, vary targets</div>` : ''}
+
+        <button class="prepractice-start-btn" onclick="showPage('analysis');closePrePracticeMode()">Open Trackman tab →</button>
+      </div>
+      <div class="prepractice-footer">
+        <button class="prepractice-log-btn" onclick="closePrePracticeMode();setTimeout(openSessionReview,150)">Done — log session result</button>
+      </div>
+    </div>`;
+
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closePrePracticeMode() {
+  const overlay = document.getElementById('prepractice-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
 }

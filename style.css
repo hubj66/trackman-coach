@@ -599,6 +599,67 @@ body.light-theme .today-club-btn.on{color:#fff}
 .today-fixed-text{font-size:13px;color:var(--text2);line-height:1.4}
 
 /* Light theme overrides for today */
+/* ── Coach summary card (Feature 3) ─────────────────────────────────────── */
+.today-coach-card{background:var(--surface);border:0.5px solid rgba(0,214,143,.25);border-radius:16px;padding:18px 16px 14px;margin-bottom:12px;position:relative;overflow:hidden}
+.today-coach-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--green);border-radius:2px 0 0 2px}
+.today-coach-good::before{background:var(--green)}
+.today-coach-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.today-coach-eyebrow{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--green)}
+.today-coach-practice-btn{background:var(--green);color:#0e1012;border:none;border-radius:8px;padding:6px 12px;font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.03em;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.today-coach-practice-btn:active{opacity:.8}
+.today-coach-good .today-coach-eyebrow{color:var(--green)}
+.today-coach-headline{font-family:var(--cond);font-size:19px;font-weight:700;color:var(--text);line-height:1.25;margin-bottom:8px}
+.today-coach-body{font-size:13px;color:var(--text2);line-height:1.55}
+.today-coach-divider{height:0.5px;background:var(--border);margin:12px 0}
+.today-coach-phase-row{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.today-coach-phase-badge{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0}
+.today-coach-phase-technical{background:rgba(255,170,0,.15);color:var(--amber)}
+.today-coach-phase-transfer{background:rgba(0,214,143,.15);color:var(--green)}
+.today-coach-phase-desc{font-size:12px;color:var(--text2);padding-top:2px;line-height:1.4}
+.today-coach-ignore{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:8px}
+.today-coach-ignore em{color:var(--text2);font-style:normal}
+
+/* ── What improved card (Feature 10) ────────────────────────────────────── */
+.today-improved-card{display:flex;align-items:flex-start;gap:12px;background:rgba(0,214,143,.07);border:0.5px solid rgba(0,214,143,.28);border-radius:13px;padding:13px 14px;margin-bottom:12px}
+.today-improved-icon{font-size:22px;flex-shrink:0;margin-top:1px;font-family:var(--mono);color:var(--green)}
+.today-improved-content{flex:1;min-width:0}
+.today-improved-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--green);margin-bottom:4px}
+.today-improved-headline{font-size:13px;color:var(--text);line-height:1.5;margin-bottom:4px}
+.today-improved-sub{font-size:12px;color:var(--text2)}
+.today-improved-raw{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px}
+
+/* ── Regression card ─────────────────────────────────────────────────────── */
+.today-regression-card{background:var(--surface);border:0.5px solid rgba(255,170,0,.25);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.today-regression-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--amber);margin-bottom:4px}
+.today-regression-text{font-size:13px;color:var(--text)}
+
+/* ── Plan card phase badge ────────────────────────────────────────────────── */
+.today-plan-phase-badge{font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;vertical-align:middle;margin-left:2px}
+.today-plan-phase-technical{background:rgba(255,170,0,.15);color:var(--amber)}
+.today-plan-phase-transfer{background:rgba(0,214,143,.15);color:var(--green)}
+
+/* ── Pre-practice overlay (Feature 5) ────────────────────────────────────── */
+.prepractice-overlay{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:stretch;overflow:hidden}
+.prepractice-panel{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;width:100%}
+.prepractice-topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.prepractice-back-btn{background:none;border:none;color:var(--text2);font-size:14px;font-family:var(--cond);font-weight:700;cursor:pointer;padding:4px 0;letter-spacing:.02em}
+.prepractice-topbar-label{font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.prepractice-body{flex:1;overflow-y:auto;padding:24px 20px 16px;display:flex;flex-direction:column;gap:0}
+.prepractice-eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--green);margin-bottom:6px}
+.prepractice-headline{font-family:var(--cond);font-size:22px;font-weight:700;color:var(--text);line-height:1.25;margin-bottom:24px}
+.prepractice-block{margin-bottom:20px}
+.prepractice-block-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px}
+.prepractice-block-text{font-size:15px;color:var(--text);line-height:1.5}
+.prepractice-goal{font-family:var(--mono);font-size:13px;color:var(--green);background:var(--green-dim);border-radius:8px;padding:8px 12px}
+.prepractice-phase-note{font-family:var(--mono);font-size:11px;color:var(--amber);background:rgba(255,170,0,.1);border-radius:8px;padding:8px 12px;margin-bottom:20px}
+.prepractice-start-btn{width:100%;background:var(--green);color:#0e1012;border:none;border-radius:12px;padding:15px 20px;font-family:var(--cond);font-size:16px;font-weight:700;letter-spacing:.04em;cursor:pointer;margin-top:auto;transition:opacity .15s}
+.prepractice-start-btn:active{opacity:.85}
+.prepractice-footer{padding:12px 20px calc(20px + var(--safe-bottom));border-top:0.5px solid var(--border);flex-shrink:0}
+.prepractice-log-btn{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:10px;padding:12px;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer}
+body.light-theme .prepractice-overlay{background:var(--bg)}
+body.light-theme .prepractice-start-btn{color:#fff}
+body.light-theme .today-coach-practice-btn{color:#fff}
+
 body.light-theme .today-health-tile{background:var(--surface)}
 body.light-theme .today-issue-card,body.light-theme .today-plan-card,body.light-theme .today-progress-card,body.light-theme .today-watch-card{background:var(--surface)}
 body.light-theme .today-plan-start-btn{color:#fff}
