@@ -66,7 +66,7 @@ async function initTodayTab() {
   const el = document.getElementById('today-content');
   if (!el) return;
 
-  el.innerHTML = '<div class="today-loading">Loading your coaching summary…</div>';
+  el.innerHTML = '<div class="today-loading"><div class="today-loading-spinner"></div>Loading your coaching summary…</div>';
 
   const sb = window.supabaseClient;
   const { data: authData } = await sb.auth.getSession();
@@ -127,7 +127,7 @@ async function initTodayTab() {
 // ── Issue detection ────────────────────────────────────────────────────────
 
 function _confLabel(conf) {
-  return conf < 0.4 ? 'Hint' : conf < 0.7 ? 'Likely' : 'Confirmed';
+  return conf < 0.4 ? 'Emerging' : conf < 0.7 ? 'Likely' : 'Confirmed';
 }
 
 function _detectTodayIssues(allShots, puttSessions) {
@@ -412,20 +412,11 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
   const manualClubArg = mainIssue ? `'${mainIssue.club}'` : 'null';
   return `
     ${_renderCoachSummaryCard(mainIssue, watchItem)}
-    ${_renderWhatImprovedCard(improved, fixedIssues)}
-    ${health.length ? _renderHealthTiles(health) : ''}
-    ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
-    ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
-    ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
-    ${_renderClubPicker(mainIssue?.club || null)}
     <div id="today-plan-section">
       ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
     </div>
-    ${regression ? _renderRegressionCard(regression) : ''}
-    ${watchItem ? _renderWatchCard(watchItem) : ''}
-    ${_renderDrillHistoryCard()}
-    <div class="today-section-label" style="margin-top:16px;">Quick log</div>
-    <div class="today-quick-log-row">
+    <div class="today-section-label" style="margin-top:4px;">Quick log</div>
+    <div class="today-quick-log-row" style="margin-bottom:20px;">
       <button class="today-log-btn" onclick="showPage('analysis')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Trackman
@@ -442,7 +433,16 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Manual
       </button>
-    </div>`;
+    </div>
+    ${_renderWhatImprovedCard(improved, fixedIssues)}
+    ${health.length ? _renderHealthTiles(health) : ''}
+    ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
+    ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
+    ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
+    ${_renderClubPicker(mainIssue?.club || null)}
+    ${regression ? _renderRegressionCard(regression) : ''}
+    ${watchItem ? _renderWatchCard(watchItem) : ''}
+    ${_renderDrillHistoryCard()}`;
 }
 
 function _renderHealthTiles(tiles) {

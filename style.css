@@ -526,7 +526,9 @@ body.light-theme .today-club-btn.on{color:#fff}
 .today-empty-text{font-size:14px;color:var(--text2);max-width:280px;line-height:1.5}
 .today-login-btn{background:var(--green);color:#0e1012;border:none;border-radius:10px;padding:12px 24px;font-family:var(--cond);font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
 body.light-theme .today-login-btn{color:#fff}
-.today-loading{text-align:center;padding:60px 24px;font-size:13px;color:var(--text3);font-family:var(--mono)}
+.today-loading{display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 24px;font-size:13px;color:var(--text3);font-family:var(--mono);gap:12px}
+.today-loading-spinner{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:today-spin .7s linear infinite;flex-shrink:0}
+@keyframes today-spin{to{transform:rotate(360deg)}}
 
 /* ══ CONSISTENCY / DIRECTION ACCORDIONS ════════════════════════════════════ */
 .consist-list{display:flex;flex-direction:column;gap:0}
@@ -571,7 +573,7 @@ body.light-theme .today-login-btn{color:#fff}
 .today-issue-conf-hint{background:rgba(255,170,0,0.15);color:var(--amber)}
 .today-issue-conf-likely{background:rgba(0,214,143,0.12);color:var(--green)}
 .today-issue-conf-confirmed{background:rgba(0,214,143,0.22);color:var(--green);font-weight:700}
-.today-issue-detail-btn{background:none;border:none;color:var(--text3);font-size:11px;padding:4px 0;cursor:pointer;text-align:left;margin-top:4px;display:block}
+.today-issue-detail-btn{background:none;border:none;color:var(--text3);font-size:12px;padding:6px 0;min-height:32px;cursor:pointer;text-align:left;margin-top:4px;display:flex;align-items:center}
 .today-issue-detail{display:none;font-size:12px;color:var(--text2);line-height:1.5;margin-top:6px;padding:10px 12px;background:var(--surface2);border-radius:8px;border-left:2px solid var(--green)}
 .today-issue-detail.open{display:block}
 
@@ -765,6 +767,6 @@ body.light-theme .manual-log-club-btn.on,body.light-theme .manual-log-opt.on{col
 body.light-theme .glossary-sheet{background:var(--surface)}
 
 /* ── Glossary trigger button ─────────────────────────────────────────────── */
-.gloss-btn{background:rgba(255,255,255,.07);border:0.5px solid rgba(255,255,255,.11);border-radius:10px;color:var(--text3);font-family:var(--mono);font-size:9px;font-weight:700;padding:1px 5px;cursor:pointer;margin-left:4px;line-height:1.5;vertical-align:middle;transition:background .1s}
+.gloss-btn{background:rgba(255,255,255,.07);border:0.5px solid rgba(255,255,255,.11);border-radius:10px;color:var(--text3);font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 7px;min-height:24px;cursor:pointer;margin-left:4px;line-height:1.5;vertical-align:middle;transition:background .1s}
 .gloss-btn:active{background:rgba(255,255,255,.16)}
 body.light-theme .gloss-btn{background:rgba(0,0,0,.06);border-color:rgba(0,0,0,.1);color:var(--text3)}
