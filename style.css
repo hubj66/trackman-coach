@@ -667,3 +667,65 @@ body.light-theme .today-review-form,body.light-theme .today-review-result{backgr
 body.light-theme .today-review-opt.selected{color:#fff}
 body.light-theme .dir-miss-center{color:#fff}
 body.light-theme .dist-summary{background:var(--surface2)}
+
+/* ── Shot pattern card (Feature 7) ────────────────────────────────────────── */
+.today-pattern-card{background:var(--surface);border:0.5px solid var(--border);border-radius:13px;padding:13px 14px;margin-bottom:10px}
+.today-pattern-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.today-pattern-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.today-pattern-n{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.today-pattern-strip{display:flex;gap:2px;border-radius:6px;overflow:hidden;height:46px;margin-bottom:8px}
+.today-pattern-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0}
+.today-pattern-zone-label{font-size:10px;font-weight:600;opacity:.8;white-space:nowrap}
+.today-pattern-zone-pct{font-family:var(--mono);font-size:12px;font-weight:700}
+.today-pattern-left{background:rgba(255,80,80,.22);color:var(--red)}
+.today-pattern-center{background:rgba(0,214,143,.2);color:var(--green)}
+.today-pattern-right{background:rgba(255,80,80,.22);color:var(--red)}
+.today-pattern-stats{display:flex;gap:8px;font-family:var(--mono);font-size:10px;color:var(--text3)}
+.today-pattern-good{color:var(--green)}
+.today-pattern-ok{color:var(--amber)}
+.today-pattern-bad{color:var(--red)}
+.today-pattern-carry-row{display:flex;gap:6px;margin:4px 0}
+.today-pattern-carry-stat{flex:1;text-align:center;background:var(--surface2);border-radius:8px;padding:8px 4px}
+.today-pattern-carry-val{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--text)}
+.today-pattern-carry-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* ── Stats progress card (Feature 2) ─────────────────────────────────────── */
+.today-stats-card{background:var(--surface);border:0.5px solid var(--border);border-radius:13px;padding:13px 14px;margin-bottom:10px}
+.today-stats-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px}
+.today-stats-tiles{display:flex;gap:6px}
+.today-stat-tile{flex:1;background:var(--surface2);border-radius:10px;padding:10px 8px;text-align:center;min-width:0}
+.today-stat-value{font-family:var(--mono);font-size:16px;font-weight:700;line-height:1;margin-bottom:3px;white-space:nowrap}
+.today-stat-green{color:var(--green)}
+.today-stat-amber{color:var(--amber)}
+.today-stat-trend{font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.today-stat-trend-good{color:var(--green)}
+.today-stat-name{font-size:10px;color:var(--text3)}
+
+/* ── Confidence badge in coach card (Feature 8) ───────────────────────────── */
+.today-coach-eyebrow-group{display:flex;flex-direction:column;gap:3px}
+.today-coach-conf{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;align-self:flex-start}
+.today-coach-conf-hint{background:rgba(255,170,0,.12);color:var(--amber)}
+.today-coach-conf-likely{background:rgba(0,170,255,.12);color:#4db8ff}
+.today-coach-conf-confirmed{background:rgba(0,214,143,.12);color:var(--green)}
+.today-coach-lowconf{font-family:var(--mono);font-size:10px;color:var(--amber);background:rgba(255,170,0,.1);border-radius:6px;padding:5px 8px;margin-bottom:8px}
+
+/* ── Manual shot log (Feature 9) ─────────────────────────────────────────── */
+.manual-log-overlay{position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;justify-content:flex-end}
+.manual-log-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.manual-log-sheet{position:relative;background:var(--surface);border-radius:20px 20px 0 0;max-height:85vh;overflow-y:auto;z-index:1}
+.manual-log-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px}
+.manual-log-title{font-family:var(--cond);font-size:18px;font-weight:700;color:var(--text)}
+.manual-log-close{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px;line-height:1}
+.manual-log-body{padding:4px 20px calc(24px + var(--safe-bottom, 0px))}
+.manual-log-section-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px;margin-top:18px}
+.manual-log-club-row{display:flex;gap:6px;flex-wrap:wrap}
+.manual-log-club-btn{padding:7px 12px;border-radius:8px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;transition:background .1s,color .1s}
+.manual-log-club-btn.on{background:var(--green);color:#0e1012;border-color:var(--green)}
+.manual-log-opts{display:flex;gap:6px}
+.manual-log-opt{flex:1;padding:11px 4px;border-radius:8px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;text-align:center;transition:background .1s,color .1s}
+.manual-log-opt.on{background:var(--green);color:#0e1012;border-color:var(--green)}
+.manual-log-save-btn{width:100%;background:var(--green);color:#0e1012;border:none;border-radius:12px;padding:14px;font-family:var(--cond);font-size:16px;font-weight:700;cursor:pointer;margin-top:22px;margin-bottom:10px;letter-spacing:.03em}
+.manual-log-hint{font-size:11px;color:var(--text3);text-align:center;line-height:1.4}
+body.light-theme .manual-log-sheet{background:var(--surface)}
+body.light-theme .manual-log-save-btn{color:#fff}
+body.light-theme .manual-log-club-btn.on,body.light-theme .manual-log-opt.on{color:#fff}

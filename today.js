@@ -49,7 +49,7 @@ async function initTodayTab() {
       .limit(20),
   ]);
 
-  const allShots = shots || [];
+  const allShots = _mergeManualShots(shots || []);
   const chipSessions = chips || [];
   const puttSessions = putts || [];
 
@@ -361,11 +361,14 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       </div>`;
   }
 
+  const manualClubArg = mainIssue ? `'${mainIssue.club}'` : 'null';
   return `
     ${_renderCoachSummaryCard(mainIssue, watchItem)}
     ${_renderWhatImprovedCard(improved, fixedIssues)}
     ${health.length ? _renderHealthTiles(health) : ''}
     ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
+    ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
+    ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
     ${_renderClubPicker(mainIssue?.club || null)}
     <div id="today-plan-section">
       ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
@@ -385,6 +388,10 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
         Putting
+      </button>
+      <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Manual
       </button>
     </div>`;
 }
@@ -741,12 +748,17 @@ function _renderCoachSummaryCard(mainIssue, watchItem) {
     ? watchItem.simple.split('—')[0].replace(/[—–]/g, '').trim()
     : null;
 
+  const confCls = mainIssue.conf < 0.4 ? 'hint' : mainIssue.conf < 0.7 ? 'likely' : 'confirmed';
   return `
     <div class="today-coach-card">
       <div class="today-coach-top-row">
-        <div class="today-coach-eyebrow">Coach</div>
+        <div class="today-coach-eyebrow-group">
+          <div class="today-coach-eyebrow">Coach</div>
+          ${mainIssue.confLabel ? `<span class="today-coach-conf today-coach-conf-${confCls}">${mainIssue.confLabel}${mainIssue.n ? ' · ' + mainIssue.n + ' shots' : ''}</span>` : ''}
+        </div>
         <button class="today-coach-practice-btn" onclick="openPrePracticeMode()">Practice mode →</button>
       </div>
+      ${mainIssue.lowConf ? `<div class="today-coach-lowconf">Log more shots to strengthen this signal</div>` : ''}
       <div class="today-coach-headline">${escapeHtml(mainIssue.simple)}</div>
       <div class="today-coach-body">${escapeHtml(mainIssue.deeper || 'Work on this before anything else.')}</div>
       <div class="today-coach-divider"></div>
@@ -854,4 +866,300 @@ function closePrePracticeMode() {
   const overlay = document.getElementById('prepractice-overlay');
   if (overlay) overlay.style.display = 'none';
   document.body.style.overflow = '';
+}
+
+// ── Shot pattern card (Feature 7) ─────────────────────────────────────────
+
+function _renderShotPatternCard(mainIssue) {
+  if (!mainIssue || mainIssue.type === 'putting') return '';
+  const CA = window.clubAliases;
+  if (!CA) return '';
+
+  const clubShots = _todayAllShots
+    .filter(s => CA.shotMatchesClub(s, mainIssue.club))
+    .slice(0, 20);
+
+  if (mainIssue.type === 'direction' || mainIssue.type === 'contact') {
+    const faces = clubShots.map(s => s.face_angle).filter(x => x != null);
+    if (faces.length < 5) return '';
+
+    const left   = faces.filter(f => f < -1.5).length;
+    const center = faces.filter(f => Math.abs(f) <= 1.5).length;
+    const right  = faces.filter(f => f > 1.5).length;
+    const total  = faces.length;
+    const lPct   = Math.round(left   / total * 100);
+    const cPct   = Math.round(center / total * 100);
+    const rPct   = Math.round(right  / total * 100);
+    const avgF   = statAvg(faces);
+    const sdF    = statStdDev(faces);
+    const goodPct = cPct;
+
+    return `
+      <div class="today-pattern-card">
+        <div class="today-pattern-header">
+          <span class="today-pattern-label">Face pattern · ${escapeHtml(mainIssue.clubName)}</span>
+          <span class="today-pattern-n">${total} shots</span>
+        </div>
+        <div class="today-pattern-strip">
+          <div class="today-pattern-zone today-pattern-left" style="flex:${Math.max(lPct,5)}">
+            <span class="today-pattern-zone-label">Left</span>
+            <span class="today-pattern-zone-pct">${lPct}%</span>
+          </div>
+          <div class="today-pattern-zone today-pattern-center" style="flex:${Math.max(cPct,5)}">
+            <span class="today-pattern-zone-label">Square</span>
+            <span class="today-pattern-zone-pct">${cPct}%</span>
+          </div>
+          <div class="today-pattern-zone today-pattern-right" style="flex:${Math.max(rPct,5)}">
+            <span class="today-pattern-zone-label">Right</span>
+            <span class="today-pattern-zone-pct">${rPct}%</span>
+          </div>
+        </div>
+        <div class="today-pattern-stats">
+          <span>Avg face ${fSign(avgF,1)}°</span>
+          <span>·</span>
+          <span>SD ±${f(sdF,1)}°</span>
+          <span>·</span>
+          <span class="${goodPct>=50?'today-pattern-good':goodPct>=30?'today-pattern-ok':'today-pattern-bad'}">${goodPct}% square</span>
+        </div>
+      </div>`;
+  }
+
+  if (mainIssue.type === 'consistency') {
+    const carries = clubShots.map(s => s.carry).filter(Boolean);
+    if (carries.length < 5) return '';
+
+    const med   = statMedian(carries);
+    const sd    = statStdDev(carries);
+    const tgt   = ['pw','58','sw'].includes(mainIssue.club) ? 8 : 14;
+    const tight = carries.filter(c => Math.abs(c - med) <= tgt / 2).length;
+    const pct   = Math.round(tight / carries.length * 100);
+
+    return `
+      <div class="today-pattern-card">
+        <div class="today-pattern-header">
+          <span class="today-pattern-label">Distance spread · ${escapeHtml(mainIssue.clubName)}</span>
+          <span class="today-pattern-n">${carries.length} shots</span>
+        </div>
+        <div class="today-pattern-carry-row">
+          <div class="today-pattern-carry-stat">
+            <div class="today-pattern-carry-val">${f(med,0)}m</div>
+            <div class="today-pattern-carry-lbl">median carry</div>
+          </div>
+          <div class="today-pattern-carry-stat">
+            <div class="today-pattern-carry-val today-pattern-${sd>tgt?'bad':'good'}">±${f(sd,0)}m</div>
+            <div class="today-pattern-carry-lbl">spread (target &lt;${tgt}m)</div>
+          </div>
+          <div class="today-pattern-carry-stat">
+            <div class="today-pattern-carry-val today-pattern-${pct>=60?'good':pct>=40?'ok':'bad'}">${pct}%</div>
+            <div class="today-pattern-carry-lbl">within ±${Math.round(tgt/2)}m</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  return '';
+}
+
+// ── Stats progress card (Feature 2) ──────────────────────────────────────
+
+function _renderStatsProgressCard(mainIssue) {
+  if (!mainIssue || mainIssue.type === 'putting') return '';
+  const CA = window.clubAliases;
+  if (!CA) return '';
+
+  const clubShots = _todayAllShots.filter(s => CA.shotMatchesClub(s, mainIssue.club));
+  if (clubShots.length < 20) return '';
+
+  const recent = clubShots.slice(0, 10);
+  const prev   = clubShots.slice(10, 20);
+  const tiles  = [];
+
+  if (mainIssue.type === 'direction') {
+    const rF = recent.map(s => s.face_angle).filter(x => x != null);
+    const pF = prev.map(s => s.face_angle).filter(x => x != null);
+    if (rF.length < 4) return '';
+
+    const rAvg = statAvg(rF);
+    const pAvg = pF.length >= 4 ? statAvg(pF) : null;
+    const rSD  = statStdDev(rF);
+    const pSD  = pF.length >= 4 ? statStdDev(pF) : null;
+    const goodPct = Math.round(rF.filter(f => Math.abs(f) <= 2).length / rF.length * 100);
+    const prevGP  = pF.length >= 4 ? Math.round(pF.filter(f => Math.abs(f) <= 2).length / pF.length * 100) : null;
+    const improving = pAvg != null && Math.abs(rAvg) < Math.abs(pAvg) - 0.3;
+
+    tiles.push({
+      value: fSign(rAvg, 1) + '°',
+      label: 'face avg',
+      trend: pAvg != null ? (improving ? `↑ from ${fSign(pAvg,1)}°` : `was ${fSign(pAvg,1)}°`) : null,
+      good: Math.abs(rAvg) <= 2,
+    });
+    tiles.push({
+      value: '±' + f(rSD, 1) + '°',
+      label: 'spread',
+      trend: pSD != null ? (rSD < pSD - 0.2 ? '↑ tighter' : `was ±${f(pSD,1)}°`) : null,
+      good: rSD < 2.5,
+    });
+    tiles.push({
+      value: goodPct + '%',
+      label: 'square',
+      trend: prevGP != null && goodPct > prevGP + 3 ? `↑ from ${prevGP}%` : null,
+      good: goodPct >= 40,
+    });
+
+  } else if (mainIssue.type === 'contact') {
+    const rS = recent.map(s => s.smash_factor).filter(Boolean);
+    const pS = prev.map(s => s.smash_factor).filter(Boolean);
+    if (rS.length < 4) return '';
+
+    const rAvg  = statAvg(rS);
+    const pAvg  = pS.length >= 4 ? statAvg(pS) : null;
+    const target = mainIssue.club === 'driver' ? 1.42 : 1.28;
+    const goodPct = Math.round(rS.filter(s => s >= target - 0.02).length / rS.length * 100);
+
+    tiles.push({
+      value: f(rAvg, 2),
+      label: 'smash avg',
+      trend: pAvg != null ? (rAvg > pAvg + 0.01 ? `↑ from ${f(pAvg,2)}` : `was ${f(pAvg,2)}`) : null,
+      good: rAvg >= target - 0.03,
+    });
+    tiles.push({ value: goodPct + '%', label: 'good hits', trend: null, good: goodPct >= 50 });
+    tiles.push({ value: f(target, 2), label: 'target smash', trend: null, good: rAvg >= target });
+
+  } else if (mainIssue.type === 'consistency') {
+    const rC = recent.map(s => s.carry).filter(Boolean);
+    const pC = prev.map(s => s.carry).filter(Boolean);
+    if (rC.length < 4) return '';
+
+    const rSD  = statStdDev(rC);
+    const pSD  = pC.length >= 4 ? statStdDev(pC) : null;
+    const rMed = statMedian(rC);
+    const tgt  = ['pw','58','sw'].includes(mainIssue.club) ? 8 : 14;
+    const goodPct = Math.round(rC.filter(c => Math.abs(c - rMed) <= tgt * 0.6).length / rC.length * 100);
+
+    tiles.push({ value: f(rMed, 0) + 'm', label: 'median carry', trend: null, good: true });
+    tiles.push({
+      value: '±' + f(rSD, 0) + 'm',
+      label: 'spread',
+      trend: pSD != null ? (rSD < pSD - 1 ? `↑ from ±${f(pSD,0)}m` : `was ±${f(pSD,0)}m`) : null,
+      good: rSD < tgt,
+    });
+    tiles.push({ value: goodPct + '%', label: 'within range', trend: null, good: goodPct >= 50 });
+  }
+
+  if (!tiles.length) return '';
+
+  return `
+    <div class="today-stats-card">
+      <div class="today-stats-label">Your numbers · ${escapeHtml(mainIssue.clubName)} · last 10 shots</div>
+      <div class="today-stats-tiles">
+        ${tiles.map(t => `
+          <div class="today-stat-tile">
+            <div class="today-stat-value ${t.good ? 'today-stat-green' : 'today-stat-amber'}">${escapeHtml(t.value)}</div>
+            ${t.trend ? `<div class="today-stat-trend ${t.good ? 'today-stat-trend-good' : ''}">${escapeHtml(t.trend)}</div>` : ''}
+            <div class="today-stat-name">${escapeHtml(t.label)}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Manual shot log (Feature 9) ───────────────────────────────────────────
+
+let _manualLogState = { club: null, face: null, contact: null };
+
+function _mergeManualShots(trackmanShots) {
+  try {
+    const manual  = JSON.parse(localStorage.getItem('manual_shots') || '[]');
+    const cutoff  = new Date(Date.now() - 14 * 86400000).toISOString();
+    const recent  = manual.filter(m => m.ts >= cutoff);
+    const faceMap  = { open: 3.5, closed: -3.5, square: 0 };
+    const smashMap = { pure: 1.38, ok: 1.25, miss: 1.10 };
+    const synthetic = recent.map(m => ({
+      club: m.club,
+      face_angle:   faceMap[m.face]    ?? 0,
+      smash_factor: smashMap[m.contact] ?? 1.20,
+      carry: null, side: null, attack_angle: null,
+      launch_angle: null, spin_rate: null, ball_speed: null,
+      club_path: null, face_to_path: null,
+      is_full_shot: true, exclude_from_progress: false,
+      shot_time: m.ts, _isManual: true,
+    }));
+    return [...trackmanShots, ...synthetic];
+  } catch(e) {
+    return trackmanShots;
+  }
+}
+
+function openManualLogPanel(prefillClub) {
+  _manualLogState = { club: prefillClub || null, face: null, contact: null };
+  const overlay = document.getElementById('manual-log-overlay');
+  if (!overlay) return;
+
+  const clubBtns = PICKER_CLUBS.map(({ ck, label }) =>
+    `<button class="manual-log-club-btn${ck === _manualLogState.club ? ' on' : ''}" data-ck="${ck}" onclick="selectManualClub('${ck}')">${label}</button>`
+  ).join('');
+
+  overlay.innerHTML = `
+    <div class="manual-log-backdrop" onclick="closeManualLogPanel()"></div>
+    <div class="manual-log-sheet">
+      <div class="manual-log-header">
+        <div class="manual-log-title">Log a shot</div>
+        <button class="manual-log-close" onclick="closeManualLogPanel()">✕</button>
+      </div>
+      <div class="manual-log-body">
+        <div class="manual-log-section-label">Club</div>
+        <div class="manual-log-club-row" id="manual-log-clubs">${clubBtns}</div>
+
+        <div class="manual-log-section-label">Face at impact</div>
+        <div class="manual-log-opts" id="manual-log-face-opts">
+          <button class="manual-log-opt" data-val="closed" onclick="selectManualOpt(this,'face')">← Closed</button>
+          <button class="manual-log-opt" data-val="square" onclick="selectManualOpt(this,'face')">Square ✓</button>
+          <button class="manual-log-opt" data-val="open"   onclick="selectManualOpt(this,'face')">Open →</button>
+        </div>
+
+        <div class="manual-log-section-label">Contact quality</div>
+        <div class="manual-log-opts" id="manual-log-contact-opts">
+          <button class="manual-log-opt" data-val="pure" onclick="selectManualOpt(this,'contact')">Pure</button>
+          <button class="manual-log-opt" data-val="ok"   onclick="selectManualOpt(this,'contact')">OK</button>
+          <button class="manual-log-opt" data-val="miss" onclick="selectManualOpt(this,'contact')">Thin / Fat</button>
+        </div>
+
+        <button class="manual-log-save-btn" onclick="submitManualLog()">Save shot</button>
+        <div class="manual-log-hint">Manual shots supplement TrackMan data when sessions are short.</div>
+      </div>
+    </div>`;
+
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeManualLogPanel() {
+  const overlay = document.getElementById('manual-log-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function selectManualClub(ck) {
+  _manualLogState.club = ck;
+  document.querySelectorAll('.manual-log-club-btn').forEach(b =>
+    b.classList.toggle('on', b.dataset.ck === ck)
+  );
+}
+
+function selectManualOpt(btn, field) {
+  _manualLogState[field] = btn.dataset.val;
+  btn.closest('.manual-log-opts')?.querySelectorAll('.manual-log-opt')
+    .forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function submitManualLog() {
+  if (!_manualLogState.club)  { showToast('Pick a club first');     return; }
+  if (!_manualLogState.face)  { showToast('Pick face direction');   return; }
+  try {
+    const shots = JSON.parse(localStorage.getItem('manual_shots') || '[]');
+    shots.unshift({ club: _manualLogState.club, face: _manualLogState.face, contact: _manualLogState.contact || 'ok', ts: new Date().toISOString() });
+    localStorage.setItem('manual_shots', JSON.stringify(shots.slice(0, 100)));
+  } catch(e) {}
+  closeManualLogPanel();
+  showToast('Shot logged ✓');
 }
