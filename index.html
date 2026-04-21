@@ -26,8 +26,8 @@
     <div id="auth-panel" class="auth-panel" style="display:none;">
       <div id="logged-out-view">
         <div class="auth-inline-row">
-          <input id="email" type="email" placeholder="Email">
-          <input id="password" type="password" placeholder="Password">
+          <input id="email" type="email" placeholder="Email" autocomplete="email">
+          <input id="password" type="password" placeholder="Password" autocomplete="current-password">
           <button id="login-btn" type="button" class="auth-action-btn">Log in</button>
           <button id="signup-btn" type="button" class="auth-action-btn auth-action-secondary">Sign up</button>
         </div>
@@ -242,19 +242,19 @@
               <div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
                 <div class="form-grid">
                   <input id="chip-date" type="date">
-                  <input id="chip-distance" type="number" step="0.1" placeholder="Distance (m)">
-                  <input id="chip-club" type="text" placeholder="Club (e.g. PW)">
-                  <input id="chip-attempts" type="number" placeholder="Attempts">
-                  <input id="chip-in1" type="number" placeholder="Inside 1m">
-                  <input id="chip-in2" type="number" placeholder="1–2m">
-                  <input id="chip-in3" type="number" placeholder="2–3m">
-                  <input id="chip-out3" type="number" placeholder="Outside 3m">
+                  <input id="chip-distance" type="number" step="0.1" placeholder="Distance (m)" inputmode="decimal">
+                  <input id="chip-club" type="text" placeholder="Club (e.g. PW)" autocorrect="off" spellcheck="false">
+                  <input id="chip-attempts" type="number" placeholder="Attempts" inputmode="numeric">
+                  <input id="chip-in1" type="number" placeholder="Inside 1m" inputmode="numeric">
+                  <input id="chip-in2" type="number" placeholder="1–2m" inputmode="numeric">
+                  <input id="chip-in3" type="number" placeholder="2–3m" inputmode="numeric">
+                  <input id="chip-out3" type="number" placeholder="Outside 3m" inputmode="numeric">
                 </div>
                 <div id="chip-bucket-count" class="bucket-counter"></div>
                 <div id="chip-r12" class="chip-r12-hint" style="display:none;"></div>
                 <div class="form-grid" style="margin-top:6px">
-                  <input id="chip-success" type="number" step="0.1" placeholder="Success target (opt)">
-                  <textarea id="chip-notes" class="form-span-2" placeholder="What did you work on? Conditions, feels, grip changes..." rows="2"></textarea>
+                  <input id="chip-success" type="number" step="0.1" placeholder="Success target (opt)" inputmode="decimal">
+                  <textarea id="chip-notes" class="form-span-2" placeholder="What did you work on? Conditions, feels, grip changes..." rows="2" autocorrect="off" spellcheck="false"></textarea>
                 </div>
                 <div class="form-actions">
                   <button id="add-chip-btn">Add session</button>
@@ -289,10 +289,10 @@
               <div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
                 <div class="form-grid">
                   <input id="putt-date" type="date">
-                  <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)">
-                  <input id="putt-holed" type="number" placeholder="Holed">
-                  <input id="putt-total" type="number" placeholder="Total attempts">
-                  <textarea id="putt-notes" class="form-span-2" placeholder="Conditions, stroke feel, what you worked on..." rows="2"></textarea>
+                  <input id="putt-distance" type="number" step="0.1" placeholder="Distance (m)" inputmode="decimal">
+                  <input id="putt-holed" type="number" placeholder="Holed" inputmode="numeric">
+                  <input id="putt-total" type="number" placeholder="Total attempts" inputmode="numeric">
+                  <textarea id="putt-notes" class="form-span-2" placeholder="Conditions, stroke feel, what you worked on..." rows="2" autocorrect="off" spellcheck="false"></textarea>
                 </div>
                 <div class="form-actions">
                   <button id="add-putt-btn">Add session</button>

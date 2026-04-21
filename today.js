@@ -121,7 +121,9 @@ async function initTodayTab() {
     ));
   } catch(e) {}
 
-  el.innerHTML = _renderTodayContent(issues, health, improved, regression, allShots.length, fixedIssues);
+  requestIdleCallback(() => {
+    el.innerHTML = _renderTodayContent(issues, health, improved, regression, allShots.length, fixedIssues);
+  }, { timeout: 2000 });
 }
 
 // ── Issue detection ────────────────────────────────────────────────────────
