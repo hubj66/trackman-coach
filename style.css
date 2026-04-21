@@ -770,3 +770,12 @@ body.light-theme .glossary-sheet{background:var(--surface)}
 .gloss-btn{background:rgba(255,255,255,.07);border:0.5px solid rgba(255,255,255,.11);border-radius:10px;color:var(--text3);font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 7px;min-height:24px;cursor:pointer;margin-left:4px;line-height:1.5;vertical-align:middle;transition:background .1s}
 .gloss-btn:active{background:rgba(255,255,255,.16)}
 body.light-theme .gloss-btn{background:rgba(0,0,0,.06);border-color:rgba(0,0,0,.1);color:var(--text3)}
+
+/* ── Light theme fixes: health tiles, pattern zones, backdrops, improved card */
+body.light-theme .today-health-good{border-color:rgba(0,180,115,.4)}
+body.light-theme .today-health-ok{border-color:rgba(200,130,0,.3)}
+body.light-theme .today-health-bad{border-color:rgba(190,50,50,.3)}
+body.light-theme .today-pattern-left,body.light-theme .today-pattern-right{background:rgba(220,60,60,.12);color:rgba(210,40,40,.9)}
+body.light-theme .today-pattern-center{background:rgba(0,180,115,.12);color:rgba(0,150,100,.9)}
+body.light-theme .manual-log-backdrop,body.light-theme .glossary-backdrop{background:rgba(0,0,0,.25)}
+body.light-theme .today-improved-card{background:rgba(0,180,115,.06);border-color:rgba(0,180,115,.25)}
