@@ -14,6 +14,54 @@ const PICKER_CLUBS = [
   { ck:'putter', label:'Putt' },
 ];
 
+const GLOSSARY_TERMS = {
+  face_angle: {
+    term: 'Face Angle',
+    def: 'The direction the clubface points at impact, in degrees from the target line. Positive = open (pointing right), negative = closed (pointing left). Face angle is the #1 factor determining where the ball starts — it accounts for ~75% of initial direction.',
+    tip: 'A consistent 3° open face pushes every shot ~7m right at 150m. Small numbers matter a lot.'
+  },
+  smash_factor: {
+    term: 'Smash Factor',
+    def: 'Ball speed ÷ club head speed. Measures how efficiently the club transfers energy to the ball at impact. Driver max ~1.50; good contact is 1.42–1.48. Below 1.38 means off-centre strikes are costing you distance and consistency.',
+    tip: 'Every 0.05 improvement in smash ≈ 5m more carry — no extra swing effort required.'
+  },
+  attack_angle: {
+    term: 'Attack Angle',
+    def: 'The up/down angle of the clubhead at impact. Negative = hitting down on the ball (correct for irons). For irons, −2° to −5° creates proper compression and a divot after the ball. For driver, a slight upward attack (+1° to +3°) maximises distance.',
+    tip: 'Scooping (positive attack angle with irons) is the #1 cause of thin, weak, inconsistent iron shots.'
+  },
+  face_to_path: {
+    term: 'Face-to-Path',
+    def: 'The difference between where the face points and where the club swings at impact. This creates curve. Positive = face open to path → ball curves right (slice). Negative = face closed to path → ball curves left (hook). Target ±2° for a manageable flight.',
+    tip: 'Fix face angle first. If the face is square, even a poor path produces a far more playable shot.'
+  },
+  carry: {
+    term: 'Carry Distance',
+    def: 'How far the ball travels through the air before landing, in metres. Different from total distance (which includes roll). Use carry for club selection — especially to greens with hazards short or front pins.',
+    tip: 'Knowing carry ±5m per club is the difference between guessing and managing a round.'
+  },
+  spin_rate: {
+    term: 'Spin Rate',
+    def: 'How fast the ball spins after impact, in RPM. Higher spin = more lift and stopping power, but less distance. Driver ideal: 2000–2800 RPM. Wedges: 7000–10000 RPM gives the stopping power to hold greens.',
+    tip: 'Driver: high spin kills distance. Wedges: low spin means the ball won\'t check up on the green.'
+  },
+  launch_angle: {
+    term: 'Launch Angle',
+    def: 'The vertical angle the ball leaves the face, measured from the ground. Driver ideal: 10–15°. 7-iron: 16–22°. Scooping increases launch — this is why scooped irons fly high but fall well short of their expected carry.',
+    tip: 'Optimal launch + low spin = maximum carry. Fix attack angle and launch corrects itself automatically.'
+  },
+  club_path: {
+    term: 'Club Path',
+    def: 'The direction the clubhead is swinging through impact, relative to the target line. Negative = out-to-in (common slice cause). Positive = in-to-out (hook swing). Path controls mainly how much the ball curves, not where it starts.',
+    tip: 'Most golfers focus on path first. Face angle matters more — fix the face, then work on path.'
+  },
+  spread: {
+    term: 'Spread (SD)',
+    def: 'Standard deviation of your carry distances — measures shot-to-shot consistency. A spread of ±8m means most shots land within 8m of your average. Lower = more predictable club selection on the course.',
+    tip: 'Under ±8m for wedges and ±14m for mid-irons is the target for course-ready consistency.'
+  },
+};
+
 async function initTodayTab() {
   const el = document.getElementById('today-content');
   if (!el) return;
@@ -375,6 +423,7 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
     </div>
     ${regression ? _renderRegressionCard(regression) : ''}
     ${watchItem ? _renderWatchCard(watchItem) : ''}
+    ${_renderDrillHistoryCard()}
     <div class="today-section-label" style="margin-top:16px;">Quick log</div>
     <div class="today-quick-log-row">
       <button class="today-log-btn" onclick="showPage('analysis')">
@@ -920,6 +969,7 @@ function _renderShotPatternCard(mainIssue) {
           <span>SD ±${f(sdF,1)}°</span>
           <span>·</span>
           <span class="${goodPct>=50?'today-pattern-good':goodPct>=30?'today-pattern-ok':'today-pattern-bad'}">${goodPct}% square</span>
+          <button class="gloss-btn" onclick="showGlossaryTip('face_angle')">?</button>
         </div>
       </div>`;
   }
@@ -989,13 +1039,13 @@ function _renderStatsProgressCard(mainIssue) {
 
     tiles.push({
       value: fSign(rAvg, 1) + '°',
-      label: 'face avg',
+      label: 'face avg', gloss: 'face_angle',
       trend: pAvg != null ? (improving ? `↑ from ${fSign(pAvg,1)}°` : `was ${fSign(pAvg,1)}°`) : null,
       good: Math.abs(rAvg) <= 2,
     });
     tiles.push({
       value: '±' + f(rSD, 1) + '°',
-      label: 'spread',
+      label: 'spread', gloss: 'spread',
       trend: pSD != null ? (rSD < pSD - 0.2 ? '↑ tighter' : `was ±${f(pSD,1)}°`) : null,
       good: rSD < 2.5,
     });
@@ -1018,12 +1068,12 @@ function _renderStatsProgressCard(mainIssue) {
 
     tiles.push({
       value: f(rAvg, 2),
-      label: 'smash avg',
+      label: 'smash avg', gloss: 'smash_factor',
       trend: pAvg != null ? (rAvg > pAvg + 0.01 ? `↑ from ${f(pAvg,2)}` : `was ${f(pAvg,2)}`) : null,
       good: rAvg >= target - 0.03,
     });
     tiles.push({ value: goodPct + '%', label: 'good hits', trend: null, good: goodPct >= 50 });
-    tiles.push({ value: f(target, 2), label: 'target smash', trend: null, good: rAvg >= target });
+    tiles.push({ value: f(target, 2), label: 'target smash', gloss: 'smash_factor', trend: null, good: rAvg >= target });
 
   } else if (mainIssue.type === 'consistency') {
     const rC = recent.map(s => s.carry).filter(Boolean);
@@ -1036,10 +1086,10 @@ function _renderStatsProgressCard(mainIssue) {
     const tgt  = ['pw','58','sw'].includes(mainIssue.club) ? 8 : 14;
     const goodPct = Math.round(rC.filter(c => Math.abs(c - rMed) <= tgt * 0.6).length / rC.length * 100);
 
-    tiles.push({ value: f(rMed, 0) + 'm', label: 'median carry', trend: null, good: true });
+    tiles.push({ value: f(rMed, 0) + 'm', label: 'median carry', gloss: 'carry', trend: null, good: true });
     tiles.push({
       value: '±' + f(rSD, 0) + 'm',
-      label: 'spread',
+      label: 'spread', gloss: 'spread',
       trend: pSD != null ? (rSD < pSD - 1 ? `↑ from ±${f(pSD,0)}m` : `was ±${f(pSD,0)}m`) : null,
       good: rSD < tgt,
     });
@@ -1056,7 +1106,7 @@ function _renderStatsProgressCard(mainIssue) {
           <div class="today-stat-tile">
             <div class="today-stat-value ${t.good ? 'today-stat-green' : 'today-stat-amber'}">${escapeHtml(t.value)}</div>
             ${t.trend ? `<div class="today-stat-trend ${t.good ? 'today-stat-trend-good' : ''}">${escapeHtml(t.trend)}</div>` : ''}
-            <div class="today-stat-name">${escapeHtml(t.label)}</div>
+            <div class="today-stat-name">${escapeHtml(t.label)}${t.gloss ? `<button class="gloss-btn" onclick="showGlossaryTip('${t.gloss}')">?</button>` : ''}</div>
           </div>`).join('')}
       </div>
     </div>`;
@@ -1162,4 +1212,95 @@ function submitManualLog() {
   } catch(e) {}
   closeManualLogPanel();
   showToast('Shot logged ✓');
+}
+
+// ── Drill history card (Feature 4) ────────────────────────────────────────
+
+function _renderDrillHistoryCard() {
+  let reviews;
+  try { reviews = JSON.parse(localStorage.getItem('today_reviews') || '[]'); } catch(e) { return ''; }
+  if (reviews.length < 2) return '';
+
+  const recent = reviews.slice(0, 15);
+
+  // Aggregate per drill key
+  const drillMap = {};
+  for (const r of recent) {
+    const k = r.issueKey || '_';
+    if (!drillMap[k]) drillMap[k] = {
+      label: (r.issueSimple || 'Session').split('—')[0].trim().slice(0, 38),
+      hit: 0, close: 0, miss: 0, n: 0,
+    };
+    drillMap[k].n++;
+    drillMap[k][r.result === 'hit' ? 'hit' : r.result === 'close' ? 'close' : 'miss']++;
+  }
+
+  const drills = Object.values(drillMap).filter(d => d.n >= 2).sort((a, b) => b.n - a.n).slice(0, 3);
+
+  const drillRowsHtml = drills.map(d => {
+    const hitPct = Math.round(d.hit / d.n * 100);
+    const cls = hitPct >= 60 ? 'today-stat-green' : 'today-stat-amber';
+    return `
+      <div class="today-drill-agg-row">
+        <div class="today-drill-agg-label">${escapeHtml(d.label)}</div>
+        <div class="today-drill-agg-right">
+          <span class="today-drill-agg-pct ${cls}">${hitPct}%</span>
+          <span class="today-drill-agg-n">${d.n} sessions</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  const recentHtml = recent.slice(0, 5).map(r => {
+    const icon = r.result === 'hit' ? '✓' : r.result === 'close' ? '~' : '✗';
+    const label = (r.issueSimple || 'Session').split('—')[0].trim().slice(0, 32);
+    return `
+      <div class="today-drill-row">
+        <span class="today-drill-icon today-drill-${r.result}">${icon}</span>
+        <span class="today-drill-name">${escapeHtml(label)}</span>
+        <span class="today-drill-date">${r.date ? escapeHtml(r.date.slice(5)) : ''}</span>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="today-drill-card">
+      <div class="today-section-label" style="margin-bottom:8px;">Drill history</div>
+      ${drillRowsHtml}
+      ${drills.length ? '<div class="today-drill-sep"></div>' : ''}
+      ${recentHtml}
+    </div>`;
+}
+
+// ── Glossary overlay (Feature 6) ──────────────────────────────────────────
+
+function showGlossaryTip(key) {
+  const entry = GLOSSARY_TERMS[key];
+  if (!entry) return;
+  const overlay = document.getElementById('glossary-overlay');
+  if (!overlay) return;
+
+  overlay.innerHTML = `
+    <div class="glossary-backdrop" onclick="closeGlossaryTip()"></div>
+    <div class="glossary-sheet">
+      <div class="glossary-header">
+        <div class="glossary-term-label">${escapeHtml(entry.term)}</div>
+        <button class="glossary-close" onclick="closeGlossaryTip()">✕</button>
+      </div>
+      <div class="glossary-body">
+        <div class="glossary-def">${escapeHtml(entry.def)}</div>
+        ${entry.tip ? `
+          <div class="glossary-tip-block">
+            <div class="glossary-tip-eyebrow">Coach tip</div>
+            <div class="glossary-tip-text">${escapeHtml(entry.tip)}</div>
+          </div>` : ''}
+      </div>
+    </div>`;
+
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeGlossaryTip() {
+  const overlay = document.getElementById('glossary-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
 }
