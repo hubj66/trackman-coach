@@ -76,7 +76,14 @@ async function loadStatsPage(){
     ['stats-chipping-summary','stats-putting-summary','clubs-overview'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
     return;
   }
-  await Promise.all([loadTournamentPanel(),loadChippingSummary(),loadPuttingSummary(),loadClubsOverview(),loadStatsGlance()]);
+  await Promise.all([
+  loadTournamentPanel(),
+  loadTrackmanSummary(),
+  loadChippingSummary(),
+  loadPuttingSummary(),
+  loadClubsOverview(),
+  loadStatsGlance()
+]);
 }
 
 // ── Tournament countdown panel ─────────────────────────────────────────────
