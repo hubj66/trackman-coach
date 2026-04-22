@@ -172,6 +172,10 @@ async function initTodayTab() {
       </div>`;
     return;
   }
+  const CA = window.clubAliases;
+  if (CA?.loadAliases) {
+    await CA.loadAliases();
+  }
 
   const [{ data: shots }, { data: chips }, { data: putts }] = await Promise.all([
     sb.from('trackman_shots')
