@@ -766,6 +766,151 @@ body.light-theme .manual-log-club-btn.on,body.light-theme .manual-log-opt.on{col
 .glossary-tip-text{font-size:13px;color:var(--text);line-height:1.5}
 body.light-theme .glossary-sheet{background:var(--surface)}
 
+/* ── Glossary library / lexikon ─────────────────────────────────────────── */
+.glossary-sheet-library{max-height:88vh}
+.glossary-top-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:3px}
+.glossary-library-body{display:flex;flex-direction:column;gap:18px}
+
+.glossary-group{display:flex;flex-direction:column;gap:8px}
+.glossary-group-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+
+.glossary-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.glossary-card{
+  text-align:left;
+  background:var(--surface2);
+  border:0.5px solid var(--border);
+  border-radius:12px;
+  padding:12px;
+  color:var(--text);
+  cursor:pointer;
+}
+.glossary-card-active{border-color:rgba(0,214,143,.35);background:var(--green-dim)}
+.glossary-card-title{font-family:var(--cond);font-size:14px;font-weight:700;margin-bottom:4px}
+.glossary-card-text{font-size:12px;color:var(--text2);line-height:1.45}
+
+.glossary-back-link{
+  background:none;
+  border:none;
+  color:var(--text3);
+  font-family:var(--mono);
+  font-size:10px;
+  padding:0;
+  margin-bottom:6px;
+  cursor:pointer;
+}
+
+.glossary-mini-rule{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:var(--surface2);
+  border:0.5px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+  margin-bottom:14px;
+  font-size:13px;
+  color:var(--text2);
+}
+
+.glossary-hero{
+  background:var(--surface2);
+  border:0.5px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+}
+.glossary-hero-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+}
+.glossary-hero-link{
+  background:var(--surface3);
+  border:0.5px solid var(--border2);
+  border-radius:20px;
+  color:var(--text2);
+  font-size:11px;
+  padding:6px 10px;
+}
+.glossary-hero-sub{
+  font-size:13px;
+  color:var(--text2);
+  line-height:1.5;
+  margin-bottom:10px;
+}
+.glossary-hero-note{
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text3);
+  margin-top:8px;
+}
+
+/* Ball-flight matrix */
+.bf-grid{
+  display:grid;
+  grid-template-columns:82px 1fr 1fr 1fr;
+  gap:6px;
+}
+.bf-corner,
+.bf-head,
+.bf-side,
+.bf-cell{
+  border-radius:10px;
+  min-height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:8px;
+}
+.bf-corner{background:transparent;border:0.5px dashed var(--border)}
+.bf-head,
+.bf-side{
+  background:var(--surface3);
+  border:0.5px solid var(--border);
+  font-family:var(--mono);
+  font-size:10px;
+  color:var(--text2);
+  line-height:1.35;
+}
+.bf-head span,
+.bf-side span{color:var(--text3);font-size:9px}
+.bf-cell{
+  flex-direction:column;
+  gap:5px;
+  border:0.5px solid var(--border);
+  background:var(--surface);
+}
+.bf-name{
+  font-family:var(--cond);
+  font-size:13px;
+  font-weight:700;
+  line-height:1.1;
+}
+.bf-shape{
+  font-family:var(--mono);
+  font-size:20px;
+  line-height:1;
+}
+.bf-good{background:rgba(0,214,143,.08);border-color:rgba(0,214,143,.22)}
+.bf-ok{background:rgba(255,170,0,.08);border-color:rgba(255,170,0,.22)}
+.bf-bad{background:rgba(255,77,77,.08);border-color:rgba(255,77,77,.22)}
+.bf-good .bf-name,.bf-good .bf-shape{color:var(--green)}
+.bf-ok .bf-name,.bf-ok .bf-shape{color:var(--amber)}
+.bf-bad .bf-name,.bf-bad .bf-shape{color:var(--red)}
+
+@media(max-width:700px){
+  .glossary-card-grid{grid-template-columns:1fr}
+  .bf-grid{
+    grid-template-columns:70px 1fr 1fr 1fr;
+    gap:5px;
+  }
+  .bf-head,.bf-side,.bf-cell{min-height:66px;padding:6px}
+  .bf-name{font-size:11px}
+  .bf-shape{font-size:17px}
+}
+
 /* ── Glossary trigger button ─────────────────────────────────────────────── */
 .gloss-btn{background:rgba(255,255,255,.07);border:0.5px solid rgba(255,255,255,.11);border-radius:10px;color:var(--text3);font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 7px;min-height:24px;cursor:pointer;margin-left:4px;line-height:1.5;vertical-align:middle;transition:background .1s}
 .gloss-btn:active{background:rgba(255,255,255,.16)}
