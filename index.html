@@ -220,7 +220,25 @@
 
       <!-- At a glance strip -->
       <div id="stats-glance" class="stats-glance-strip"></div>
-
+<div class="acc open" id="acc-stats-trackman">
+  <div class="acc-head" onclick="toggleAccById('acc-stats-trackman')">
+    <div class="acc-icon">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+    </div>
+    <div class="acc-title">TrackMan</div>
+    <div class="acc-subtitle">Overview & recent sessions</div>
+    <div class="acc-arrow">›</div>
+  </div>
+  <div class="acc-body" style="max-height:4000px;opacity:1;">
+    <div class="stats-section-pad">
+      <div id="stats-trackman-summary"></div>
+    </div>
+  </div>
+</div>
 <div class="acc open" id="acc-stats-chipping">
         <div class="acc-head" onclick="toggleAccById('acc-stats-chipping')">
           <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg></div>
