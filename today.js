@@ -219,9 +219,9 @@ async function initTodayTab() {
     ));
   } catch(e) {}
 
-  requestIdleCallback(() => {
+  requestAnimationFrame(() => {
     el.innerHTML = _renderTodayContent(issues, health, improved, regression, allShots.length, fixedIssues);
-  }, { timeout: 2000 });
+  });
 }
 
 // ── Issue detection ────────────────────────────────────────────────────────
