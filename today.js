@@ -548,6 +548,9 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       ${regression ? _renderRegressionCard(regression) : ''}
       ${watchItem ? _renderWatchCard(watchItem) : ''}
       <div class="today-drill-library-row">
+        <button class="today-drill-library-btn" onclick="openGlossaryLibrary()">Open lexikon →</button>
+      </div>
+      <div class="today-drill-library-row">
         <button class="today-drill-library-btn" onclick="openDrillCatalog('${mainIssue ? _issueToDrillCategory(mainIssue) : ''}')">Browse drill library →</button>
       </div>
     </div>`;
@@ -1601,3 +1604,4 @@ function closeGlossaryTip() {
   if (overlay) overlay.style.display = 'none';
   document.body.style.overflow = '';
 }
+
