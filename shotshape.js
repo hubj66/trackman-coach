@@ -172,9 +172,9 @@ function _drawShotShape() {
 
   const cp1x = startX + startOffset * 0.25;
   const cp1y = startY - flightH * 0.35;
-  const cp2x = startX + startOffset - curveAmount * 0.45;
+  const cp2x = startX + startOffset + curveAmount * 0.45;
   const cp2y = startY - flightH * 0.7;
-  const endX = Math.max(w * 0.15, Math.min(w * 0.85, startX + startOffset - curveAmount));
+  const endX = Math.max(w * 0.15, Math.min(w * 0.85, startX + startOffset + curveAmount));
   const endY = 44;
 
   // Glow
