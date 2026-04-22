@@ -1572,7 +1572,149 @@ function closeDrillCatalog() {
 
 // ── Glossary overlay (Feature 6) ──────────────────────────────────────────
 
-function showGlossaryTip(key) {
+const GLOSSARY_GROUPS = [
+  {
+    id: 'ball_flight',
+    label: 'Ball flight',
+    items: ['face_angle', 'club_path', 'face_to_path']
+  },
+  {
+    id: 'contact',
+    label: 'Contact',
+    items: ['smash_factor', 'attack_angle']
+  },
+  {
+    id: 'distance',
+    label: 'Distance',
+    items: ['carry', 'launch_angle', 'spin_rate', 'spread']
+  }
+];
+
+function openGlossaryLibrary(activeKey = '') {
+  const overlay = document.getElementById('glossary-overlay');
+  if (!overlay) return;
+
+  overlay.innerHTML = `
+    <div class="glossary-backdrop" onclick="closeGlossaryTip()"></div>
+    <div class="glossary-sheet glossary-sheet-library">
+      <div class="glossary-header">
+        <div>
+          <div class="glossary-top-label">Lexikon</div>
+          <div class="glossary-term-label">Golf terms & ball flight</div>
+        </div>
+        <button class="glossary-close" onclick="closeGlossaryTip()">✕</button>
+      </div>
+
+      <div class="glossary-body glossary-library-body">
+        ${_renderGlossaryBallFlightVisual()}
+        ${_renderGlossaryGroups(activeKey)}
+      </div>
+    </div>
+  `;
+
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function _renderGlossaryGroups(activeKey = '') {
+  return GLOSSARY_GROUPS.map(group => `
+    <div class="glossary-group">
+      <div class="glossary-group-label">${escapeHtml(group.label)}</div>
+      <div class="glossary-card-grid">
+        ${group.items.map(key => _renderGlossaryCard(key, activeKey)).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function _renderGlossaryCard(key, activeKey = '') {
+  const entry = GLOSSARY_TERMS[key];
+  if (!entry) return '';
+
+  const isActive = key === activeKey;
+  return `
+    <button class="glossary-card ${isActive ? 'glossary-card-active' : ''}" onclick="showGlossaryTip('${key}', true)">
+      <div class="glossary-card-title">${escapeHtml(entry.term)}</div>
+      <div class="glossary-card-text">${escapeHtml(_shortGlossaryText(entry.def))}</div>
+    </button>
+  `;
+}
+
+function _shortGlossaryText(text) {
+  if (!text) return '';
+  const firstSentence = text.split('. ')[0]?.trim() || text;
+  return firstSentence.endsWith('.') ? firstSentence : firstSentence + '.';
+}
+
+function _renderGlossaryBallFlightVisual() {
+  return `
+    <div class="glossary-hero">
+      <div class="glossary-hero-header">
+        <div class="glossary-group-label">Ball flight visual</div>
+        <button class="glossary-hero-link" onclick="showGlossaryTip('face_to_path', true)">Open explanation</button>
+      </div>
+
+      <div class="glossary-hero-sub">
+        For a right-handed golfer: <b>face</b> mainly controls start direction, <b>face-to-path</b> mainly controls curve.
+      </div>
+
+      <div class="bf-grid">
+        <div class="bf-corner"></div>
+        <div class="bf-head">Path left<br><span>outside-in</span></div>
+        <div class="bf-head">Path neutral<br><span>target line</span></div>
+        <div class="bf-head">Path right<br><span>inside-out</span></div>
+
+        <div class="bf-side">Face left<br><span>closed</span></div>
+        <div class="bf-cell bf-bad">
+          <div class="bf-name">Pull hook</div>
+          <div class="bf-shape bf-shape-left-hard">↖</div>
+        </div>
+        <div class="bf-cell bf-ok">
+          <div class="bf-name">Pull</div>
+          <div class="bf-shape">↑</div>
+        </div>
+        <div class="bf-cell bf-good">
+          <div class="bf-name">Pull fade</div>
+          <div class="bf-shape bf-shape-right-soft">↗</div>
+        </div>
+
+        <div class="bf-side">Face square<br><span>near target</span></div>
+        <div class="bf-cell bf-bad">
+          <div class="bf-name">Hook</div>
+          <div class="bf-shape bf-shape-left-hard">↖</div>
+        </div>
+        <div class="bf-cell bf-good">
+          <div class="bf-name">Straight</div>
+          <div class="bf-shape">↑</div>
+        </div>
+        <div class="bf-cell bf-ok">
+          <div class="bf-name">Fade</div>
+          <div class="bf-shape bf-shape-right-soft">↗</div>
+        </div>
+
+        <div class="bf-side">Face right<br><span>open</span></div>
+        <div class="bf-cell bf-good">
+          <div class="bf-name">Push draw</div>
+          <div class="bf-shape bf-shape-left-soft">↖</div>
+        </div>
+        <div class="bf-cell bf-ok">
+          <div class="bf-name">Push</div>
+          <div class="bf-shape">↑</div>
+        </div>
+        <div class="bf-cell bf-bad">
+          <div class="bf-name">Push slice</div>
+          <div class="bf-shape bf-shape-right-hard">↗</div>
+        </div>
+      </div>
+
+      <div class="glossary-hero-note">
+        Simple rule: <b>start line = face</b>, <b>curve = face-to-path</b>.
+      </div>
+    </div>
+  `;
+}
+
+function showGlossaryTip(key, showBackButton = false) {
   const entry = GLOSSARY_TERMS[key];
   if (!entry) return;
   const overlay = document.getElementById('glossary-overlay');
@@ -1582,18 +1724,28 @@ function showGlossaryTip(key) {
     <div class="glossary-backdrop" onclick="closeGlossaryTip()"></div>
     <div class="glossary-sheet">
       <div class="glossary-header">
-        <div class="glossary-term-label">${escapeHtml(entry.term)}</div>
+        <div>
+          ${showBackButton ? `<button class="glossary-back-link" onclick="openGlossaryLibrary('${key}')">← Back to lexikon</button>` : ''}
+          <div class="glossary-term-label">${escapeHtml(entry.term)}</div>
+        </div>
         <button class="glossary-close" onclick="closeGlossaryTip()">✕</button>
       </div>
       <div class="glossary-body">
         <div class="glossary-def">${escapeHtml(entry.def)}</div>
+        ${key === 'face_to_path' ? `
+          <div class="glossary-mini-rule">
+            <div><b>Negative face-to-path</b> = curves left</div>
+            <div><b>Positive face-to-path</b> = curves right</div>
+          </div>
+        ` : ''}
         ${entry.tip ? `
           <div class="glossary-tip-block">
             <div class="glossary-tip-eyebrow">Coach tip</div>
             <div class="glossary-tip-text">${escapeHtml(entry.tip)}</div>
           </div>` : ''}
       </div>
-    </div>`;
+    </div>
+  `;
 
   overlay.style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -1604,4 +1756,3 @@ function closeGlossaryTip() {
   if (overlay) overlay.style.display = 'none';
   document.body.style.overflow = '';
 }
-
