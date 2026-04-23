@@ -263,18 +263,20 @@ function _detectTodayIssues(allShots, puttSessions) {
       const avgFace = statAvg(faces);
       const avgFTP  = ftps.length ? statAvg(ftps) : null;
       if (avgFace != null && Math.abs(avgFace) > 2) {
-        const sev   = Math.min(Math.abs(avgFace) / 7, 1);
+        const badFacePct = faces.filter(f => Math.abs(f) > 2).length / faces.length;
+        const sev = Math.min((Math.abs(avgFace) / 7) * 0.45 + badFacePct * 0.9, 1);
         const isOpen = avgFace > 0;
         const sliceBias = avgFTP != null && avgFTP > 3.5;
         const hookBias  = avgFTP != null && avgFTP < -3.5;
         const support = [
           `Face avg: ${fSign(avgFace,1)}°`,
+          `Bad face: ${Math.round(badFacePct * 100)}%`,
           ftps.length ? `FTP: ${fSign(avgFTP,1)}°` : null,
         ].filter(Boolean).join(' · ');
         issues.push({
           key: `face_${ck}`, club: ck, clubName, type: 'direction',
           n, conf, confLabel, lowConf,
-          score: sev * conf * impact * recency,
+          score: sev * conf * impact * recency * (['9','pw','58','sw'].includes(ck) ? 1.2 : 1.0),
           simple: isOpen
             ? (sliceBias ? `${clubName} face is open — ball starts and curves right` : `${clubName} face is open — ball starting right`)
             : (hookBias  ? `${clubName} face is closed — ball starts and curves left` : `${clubName} face is closed — ball starting left`),
@@ -340,7 +342,7 @@ function _detectTodayIssues(allShots, puttSessions) {
         issues.push({
           key: `smash_${ck}`, club: ck, clubName, type: 'contact',
           n, conf, confLabel, lowConf,
-          score: sev * conf * impact * 0.9 * recency,
+          score: sev * conf * impact * 0.8 * recency,
           simple: `${clubName} contact is off-centre — energy transfer too low`,
           support: `Smash factor: ${f(avgSmash,2)} (target ${target}+)`,
           deeper: `Smash factor = ball speed ÷ club speed. At ${f(avgSmash,2)} you're losing energy to off-centre strikes. Every 0.05 smash improvement is roughly 5m more carry with the same swing — no extra effort required.`,
