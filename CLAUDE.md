@@ -435,40 +435,86 @@ Always provide:
 
 ---
 
-## 9. Validation Commands
+## 9. Validation Rules
 
-This is a static GitHub Pages app. There may be no full build system.
+This is a static GitHub Pages app.
 
-Run these when possible:
+Current repo state:
+
+- No `package.json`
+- No npm build step
+- No Node-based test runner
+- No bundler
+- Plain HTML, CSS, and JavaScript
+
+Therefore Claude must not claim that automated build, lint, or test validation was completed unless such tooling is added later.
+
+For every code change, Claude must run:
 
 ```bash
 git status --short
 git diff --check
 ```
 
-Run JavaScript syntax checks when available:
+Claude must manually inspect changed files for obvious issues.
 
-```bash
-find . -maxdepth 1 -name "*.js" -print0 | xargs -0 -n1 node --check
-```
+For JavaScript changes, manually check:
 
-If `package.json` exists, inspect it and use the available commands, for example:
+- missing or extra braces, brackets, and parentheses
+- broken function names
+- undefined functions introduced by the change
+- broken `showPage(...)` references
+- page keys still matching `ALL_PAGES`
+- event handlers still connected
+- Supabase query chains still valid
+- `user_id` filters still present where required
+- no accidental changes to unrelated Coach or TrackMan logic
 
-```bash
-npm install
-npm run lint
-npm test
-npm run build
-```
+For HTML changes, manually check:
 
-Only run commands that make sense for the repo.
+- matching opening and closing tags
+- no duplicate IDs
+- buttons still call valid functions
+- page section IDs still match router logic
+
+For CSS changes, manually check:
+
+- no broken selectors for changed markup
+- phone layout still readable
+- bottom navigation remains usable
+
+Do not run npm, node, or package-manager commands unless a valid `package.json` or Node environment is intentionally added later.
+
+After every phase, Claude must report:
+
+1. changed files
+2. `git status --short` output
+3. `git diff --check` output
+4. what was manually inspected
+5. exact browser tests the user must run
 
 Never say “done” without showing what validation was run.
-If a command cannot be run, say why and provide a manual test instead.
+
+If a command cannot be run, say why and provide browser/manual tests instead.
 
 ---
 
-## 10. Manual Browser Test Checklist
+## 10. Static App Guardrail
+
+Do not introduce a build system, framework, bundler, TypeScript, or package manager unless explicitly requested.
+
+Keep the app as a static GitHub Pages app:
+
+- `index.html`
+- plain `.js`
+- plain `.css`
+- Supabase client
+
+Prefer small, direct changes over architectural rewrites.
+
+---
+
+## 11. Manual Browser Test Checklist
 
 Use this after UI changes:
 
@@ -490,6 +536,7 @@ Use this after UI changes:
 - Club aliases still resolve TrackMan club names.
 - No page crashes if optional tables are missing.
 - Phone layout is usable.
+- Browser DevTools Console shows no red JavaScript errors.
 
 For security phases, also test:
 
@@ -504,9 +551,13 @@ For security phases, also test:
 
 ---
 
-## 11. Current Phase Plan
+## 12. Current Phase Plan
 
-The audit has already been done.
+### Current status
+
+- Phase 0 audit: completed.
+- Phase 1 security and user isolation: completed by Claude, but must be browser-tested and SQL must be confirmed as applied in Supabase.
+- Next planned phase: Phase 2 cosmetic navigation rename, unless security testing reveals issues.
 
 Use this updated implementation order:
 
@@ -675,7 +726,7 @@ Do not blindly rename internal functions.
 
 ---
 
-## 12. Phase Prompt Templates
+## 13. Phase Prompt Templates
 
 ### Phase 1 prompt: Security and user isolation first
 
@@ -860,9 +911,635 @@ At the end:
 3. Tell me what to test.
 ```
 
+### Phase 3 prompt: Add More menu
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Add a top-right More button/menu without moving major features yet.
+
+Important:
+- Do not remove or move existing bottom tabs yet.
+- Do not move Club aliases yet.
+- Do not move TrackMan summary yet.
+- Do not rename internal page keys unless absolutely necessary.
+- Keep the change small and safe.
+- Make one safe commit at the end.
+
+Target:
+Bottom nav remains:
+Today | Coach | TrackMan | Bag | Logbook
+
+Add a top-right More button/menu.
+
+More menu should show simple cards or entries:
+- Progress
+- Players
+- Club aliases
+- Import settings
+- Profile
+- App settings
+
+For this phase:
+1. More opens and closes.
+2. More entries can be placeholders.
+3. Players entry must show placeholder text only:
+   "Each player can log in and has private data. Sharing and coach access will be added later."
+4. Do not implement sharing.
+5. Do not add player_shares.
+6. Do not move existing alias manager yet.
+7. Do not move Progress/TrackMan summary yet.
+
+Acceptance test:
+- Today opens.
+- Coach opens.
+- TrackMan opens.
+- Bag opens.
+- Logbook opens.
+- More button opens.
+- More button/menu closes.
+- More entries are visible.
+- Players placeholder is clear.
+- Phone layout remains usable.
+
+At the end:
+1. Commit changes.
+2. Summarize changed files.
+3. Tell me what to test.
+```
+
+### Phase 4 prompt: Move Club aliases to More
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Move Club aliases out of Bag and into More → Club aliases.
+
+Important:
+- Do not redesign Bag yet except removing aliases from it.
+- Do not duplicate alias logic.
+- Reuse the existing alias manager where possible.
+- Make one safe commit at the end.
+
+Tasks:
+1. More menu should have a working Club aliases entry.
+2. Clicking More → Club aliases should open the existing alias manager.
+3. Club aliases should no longer be shown inside Bag.
+4. Add a simple back button from the Club aliases view back to More.
+5. Keep placeholder cards for:
+   - Progress
+   - Players
+   - Import settings
+   - Profile
+   - App settings
+6. Players should remain placeholder only:
+   "Each player can log in and has private data. Sharing and coach access will be added later."
+7. Do not implement player sharing.
+8. Do not add player_shares table.
+
+Acceptance test:
+- More opens.
+- More → Club aliases opens alias manager.
+- Adding an alias works.
+- Deleting a personal alias works.
+- Global aliases are visible but not deletable.
+- Bag no longer shows the alias manager.
+- Existing TrackMan and Coach still work.
+
+At the end:
+1. Commit changes.
+2. Summarize changed files.
+3. Tell me what to test.
+4. List any cleanup needed later.
+```
+
+### Phase 5 prompt: Bag cleanup and active/inactive toggle
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Make Bag compact, phone-friendly, and useful without taking too much space.
+
+Important:
+- Bag replaces the old user-facing Clubs page.
+- Show only active clubs by default.
+- Add a small "Show inactive clubs" toggle.
+- Do not show Club aliases here anymore.
+- Do not break existing clubs data.
+- Make one safe commit at the end.
+
+Bag main view:
+1. Show compact cards for clubs.
+2. Only active clubs are shown by default.
+3. Add toggle:
+   "Show inactive clubs"
+4. When toggle is on, inactive clubs appear but should look visually less important.
+5. Each collapsed card should show:
+   - club name / club key
+   - stock carry or average carry if available
+   - main miss if available
+   - confidence if available
+6. Use accordion behavior:
+   - tapping a club expands details
+   - other cards can stay collapsed
+
+Expanded club details:
+Show sections if data exists:
+1. Distance
+   - average carry
+   - stock carry or good-shot carry if available
+   - carry range
+2. Direction
+   - average side
+   - main miss
+   - playable rate if available
+3. Contact
+   - smash factor
+   - ball speed
+   - strike quality if available
+4. Swing cause
+   - face angle
+   - club path
+   - face-to-path
+5. Actions:
+   - Open Coach for this club
+   - Open TrackMan shots for this club
+   - Log practice for this club
+
+Data logic:
+- Use existing trackman_shots where possible.
+- Use existing clubs table.
+- Use club_key mapping/aliases where needed.
+- Do not overbuild. A first useful version is enough.
+- If there is not enough data for a club, show:
+  "Not enough data yet. Add TrackMan shots or log practice."
+
+Acceptance test:
+- Bag opens on phone layout.
+- Only active clubs show by default.
+- Show inactive clubs toggle works.
+- Accordion opens and closes.
+- Existing club data is not lost.
+- Actions go somewhere useful or show a clear placeholder if not implemented yet.
+- Club aliases are not shown in Bag.
+
+At the end:
+1. Commit changes.
+2. Summarize changed files.
+3. Tell me what to test.
+```
+
+### Phase 6 prompt: Logbook cleanup
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Make Logbook the clear place to store non-TrackMan practice and course data.
+
+Important:
+- Today tells me what to train.
+- Logbook stores what I did.
+- Logbook is a main bottom tab.
+- Keep existing chipping_sessions and putting_sessions working.
+- Add support for practice_sessions if the migration has been run.
+- If practice_sessions does not exist yet, show a friendly message and do not crash.
+- Make one safe commit at the end.
+
+Existing data:
+- chipping_sessions
+- putting_sessions
+
+New data:
+- practice_sessions
+
+Logbook structure:
+1. Top quick add cards:
+   - Chipping
+   - Putting
+   - Range
+   - Course note
+2. Recent logs section
+3. Chipping section
+4. Putting section
+5. Range/manual practice section
+6. Course notes section
+
+UX:
+1. Phone-first.
+2. Do not show huge forms by default.
+3. Use accordion forms, compact cards, or modal-style sections.
+4. Quick add should be easy on the course.
+5. Recent logs should combine:
+   - chipping_sessions
+   - putting_sessions
+   - practice_sessions
+6. Recent logs should show newest first.
+7. TrackMan sessions should stay in TrackMan, not Logbook.
+
+Chipping:
+- Keep existing chipping_sessions functionality.
+- Existing add/edit/delete should continue to work.
+- Show useful summary if already available.
+
+Putting:
+- Keep existing putting_sessions functionality.
+- Existing add/edit/delete should continue to work.
+- Show useful summary if already available.
+
+Range:
+Use practice_sessions:
+- practice_type = 'range'
+- session_date
+- club_key
+- focus_area
+- balls
+- good_shots
+- main_miss
+- best_cue
+- confidence
+- notes
+
+Course note:
+Use practice_sessions:
+- practice_type = 'course'
+- session_date
+- title
+- focus_area
+- main_miss
+- notes
+
+Empty states:
+- No chipping logs:
+  "No chipping logs yet. Add your first chipping session."
+- No putting logs:
+  "No putting logs yet. Add your first putting session."
+- practice_sessions missing:
+  "Run the latest migration to enable range and course logs."
+
+Acceptance test:
+- I can add chipping.
+- I can add putting.
+- I can add range practice if migration exists.
+- I can add course note if migration exists.
+- Existing chipping/putting data still displays.
+- Recent logs show latest manual entries.
+- App does not crash if practice_sessions is missing.
+
+At the end:
+1. Commit changes.
+2. Summarize changed files.
+3. Tell me what to test.
+4. Tell me whether migration.sql must be run before full testing.
+```
+
+### Phase 7 prompt: Today focus selector
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Make Today simple, useful, and flexible.
+
+Important:
+- Today should not become a big dashboard.
+- Today should tell me what to train now.
+- I sometimes want to train another club, so Today needs a focus selector.
+- Keep Coach and TrackMan as the deeper areas.
+- Make one safe commit at the end.
+
+Today should answer:
+1. What should I care about now?
+2. What is my main issue?
+3. Why?
+4. What should I train next?
+5. Am I improving or what should I watch?
+
+Add focus selector chips:
+- Overall
+- Driver
+- Irons
+- 7i
+- Wedges
+- Chipping
+- Putting
+
+Behavior:
+1. Overall:
+   - show the biggest current issue across available data
+2. Driver:
+   - use recent TrackMan driver shots if available
+3. Irons:
+   - use iron shots, especially 6i-9i
+4. 7i:
+   - use 7i shots if available
+5. Wedges:
+   - use wedge shots and/or chipping logs where useful
+6. Chipping:
+   - use chipping_sessions
+7. Putting:
+   - use putting_sessions
+
+Today layout:
+1. Focus selector
+2. Main issue card
+3. Evidence card
+4. Next training card
+5. Recent growth / watch item card
+6. Quick log / open related page button
+
+Training card requirements:
+For TrackMan/range areas, show a simple 30–45 minute plan:
+- Warm-up
+- Technical block
+- Random/pressure block
+- Result log
+
+For chipping/putting, show shorter practical plans:
+- drill
+- attempts
+- target
+- what to log
+
+Quick action behavior:
+- TrackMan focus: button opens TrackMan
+- Club focus: button can open TrackMan or Logbook with club preselected if easy
+- Chipping/putting: button opens Logbook quick add
+- If preselecting is too risky, simply navigate to the right page and keep it stable
+
+Empty states:
+If there is not enough data:
+- Say "Not enough data yet"
+- Tell the user exactly what to log next
+Example:
+"Add at least 10 recent 7i TrackMan shots or log a 7i range session."
+
+Important:
+- Reuse today.js where possible.
+- Do not delete good existing Today logic unless replacing it with simpler behavior.
+- Keep page fast on phone.
+- Do not show too many charts.
+
+Acceptance test:
+- Today opens fast.
+- Overall shows a recommendation.
+- Selecting 7i changes the issue/training to 7i.
+- Selecting Putting uses putting data.
+- Selecting Chipping uses chipping data.
+- Quick action buttons go somewhere useful.
+- Empty states are clear.
+
+At the end:
+1. Commit changes.
+2. Summarize changed files.
+3. Tell me what to test.
+```
+
+### Phase 8 prompt: Progress under More
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Add a useful Progress page under More.
+
+Important:
+- Progress should not be a bottom tab.
+- Progress should be More → Progress.
+- It should answer: "Am I getting better?"
+- Keep it phone-first.
+- Make one safe commit at the end.
+
+Use existing data:
+- trackman_shots
+- chipping_sessions
+- putting_sessions
+- practice_sessions if available
+
+Progress page structure:
+1. Last 30 days summary
+2. TrackMan progress
+3. Bag/club progress
+4. Chipping progress
+5. Putting progress
+6. Manual practice consistency
+
+Good high-handicap metrics:
+
+TrackMan:
+- playable shot rate
+- carry consistency / carry spread
+- main miss frequency
+- left/right miss trend
+- contact/smash consistency where available
+
+Club progress:
+- per club stock carry
+- carry range
+- main miss trend
+- confidence based on shot count
+
+Chipping:
+- inside 1m
+- inside 2m
+- outside 3m
+- trend over time
+
+Putting:
+- make rate by distance
+- 1m make rate
+- 2m make rate if available
+- trend over time
+
+Manual practice:
+- sessions per week
+- most trained focus area
+- best cue history if available
+
+UX requirements:
+1. Use compact cards.
+2. Avoid huge tables.
+3. Show "Improved", "Stable", or "Needs attention" where possible.
+4. Avoid comparing users/friends.
+5. If not enough data, show what to log next.
+6. Do not overbuild charts. Simple cards are enough.
+
+More integration:
+- More → Progress opens this page.
+- Add back button to More overview.
+
+Acceptance test:
+- More → Progress opens.
+- Progress does not crash if some tables are empty.
+- TrackMan progress appears if data exists.
+- Chipping progress appears if data exists.
+- Putting progress appears if data exists.
+- practice_sessions missing does not crash the app.
+- Page is readable on phone.
+
+At the end:
+1. Commit changes.
+2. Summarize changed files.
+3. Tell me what to test.
+```
+
+### Phase 9 prompt: Profile, Import settings, App settings placeholders
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Make More feel complete without building too much.
+
+Important:
+- Players stays later/placeholder.
+- Do not implement sharing yet.
+- Do not add player_shares yet.
+- Make one safe commit at the end.
+
+More should include working or placeholder pages for:
+1. Progress — already built
+2. Players — placeholder only
+3. Club aliases — already built
+4. Import settings
+5. Profile
+6. App settings
+
+Profile page:
+Use profiles table if migration exists.
+
+Fields:
+- display_name
+- handicap
+- dominant_hand
+- main_goal
+
+Requirements:
+- If profiles table does not exist, show:
+  "Run the latest migration to enable profile settings."
+- If logged in, allow loading/saving own profile.
+- If not logged in, show login message.
+- Do not crash.
+
+Import settings page:
+Simple placeholder/settings page for now:
+- TrackMan import status
+- Club alias note
+- Future import options
+- Link/button to Club aliases
+
+App settings page:
+Simple placeholder:
+- version/info if available
+- data/privacy note:
+  "Your golf data is stored under your own user account."
+- no complex settings needed yet
+
+Players page:
+Placeholder text:
+"Each player can log in and has private data. Sharing and coach access will be added later."
+
+Do not implement sharing.
+
+Acceptance test:
+- More → Profile opens.
+- Profile saves if migration exists.
+- More → Import settings opens.
+- More → App settings opens.
+- More → Players opens but is clearly marked as later.
+- No page crashes if migration is missing.
+
+At the end:
+1. Commit changes.
+2. Summarize changed files.
+3. Tell me what to test.
+```
+
+### Phase 10 prompt: Final cleanup and consistency
+
+```text
+Continue from CLAUDE.md and the previous phase.
+
+Goal:
+Clean up naming, consistency, empty states, and phone usability after the restructure.
+
+Final target:
+Bottom nav:
+Today | Coach | TrackMan | Bag | Logbook
+
+More menu:
+Progress | Players | Club aliases | Import settings | Profile | App settings
+
+Important decisions:
+- 5 bottom tabs only.
+- More is a top/right menu.
+- Players is placeholder only for now.
+- Friends can log in and have their own private data via Supabase user_id.
+- TrackMan stays technical.
+- Bag shows only active clubs by default, with a Show inactive clubs toggle.
+- Club aliases support both global and personal aliases.
+
+Tasks:
+1. Search the whole repo for old user-facing labels:
+   - Practice
+   - Clubs
+   - Stats
+   - Analysis
+   - Trackman
+2. Carefully update visible labels:
+   - Practice → Logbook
+   - Clubs → Bag
+   - Analysis → TrackMan where user-facing
+   - Trackman → TrackMan
+3. Do not blindly rename internal function names if risky.
+4. Remove duplicated or confusing cards.
+5. Make empty states helpful:
+   - no login
+   - no TrackMan data
+   - no chipping data
+   - no putting data
+   - no practice_sessions migration
+   - no profiles migration
+6. Make sure all buttons lead somewhere useful.
+7. Make sure phone layout is clean.
+8. Make sure auth state still works.
+9. Make sure Supabase queries filter by current user where required.
+10. Make sure global aliases are still readable but not editable by normal users.
+11. Add small code comments only where future work is planned.
+12. Do a final manual code inspection for obvious JS errors.
+
+Acceptance test:
+- Login works.
+- Today works.
+- Coach works.
+- TrackMan works.
+- Bag works.
+- Logbook works.
+- More works.
+- More → Progress works.
+- More → Club aliases works.
+- More → Profile works or shows migration message.
+- Bag only shows active clubs by default.
+- Show inactive clubs toggle works.
+- No obvious old/confusing labels remain.
+- Browser DevTools Console shows no red JavaScript errors.
+
+At the end:
+1. Commit changes.
+2. Provide changed files.
+3. Provide important behavior changes.
+4. Provide exact SQL I need to run manually in Supabase.
+5. Provide remaining TODOs.
+6. Provide risks.
+7. Tell me what to test in the browser.
+```
+
 ---
 
-## 13. Output Format After Every Phase
+## 14. Output Format After Every Phase
 
 Use this exact structure in the final response after a phase:
 
@@ -892,7 +1569,7 @@ Only include this section if SQL changed.
 
 ---
 
-## 14. Retros and Continuity
+## 15. Retros and Continuity
 
 After every non-trivial phase, add or update a short retro if the repo already has a place for it.
 
@@ -913,7 +1590,7 @@ At the start of a new session:
 
 ---
 
-## 15. Important Things Not To Do
+## 16. Important Things Not To Do
 
 - Do not invite friends before Phase 1 security/user isolation is done and tested.
 - Do not build Players/sharing yet.
@@ -928,7 +1605,7 @@ At the start of a new session:
 
 ---
 
-## 16. User Preferences for This Project
+## 17. User Preferences for This Project
 
 - Prefer full affected-file outputs when asking for code outside Claude Code.
 - Prefer small safe commits when working inside Claude Code.
@@ -936,4 +1613,3 @@ At the start of a new session:
 - Prefer clear wording, not fancy language.
 - Prefer concrete test steps after every change.
 - Prefer preserving working logic over unnecessary refactors.
-
