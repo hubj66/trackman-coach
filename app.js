@@ -440,9 +440,13 @@ async function loadLastSessionBanner() {
 
   try {
     const sb = window.supabaseClient;
+    const { data: _authData } = await sb.auth.getSession();
+    const _uid = _authData?.session?.user?.id;
+    if (!_uid) { banner.style.display = 'none'; return; }
     const { data } = await sb
       .from('trackman_shots')
       .select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_axis,shot_time,created_at,is_full_shot,exclude_from_progress')
+      .eq('user_id', _uid)
       .order('shot_time', { ascending: false })
       .limit(300);
 
