@@ -30,6 +30,44 @@ function toggleAuthPanel() {
   panel.style.display = open ? 'none' : 'block';
 }
 
+// ── More panel ─────────────────────────────────────────────────────────────
+function toggleMorePanel() {
+  const panel = document.getElementById('more-panel');
+  const btn   = document.getElementById('more-btn');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (btn) btn.classList.toggle('active', !isOpen);
+  if (isOpen) closeMoreSection();
+  const ap = document.getElementById('auth-panel');
+  if (ap) ap.style.display = 'none';
+}
+
+const MORE_SECTIONS = {
+  progress:    { title: 'Progress',        html: '<div class="more-placeholder">Progress tracking coming soon.<br><br>Train regularly and your stats will appear here as you log sessions.</div>' },
+  players:     { title: 'Players',         html: '<div class="more-placeholder">Each player can log in and has private data. Sharing and coach access will be added later.</div>' },
+  aliases:     { title: 'Club aliases',    html: '<div class="more-placeholder">Club alias management will be moved here soon.<br><br>For now, manage your aliases in the Bag tab.</div>' },
+  import:      { title: 'Import settings', html: '<div class="more-placeholder">Import settings coming soon.<br><br>Use the Club aliases section to map TrackMan club names to your bag.</div>' },
+  profile:     { title: 'Profile',         html: '<div class="more-placeholder">Profile settings coming soon.</div>' },
+  appsettings: { title: 'App settings',    html: '<div class="more-placeholder">Your golf data is stored under your own user account.<br><br>Version: 0.3</div>' }
+};
+
+function openMoreSection(name) {
+  const section = MORE_SECTIONS[name];
+  if (!section) return;
+  document.getElementById('more-list').style.display = 'none';
+  document.getElementById('more-section-title').textContent = section.title;
+  document.getElementById('more-section-body').innerHTML = section.html;
+  document.getElementById('more-section').style.display = 'flex';
+}
+
+function closeMoreSection() {
+  const list = document.getElementById('more-list');
+  const sec  = document.getElementById('more-section');
+  if (list) list.style.display = 'flex';
+  if (sec)  sec.style.display  = 'none';
+}
+
 // ── Club selector ──────────────────────────────────────────────────────────
 function sel(id, el) {
   club = id;
@@ -556,6 +594,8 @@ function showPage(page) {
 
   const ap = document.getElementById('auth-panel');
   if (ap) ap.style.display = 'none';
+  const mp = document.getElementById('more-panel');
+  if (mp) { mp.style.display = 'none'; const mb = document.getElementById('more-btn'); if (mb) mb.classList.remove('active'); }
 
   if (page === 'today' && typeof window.initTodayTab === 'function') {
     window.initTodayTab();

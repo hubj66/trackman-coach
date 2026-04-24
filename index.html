@@ -15,12 +15,18 @@
   <div class="app-header">
     <div class="app-header-top">
       <div class="header-title">TrackMan<span> Coach</span></div>
-      <button class="auth-toggle-btn" id="auth-toggle-btn" onclick="toggleAuthPanel()" title="Account">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-        </svg>
-        <span id="auth-toggle-label">Login</span>
-      </button>
+      <div class="header-actions">
+        <button class="auth-toggle-btn" id="auth-toggle-btn" onclick="toggleAuthPanel()" title="Account">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+          <span id="auth-toggle-label">Login</span>
+        </button>
+        <button class="more-btn" id="more-btn" onclick="toggleMorePanel()" title="More">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          More
+        </button>
+      </div>
     </div>
 
     <div id="auth-panel" class="auth-panel" style="display:none;">
@@ -364,6 +370,58 @@
   <div id="manual-log-overlay" class="manual-log-overlay" style="display:none;"></div>
   <div id="glossary-overlay" class="glossary-overlay" style="display:none;"></div>
   <div id="drill-catalog-overlay" class="drill-catalog-overlay" style="display:none;"></div>
+
+  <!-- ══ MORE PANEL ════════════════════════════════════════════════════════════ -->
+  <div id="more-panel" class="more-panel" style="display:none;" role="dialog" aria-label="More">
+    <div class="more-panel-header">
+      <button class="more-close-btn" onclick="toggleMorePanel()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <span class="more-panel-title">More</span>
+    </div>
+    <div id="more-list" class="more-list">
+      <button class="more-item" onclick="openMoreSection('progress')">
+        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+        <span class="more-item-label">Progress</span>
+        <span class="more-item-arrow">›</span>
+      </button>
+      <button class="more-item" onclick="openMoreSection('players')">
+        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
+        <span class="more-item-label">Players</span>
+        <span class="more-item-arrow">›</span>
+      </button>
+      <button class="more-item" onclick="openMoreSection('aliases')">
+        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
+        <span class="more-item-label">Club aliases</span>
+        <span class="more-item-arrow">›</span>
+      </button>
+      <button class="more-item" onclick="openMoreSection('import')">
+        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg></span>
+        <span class="more-item-label">Import settings</span>
+        <span class="more-item-arrow">›</span>
+      </button>
+      <button class="more-item" onclick="openMoreSection('profile')">
+        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        <span class="more-item-label">Profile</span>
+        <span class="more-item-arrow">›</span>
+      </button>
+      <button class="more-item" onclick="openMoreSection('appsettings')">
+        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+        <span class="more-item-label">App settings</span>
+        <span class="more-item-arrow">›</span>
+      </button>
+    </div>
+    <div id="more-section" class="more-section" style="display:none;">
+      <div class="more-section-header">
+        <button class="more-back-btn" onclick="closeMoreSection()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <span class="more-section-title" id="more-section-title"></span>
+      </div>
+      <div class="more-section-body" id="more-section-body"></div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=2"></script>
