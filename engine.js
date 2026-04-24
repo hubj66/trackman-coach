@@ -1,5 +1,29 @@
 // engine.js — diagnosis logic for each club
-// Edit the fault thresholds and tip text here when improving recommendations
+
+let _golfDict = null;
+
+async function loadGolfDict() {
+  try {
+    const res = await fetch('Dict_golf.json');
+    _golfDict = await res.json();
+  } catch (e) {
+    console.warn('Dict_golf.json not loaded, using fallback tips');
+  }
+}
+
+function _drillTips(issueId) {
+  if (!_golfDict) return null;
+  for (const g of _golfDict.issue_groups) {
+    const issue = g.issues.find(i => i.issue_id === issueId);
+    if (!issue) continue;
+    const drill = issue.prioritized_drills?.[0];
+    if (!drill) return null;
+    return drill.steps.map((s, i) =>
+      i === 0 ? `<b>${drill.name} (${drill.balls_or_time}):</b> ${s}` : s
+    ).slice(0, 3);
+  }
+  return null;
+}
 
 function diagnose() {
   ({ driver: diagDriver, irons: diagIrons, wedge: diagWedge, putter: diagPutter })[club]?.();
@@ -8,13 +32,14 @@ function diagnose() {
 function diagDriver() {
   const face = getVal('face'), path = getVal('path'), attack = getVal('attack'),
         spin = getVal('spin'), smash = getVal('smash');
-  const faults = [], tips = [];
+  const faults = [];
 
-  if (Math.abs(face) > 3)  faults.push(`face ${face > 0 ? '+' : ''}${face}° (${face > 0 ? 'open → starts RIGHT' : 'closed → starts LEFT'})`);
-  if (path < -5)            faults.push(`path ${path}° (out-to-in → slice)`);
-  if (path > 5)             faults.push(`path +${path}° (very in-to-out → hook risk)`);
-  if (spin > 3200)          faults.push(`spin ${spin} rpm (too high → less distance)`);
-  if (smash < 1.40)         faults.push(`smash ${smash.toFixed(2)} (off-center contact)`);
+  if (face > 3)        faults.push(`face +${face}° (open → starts RIGHT)`);
+  else if (face < -3)  faults.push(`face ${face}° (closed → starts LEFT)`);
+  if (path < -5)       faults.push(`path ${path}° (out-to-in → slice)`);
+  if (path > 5)        faults.push(`path +${path}° (very in-to-out → hook risk)`);
+  if (spin > 3200)     faults.push(`spin ${spin} rpm (too high → less distance)`);
+  if (smash < 1.40)    faults.push(`smash ${smash.toFixed(2)} (off-center contact)`);
 
   if (!faults.length) {
     setBanner('Driver numbers look good! Focus on consistency — repeat these numbers shot after shot.', 'banner-good');
@@ -28,10 +53,22 @@ function diagDriver() {
 
   setBanner(`<b>Driver faults:</b> ${faults.join(' · ')}.`, 'banner-bad');
 
-  if (Math.abs(face) > 3)
-    tips.push(`<b>Face ${face > 0 ? '+' : ''}${face}°:</b> ${face > 0
-      ? 'Close grip slightly — rotate both hands right on the handle. Check forearm rotation through impact — you are leaving the face open.'
-      : 'Open grip slightly — check you are not rolling wrists too early through impact.'}`);
+  // pick primary issue for drill tips
+  let issueId = null;
+  if (face > 3)         issueId = 'drv_open_face_slice';
+  else if (face < -3)   issueId = 'drv_closed_face_hook';
+  else if (spin > 3200) issueId = 'drv_high_spin_balloon';
+  else if (smash < 1.40) issueId = 'drv_heel_strike_fade';
+
+  const jsonTips = issueId ? _drillTips(issueId) : null;
+  if (jsonTips) { setTips(jsonTips); return; }
+
+  // fallback hardcoded tips
+  const tips = [];
+  if (face > 3)
+    tips.push(`<b>Face +${face}°:</b> Close grip slightly — rotate both hands right on the handle. Check forearm rotation through impact — you are leaving the face open.`);
+  else if (face < -3)
+    tips.push(`<b>Face ${face}°:</b> Open grip slightly — check you are not rolling wrists too early through impact.`);
 
   if (path < -5)
     tips.push(`<b>Path ${path}° (out-to-in):</b> Drop right foot back 5 cm at address. This promotes in-to-out path automatically. Hit 10 shots targeting path above −3° before worrying about distance.`);
@@ -54,13 +91,14 @@ function diagDriver() {
 function diagIrons() {
   const attack = getVal('attack'), face = getVal('face'), path = getVal('path'),
         launch = getVal('launch'), smash = getVal('smash');
-  const faults = [], tips = [];
+  const faults = [];
 
-  if (attack > -2)          faults.push(`attack ${attack > 0 ? '+' : ''}${attack}° (${attack > 0 ? 'scooping UP' : 'too level'})`);
-  if (Math.abs(face) > 2)   faults.push(`face ${face > 0 ? '+' : ''}${face}° (${face > 0 ? 'open → right miss' : 'closed → left miss'})`);
-  if (launch > 22)          faults.push(`launch ${launch}° (too high — caused by scoop)`);
-  if (Math.abs(path) > 6)   faults.push(`path ${path}° (too extreme)`);
-  if (smash < 1.30)         faults.push(`smash ${smash.toFixed(2)} (off-center)`);
+  if (attack > -2)         faults.push(`attack ${attack > 0 ? '+' : ''}${attack}° (${attack > 0 ? 'scooping UP' : 'too level'})`);
+  if (face > 2)            faults.push(`face +${face}° (open → right miss)`);
+  else if (face < -2)      faults.push(`face ${face}° (closed → left miss)`);
+  if (launch > 22)         faults.push(`launch ${launch}° (too high — caused by scoop)`);
+  if (Math.abs(path) > 6)  faults.push(`path ${path}° (too extreme)`);
+  if (smash < 1.30)        faults.push(`smash ${smash.toFixed(2)} (off-center)`);
 
   if (!faults.length) {
     setBanner('Iron numbers in a good range. Focus on consistency and repeatability.', 'banner-good');
@@ -74,6 +112,17 @@ function diagIrons() {
 
   setBanner(`<b>Iron faults:</b> ${faults.join(' · ')}.`, 'banner-bad');
 
+  let issueId = null;
+  if (attack > -2)       issueId = 'iron_fat';
+  else if (face < -2)    issueId = 'iron_pull_left';
+  else if (smash < 1.30) issueId = 'iron_thin';
+  else if (Math.abs(path) > 6) issueId = 'iron_contact_inconsistent';
+
+  const jsonTips = issueId ? _drillTips(issueId) : null;
+  if (jsonTips) { setTips(jsonTips); return; }
+
+  // fallback hardcoded tips
+  const tips = [];
   if (attack > -2)
     tips.push(`<b>Attack ${attack > 0 ? '+' : ''}${attack}° (scoop):</b> Move ball 1–2 cm back in stance. Tee a ball 10 cm in front and try to clip it after contact. Do 30 reps watching only attack angle — get it below −2°.`);
 
@@ -99,11 +148,11 @@ function diagIrons() {
 
 function diagWedge() {
   const attack = getVal('attack'), face = getVal('face'), spin = getVal('spin');
-  const faults = [], tips = [];
+  const faults = [];
 
-  if (attack > -4)          faults.push(`attack ${attack > 0 ? '+' : ''}${attack}° (not steep enough)`);
-  if (Math.abs(face) > 2)   faults.push(`face ${face > 0 ? '+' : ''}${face}° (${face > 0 ? 'open' : 'closed'})`);
-  if (spin < 6000)          faults.push(`spin ${spin} rpm (too low — ball won't stop)`);
+  if (attack > -4)        faults.push(`attack ${attack > 0 ? '+' : ''}${attack}° (not steep enough)`);
+  if (Math.abs(face) > 2) faults.push(`face ${face > 0 ? '+' : ''}${face}° (${face > 0 ? 'open' : 'closed'})`);
+  if (spin < 6000)        faults.push(`spin ${spin} rpm (too low — ball won't stop)`);
 
   if (!faults.length) {
     setBanner('Wedge numbers look good. Build your distance map now.', 'banner-good');
@@ -117,6 +166,15 @@ function diagWedge() {
 
   setBanner(`<b>Wedge faults:</b> ${faults.join(' · ')}.`, 'banner-bad');
 
+  let issueId = null;
+  if (attack > -4)   issueId = 'wedge_fat';
+  else if (spin < 6000) issueId = 'wedge_fat';
+
+  const jsonTips = issueId ? _drillTips(issueId) : null;
+  if (jsonTips) { setTips(jsonTips); return; }
+
+  // fallback hardcoded tips
+  const tips = [];
   if (attack > -4)
     tips.push(`<b>Attack ${attack > 0 ? '+' : ''}${attack}°:</b> Hands forward at address — shaft leans toward target. Feel like you are hitting DOWN and through, not scooping. Get attack angle to at least −4° on Trackman.`);
 
@@ -137,9 +195,10 @@ function diagWedge() {
 
 function diagPutter() {
   const face = getVal('face'), launch = getVal('launch');
-  const faults = [], tips = [];
+  const faults = [];
 
-  if (Math.abs(face) > 1)     faults.push(`face ${face > 0 ? '+' : ''}${face}° (${face > 0 ? 'open → misses right' : 'closed → misses left'})`);
+  if (face > 1)              faults.push(`face +${face}° (open → misses right)`);
+  else if (face < -1)        faults.push(`face ${face}° (closed → misses left)`);
   if (launch < 1 || launch > 4) faults.push(`launch ${launch}° (${launch < 1 ? 'pressing down — ball bounces' : 'too upward'})`);
 
   if (!faults.length) {
@@ -154,6 +213,15 @@ function diagPutter() {
 
   setBanner(`<b>Putting faults:</b> ${faults.join(' · ')}.`, 'banner-bad');
 
+  let issueId = null;
+  if (face > 1)       issueId = 'putt_push';
+  else if (face < -1) issueId = 'putt_pull';
+
+  const jsonTips = issueId ? _drillTips(issueId) : null;
+  if (jsonTips) { setTips(jsonTips); return; }
+
+  // fallback hardcoded tips
+  const tips = [];
   if (Math.abs(face) > 1)
     tips.push(`<b>Face ${face > 0 ? '+' : ''}${face}°:</b> ${face > 0
       ? 'Face open at impact. Lay an alignment rod along your putter face at address — check it points at the hole. Hit 20 putts watching only face angle. Get it within ±1° every time.'

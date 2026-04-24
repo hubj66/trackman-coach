@@ -630,6 +630,7 @@ updateModeButtons();
 render();
 
 window.addEventListener('load', () => {
+  loadGolfDict();
   const lastTab = getLastTab();
   showPage(lastTab);
 

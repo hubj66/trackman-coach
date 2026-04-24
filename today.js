@@ -224,6 +224,43 @@ async function initTodayTab() {
   });
 }
 
+// ── Dict_golf enrichment ───────────────────────────────────────────────────
+
+function _issueIdForDetected(issue) {
+  const { key, club: ck } = issue;
+  if (key.startsWith('face_')) {
+    const isOpen = issue.simple.includes('open');
+    if (ck === 'driver') return isOpen ? 'drv_open_face_slice' : 'drv_closed_face_hook';
+    return isOpen ? null : 'iron_pull_left';
+  }
+  if (key.startsWith('attack_')) return 'iron_fat';
+  if (key.startsWith('consist_'))
+    return ['pw','58','sw'].includes(ck) ? 'wedge_distance_control_unstable' : 'iron_contact_inconsistent';
+  if (key.startsWith('smash_'))
+    return ck === 'driver' ? 'drv_heel_strike_fade' : 'iron_thin';
+  if (key === 'putting_short') return 'putt_short_conversion_low';
+  return null;
+}
+
+function _enrichIssueFromDict(issue) {
+  if (!_golfDict) return issue;
+  const issueId = _issueIdForDetected(issue);
+  if (!issueId) return issue;
+  for (const g of _golfDict.issue_groups) {
+    const di = g.issues.find(i => i.issue_id === issueId);
+    if (!di) continue;
+    const drill = di.prioritized_drills?.[0];
+    if (drill?.steps?.length)
+      issue.drill = `${drill.name} (${drill.balls_or_time}): ${drill.steps[0]}`;
+    const numeric = di.success_criteria?.numeric?.[0];
+    if (numeric) issue.goal = numeric;
+    const pitfall = di.common_pitfalls?.[0];
+    if (pitfall) issue.deeper += ` Common pitfall: ${pitfall}.`;
+    break;
+  }
+  return issue;
+}
+
 // ── Issue detection ────────────────────────────────────────────────────────
 
 function _confLabel(conf) {
@@ -379,6 +416,7 @@ function _detectTodayIssues(allShots, puttSessions) {
     }
   }
 
+  issues.forEach(i => _enrichIssueFromDict(i));
   return issues.sort((a,b) => b.score - a.score);
 }
 
