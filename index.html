@@ -338,17 +338,6 @@
     <div class="main">
       <div class="page-intro">Your bag · tap a club to open Analysis</div>
       <div id="clubs-overview" style="padding:0 14px 16px;"></div>
-      <div class="acc" id="acc-alias">
-        <div class="acc-head" onclick="toggleAccById('acc-alias')">
-          <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 3H6a2 2 0 00-2 2v14c0 1.1.9 2 2 2h12a2 2 0 002-2v-4"/><path d="M14 3h4l-7 7"/><path d="M18 3v4h-4"/></svg></div>
-          <div class="acc-title">Club Name Aliases</div>
-          <div class="acc-subtitle">Map Trackman names → clubs</div>
-          <div class="acc-arrow">›</div>
-        </div>
-        <div class="acc-body">
-          <div style="padding:14px 16px 20px;"><div id="alias-manager">Loading…</div></div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -420,6 +409,18 @@
         <span class="more-section-title" id="more-section-title"></span>
       </div>
       <div class="more-section-body" id="more-section-body"></div>
+    </div>
+    <div id="more-aliases-section" class="more-section" style="display:none;">
+      <div class="more-section-header">
+        <button class="more-back-btn" onclick="closeMoreSection()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <span class="more-section-title">Club aliases</span>
+      </div>
+      <div class="more-section-body">
+        <div id="alias-manager">Loading…</div>
+      </div>
     </div>
   </div>
 

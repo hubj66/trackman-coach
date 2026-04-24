@@ -497,7 +497,7 @@ async function loadClubsOverview(){
       <div class="clubs-onboarding-steps">
         <div class="clubs-onboarding-step"><span class="onboarding-num">1</span><span>Hit balls on the Trackman simulator</span></div>
         <div class="clubs-onboarding-step"><span class="onboarding-num">2</span><span>Come back to this page</span></div>
-        <div class="clubs-onboarding-step"><span class="onboarding-num">3</span><span>Use the alias manager below to map Trackman names to your clubs</span></div>
+        <div class="clubs-onboarding-step"><span class="onboarding-num">3</span><span>Tap More → Club aliases to map TrackMan names to your clubs</span></div>
       </div>
     </div>`;
     const am=document.getElementById('alias-manager');
