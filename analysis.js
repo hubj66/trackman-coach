@@ -120,9 +120,11 @@ async function loadAnalysis() {
   }
 
   const sb = window.supabaseClient;
+  const user = _authData.session.user;
   const { data, error } = await sb
     .from('trackman_shots')
     .select('id,club,carry,total,side,total_side,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,launch_direction,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_loft,spin_axis,max_height,landing_angle,hang_time,notes,is_full_shot,exclude_from_progress,shot_type,strike_quality,shot_time,created_at')
+    .eq('user_id', user.id)
     .order('shot_time', { ascending: false })
     .limit(2000);
 
@@ -897,8 +899,11 @@ async function saveEditRow(id){
   const exclEl=document.getElementById(`edit-excl-${id}`);
   const notesEl=document.getElementById(`edit-notes-${id}`);
   if(!fullEl||!exclEl||!notesEl)return;
+  const{data:_ad}=await window.supabaseClient.auth.getSession();
+  const uid=_ad?.session?.user?.id;
+  if(!uid){showToast('Not logged in');return;}
   const updates={is_full_shot:fullEl.value==='1',exclude_from_progress:exclEl.value==='1',notes:notesEl.value.trim()||null};
-  const{error}=await window.supabaseClient.from('trackman_shots').update(updates).eq('id',id);
+  const{error}=await window.supabaseClient.from('trackman_shots').update(updates).eq('id',id).eq('user_id',uid);
   if(error){showToast('Save failed: '+error.message);return;}
   [analysisShots,_allFetchedShots].forEach(arr=>{
     const idx=arr.findIndex(s=>s.id===id);
@@ -1226,6 +1231,11 @@ function drawSideViewMap(shots, colorMap) {
 // ── Alias Manager ──────────────────────────────────────────────────────────
 async function renderAliasManager(){
   const el=document.getElementById('alias-manager');if(!el)return;
+  const{data:_ad}=await window.supabaseClient.auth.getSession();
+  if(!_ad?.session?.user){
+    el.innerHTML='<div class="alias-msg" style="padding:8px 0;">Log in to manage club aliases.</div>';
+    return;
+  }
   await CA().loadAliases();
   const unknowns=CA().findUnknownClubNames(_allFetchedShots);
   const defs=CA().CLUB_DEFINITIONS;
@@ -1248,11 +1258,22 @@ async function renderAliasManager(){
       <tbody>${defs.map(d=>{
         const raws=CA().getRawNamesForKey(d.key);
         if(!raws.length)return`<tr class="alias-row-empty"><td colspan="3"><span class="alias-key-label">${d.label}</span> — none yet</td></tr>`;
-        return raws.map(raw=>`<tr class="alias-row"><td class="alias-raw">${escapeHtml(raw)}</td><td><span class="alias-key-badge">${d.label}</span></td><td><button class="alias-del-btn" onclick="deleteAliasRow('${escapeHtml(raw)}')">✕</button></td></tr>`).join('');
+        return raws.map(raw=>{
+          const isGlobal=CA().isGlobalAlias(raw);
+          return`<tr class="alias-row">
+            <td class="alias-raw">${escapeHtml(raw)}${isGlobal?` <span class="alias-global-badge" title="Shared alias — visible to all users">global</span>`:''}
+            </td>
+            <td><span class="alias-key-badge">${d.label}</span></td>
+            <td>${isGlobal
+              ?`<span class="alias-global-lock" title="Global aliases cannot be deleted">🔒</span>`
+              :`<button class="alias-del-btn" onclick="deleteAliasRow('${escapeHtml(raw)}')">✕</button>`}
+            </td>
+          </tr>`;
+        }).join('');
       }).join('')}</tbody>
     </table></div>
     <div class="alias-add-form">
-      <div class="alias-section-title">Add new</div>
+      <div class="alias-section-title">Add personal alias</div>
       <div class="alias-add-row">
         <input id="alias-new-raw" type="text" placeholder="Raw name (e.g. '7 Iron')">
         <select id="alias-new-key" class="alias-key-select">

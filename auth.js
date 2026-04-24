@@ -1,7 +1,8 @@
-// auth.js v7
+// auth.js v8
 
 const sb = window.supabaseClient;
 let editingChipId=null,editingPuttId=null;
+let _currentUserId=null;
 let chippingCache=[],puttingCache=[];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ async function refreshSession(){
   if(error){msg(error.message,true);return;}
   if(data.session?.user){
     setLoggedInUI(data.session.user);
+    _currentUserId=data.session.user.id;
     await loadSavedStates();
     const meta=data.session.user.user_metadata;
     if(meta?.theme && typeof applyTheme==='function') applyTheme(meta.theme);
@@ -50,12 +52,13 @@ async function logIn(){
 async function logOut(){
   const{error}=await sb.auth.signOut();
   if(error){msg(error.message,true);return;}
-  msg('Logged out');setLoggedOutUI();
+  msg('Logged out');_currentUserId=null;setLoggedOutUI();
 }
 
 // ── Saved states ───────────────────────────────────────────────────────────
 async function loadSavedStates(){
-  const{data,error}=await sb.from('saved_states').select('id,title,club,created_at,app_state').order('created_at',{ascending:false});
+  if(!_currentUserId)return;
+  const{data,error}=await sb.from('saved_states').select('id,title,club,created_at,app_state').eq('user_id',_currentUserId).order('created_at',{ascending:false});
   if(error)return;
   window.__savedStatesCache=data||[];
   const list=document.getElementById('saved-list-inline');if(!list)return;
@@ -67,7 +70,7 @@ async function loadSavedStates(){
   </div>`).join('');
 }
 async function loadOneState(id){const row=(window.__savedStatesCache||[]).find(x=>x.id===id);if(!row)return;window.trackmanCoach?.applyState(row.app_state);msg('Loaded: '+row.title);}
-async function deleteOneState(id){const{error}=await sb.from('saved_states').delete().eq('id',id);if(error){msg(error.message,true);return;}msg('Deleted');await loadSavedStates();}
+async function deleteOneState(id){if(!_currentUserId)return;const{error}=await sb.from('saved_states').delete().eq('id',id).eq('user_id',_currentUserId);if(error){msg(error.message,true);return;}msg('Deleted');await loadSavedStates();}
 
 // ── Stats page ─────────────────────────────────────────────────────────────
 async function loadStatsPage(){
@@ -76,6 +79,7 @@ async function loadStatsPage(){
     ['stats-chipping-summary','stats-putting-summary','clubs-overview'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
     return;
   }
+  _currentUserId=sd.session.user.id;
   await Promise.all([
   loadTournamentPanel(),
   loadTrackmanSummary(),
@@ -96,9 +100,9 @@ async function loadTournamentPanel(){
 
   // Fetch latest KPI data
   const[chipRes,puttRes,tmRes]=await Promise.all([
-    sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m').order('session_date',{ascending:false}).limit(5),
-    sb.from('putting_sessions').select('holed,total,distance_m').order('session_date',{ascending:false}).limit(5),
-    sb.from('trackman_shots').select('carry,face_angle,is_full_shot,exclude_from_progress,shot_time,created_at').order('shot_time',{ascending:false}).limit(100),
+    sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m').eq('user_id',_currentUserId).order('session_date',{ascending:false}).limit(5),
+    sb.from('putting_sessions').select('holed,total,distance_m').eq('user_id',_currentUserId).order('session_date',{ascending:false}).limit(5),
+    sb.from('trackman_shots').select('carry,face_angle,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).order('shot_time',{ascending:false}).limit(100),
   ]);
 
   // Chip inside 2m %
@@ -154,9 +158,9 @@ async function loadStatsGlance(){
   const el=document.getElementById('stats-glance');if(!el)return;
   try{
     const[tmRes,chipRes,puttRes]=await Promise.all([
-      sb.from('trackman_shots').select('carry,is_full_shot,exclude_from_progress,shot_time,created_at').order('shot_time',{ascending:false}).limit(200),
-      sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m').order('session_date',{ascending:false}).limit(20),
-      sb.from('putting_sessions').select('session_date,holed,total').order('session_date',{ascending:false}).limit(20),
+      sb.from('trackman_shots').select('carry,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).order('shot_time',{ascending:false}).limit(200),
+      sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m').eq('user_id',_currentUserId).order('session_date',{ascending:false}).limit(20),
+      sb.from('putting_sessions').select('session_date,holed,total').eq('user_id',_currentUserId).order('session_date',{ascending:false}).limit(20),
     ]);
     const lastTm=tmRes.data?.filter(x=>x.is_full_shot!==false&&x.exclude_from_progress!==true)||[];
     const lastDate=lastTm[0]?.shot_time?.slice(0,10)||lastTm[0]?.created_at?.slice(0,10);
@@ -181,7 +185,7 @@ async function loadStatsGlance(){
 async function loadTrackmanSummary(){
   const el=document.getElementById('stats-trackman-summary');if(!el)return;
   el.innerHTML='<div class="stats-loading">Loading…</div>';
-  const{data,error}=await sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,face_angle,club_path,face_to_path,attack_angle,side,is_full_shot,exclude_from_progress,shot_time,created_at').order('shot_time',{ascending:false}).limit(1000);
+  const{data,error}=await sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,face_angle,club_path,face_to_path,attack_angle,side,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).order('shot_time',{ascending:false}).limit(1000);
   if(error){el.innerHTML=`<div class="stats-error">${escapeHtml(error.message)}</div>`;return;}
   if(!data?.length){el.innerHTML='<div class="stats-empty">No TrackMan shots yet.</div>';return;}
   const progress=data.filter(x=>x.is_full_shot!==false&&x.exclude_from_progress!==true);
@@ -292,7 +296,7 @@ async function loadChippingSummary(){
   const el=document.getElementById('stats-chipping-summary');
   const listEl=document.getElementById('stats-chipping-list');
   if(!el)return;
-  const{data,error}=await sb.from('chipping_sessions').select('id,session_date,distance_m,club,attempts,success_target,inside_1m,between_1_2m,between_2_3m,outside_3m,notes,created_at').order('session_date',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+  const{data,error}=await sb.from('chipping_sessions').select('id,session_date,distance_m,club,attempts,success_target,inside_1m,between_1_2m,between_2_3m,outside_3m,notes,created_at').eq('user_id',_currentUserId).order('session_date',{ascending:false}).order('created_at',{ascending:false}).limit(100);
   if(error){el.innerHTML=`<div class="stats-error">${escapeHtml(error.message)}</div>`;return;}
   chippingCache=data||[];
   if(!data?.length){el.innerHTML='<div class="stats-empty">No chipping data yet.</div>';const cw=document.getElementById('chipping-chart-wrap');if(cw)cw.style.display='none';if(listEl)listEl.innerHTML='';return;}
@@ -367,7 +371,7 @@ async function loadPuttingSummary(){
   const el=document.getElementById('stats-putting-summary');
   const listEl=document.getElementById('stats-putting-list');
   if(!el)return;
-  const{data,error}=await sb.from('putting_sessions').select('id,session_date,distance_m,holed,total,notes,created_at').order('session_date',{ascending:false}).order('created_at',{ascending:false}).limit(100);
+  const{data,error}=await sb.from('putting_sessions').select('id,session_date,distance_m,holed,total,notes,created_at').eq('user_id',_currentUserId).order('session_date',{ascending:false}).order('created_at',{ascending:false}).limit(100);
   if(error){el.innerHTML=`<div class="stats-error">${escapeHtml(error.message)}</div>`;return;}
   puttingCache=data||[];
   if(!data?.length){el.innerHTML='<div class="stats-empty">No putting data yet.</div>';const pw=document.getElementById('putting-chart-wrap');if(pw)pw.style.display='none';if(listEl)listEl.innerHTML='';return;}
@@ -482,7 +486,7 @@ async function loadClubsOverview(){
   const CA=window.clubAliases;await CA.loadAliases();
   const[clubsRes,shotsRes]=await Promise.all([
     sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('is_active',true).order('club_name'),
-    sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').limit(2000)
+    sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).limit(2000)
   ]);
 
   // Onboarding state: check via public API (CA._aliasMap is private)
@@ -602,7 +606,7 @@ async function updateChippingSession(){
   if(!session_date||!club||!distance_m||!attempts){msg('Fill date, distance, club and attempts',true);return;}
   if(inside_1m+between_1_2m+between_2_3m+outside_3m>attempts){msg('Bucket totals exceed attempts',true);return;}
   const success_target=success_target_raw===''||success_target_raw==null?null:Number(success_target_raw);
-  const{error}=await sb.from('chipping_sessions').update({session_date,distance_m,club,attempts,success_target,inside_1m,between_1_2m,between_2_3m,outside_3m,notes}).eq('id',editingChipId);
+  const{error}=await sb.from('chipping_sessions').update({session_date,distance_m,club,attempts,success_target,inside_1m,between_1_2m,between_2_3m,outside_3m,notes}).eq('id',editingChipId).eq('user_id',_currentUserId);
   if(error){msg(error.message,true);return;}
   msg('Updated');cancelEditChippingSession();await loadChippingSummary();
 }
@@ -626,7 +630,7 @@ function startEditChippingSession(id){
   if(typeof openLogForm==='function')openLogForm('chip-form');
 }
 function cancelEditChippingSession(){editingChipId=null;clearChippingForm();document.getElementById('add-chip-btn').style.display='inline-block';document.getElementById('update-chip-btn').style.display='none';document.getElementById('cancel-chip-edit-btn').style.display='none';}
-async function deleteChippingSession(id){const{error}=await sb.from('chipping_sessions').delete().eq('id',id);if(error){msg(error.message,true);return;}if(editingChipId===id)cancelEditChippingSession();msg('Deleted');await loadChippingSummary();}
+async function deleteChippingSession(id){if(!_currentUserId)return;const{error}=await sb.from('chipping_sessions').delete().eq('id',id).eq('user_id',_currentUserId);if(error){msg(error.message,true);return;}if(editingChipId===id)cancelEditChippingSession();msg('Deleted');await loadChippingSummary();}
 function clearChippingForm(){
   ['chip-date','chip-distance','chip-club','chip-attempts','chip-in1','chip-in2','chip-in3','chip-out3','chip-success','chip-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const bc=document.getElementById('chip-bucket-count');if(bc)bc.textContent='';
@@ -653,7 +657,7 @@ async function updatePuttingSession(){
   const notes=document.getElementById('putt-notes')?.value?.trim()||null;
   if(!session_date||!distance_m||total<=0||holed<0){msg('Fill all fields',true);return;}
   if(holed>total){msg('Holed cannot exceed total',true);return;}
-  const{error}=await sb.from('putting_sessions').update({session_date,distance_m,holed,total,notes}).eq('id',editingPuttId);
+  const{error}=await sb.from('putting_sessions').update({session_date,distance_m,holed,total,notes}).eq('id',editingPuttId).eq('user_id',_currentUserId);
   if(error){msg(error.message,true);return;}
   msg('Updated');cancelEditPuttingSession();await loadPuttingSummary();
 }
@@ -671,7 +675,7 @@ function startEditPuttingSession(id){
   if(typeof openLogForm==='function')openLogForm('putt-form');
 }
 function cancelEditPuttingSession(){editingPuttId=null;clearPuttingForm();document.getElementById('add-putt-btn').style.display='inline-block';document.getElementById('update-putt-btn').style.display='none';document.getElementById('cancel-putt-edit-btn').style.display='none';}
-async function deletePuttingSession(id){const{error}=await sb.from('putting_sessions').delete().eq('id',id);if(error){msg(error.message,true);return;}if(editingPuttId===id)cancelEditPuttingSession();msg('Deleted');await loadPuttingSummary();}
+async function deletePuttingSession(id){if(!_currentUserId)return;const{error}=await sb.from('putting_sessions').delete().eq('id',id).eq('user_id',_currentUserId);if(error){msg(error.message,true);return;}if(editingPuttId===id)cancelEditPuttingSession();msg('Deleted');await loadPuttingSummary();}
 function clearPuttingForm(){['putt-date','putt-distance','putt-holed','putt-total','putt-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
 
 // ── Exports ───────────────────────────────────────────────────────────────
