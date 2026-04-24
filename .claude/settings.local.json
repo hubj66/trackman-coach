@@ -6,7 +6,17 @@
       "Bash(where node *)",
       "Bash(cmd /c \"where npx && where node\")",
       "Bash(cmd /c \"where npx 2>&1 & where node 2>&1 & where python 2>&1\")",
-      "Bash(powershell -Command \"Get-Command npx, node, python, python3, http-server -ErrorAction SilentlyContinue | Select-Object Name, Source\")"
+      "Bash(powershell -Command \"Get-Command npx, node, python, python3, http-server -ErrorAction SilentlyContinue | Select-Object Name, Source\")",
+      "Bash(gh pr create --title 'Phase 1: multi-user data isolation \\(RLS + user_id filters\\)' --body ' *)",
+      "Bash(where gh *)",
+      "Bash(winget list *)",
+      "Bash(node --check auth.js)",
+      "Bash(node --check today.js)",
+      "Bash(node --check analysis.js)",
+      "Bash(node --check app.js)",
+      "Bash(node --check clubAliases.js)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
+      "Bash(\"/c/Users/Joel/scoop/shims/gh.exe\" --version)"
     ]
   }
 }
