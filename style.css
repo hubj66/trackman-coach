@@ -308,6 +308,39 @@ button:active{background:var(--surface4)}
 .clubs-onboarding-title{font-family:var(--cond);font-size:17px;font-weight:700;margin-bottom:12px}
 .clubs-onboarding-steps{display:flex;flex-direction:column;gap:10px}
 .clubs-onboarding-step{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text2)}
+
+/* ══ BAG PAGE ═══════════════════════════════════════════════════════════════ */
+.bag-toolbar{display:flex;align-items:center;padding:8px 14px 10px;border-bottom:0.5px solid var(--border);margin-bottom:8px}
+.bag-toggle-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer;user-select:none}
+.bag-toggle-input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.bag-cards{padding:0 14px 16px;display:flex;flex-direction:column;gap:6px}
+.bag-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .15s}
+.bag-card-inactive{opacity:.45}
+.bag-card-open{border-color:var(--border2)}
+.bag-card-head{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;gap:12px;-webkit-tap-highlight-color:transparent}
+.bag-card-head:active{background:var(--surface2)}
+.bag-card-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.bag-card-name{font-family:var(--cond);font-size:17px;font-weight:700;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.bag-inactive-badge{font-family:var(--mono);font-size:9px;background:var(--surface3);color:var(--text3);padding:2px 6px;border-radius:8px;font-weight:400}
+.bag-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bag-card-carry{font-family:var(--cond);font-size:15px;font-weight:700;color:var(--green)}
+.bag-miss-chip{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
+.chip-ok{background:var(--green-dim);color:var(--green)}
+.chip-warn{background:var(--amber-dim);color:var(--amber)}
+.chip-neutral{background:var(--surface3);color:var(--text3)}
+.bag-card-conf{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.bag-nodata-chip{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.bag-card-chevron{font-size:10px;color:var(--text3);flex-shrink:0}
+.bag-card-body{border-top:0.5px solid var(--border);padding:14px}
+.bag-sections{display:flex;flex-direction:column;gap:14px}
+.bag-sec-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px}
+.bag-stat-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.bag-stat-row span{color:var(--text2)}
+.bag-stat-row strong{color:var(--text);font-weight:600}
+.bag-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:0.5px solid var(--border)}
+.bag-action-btn{flex:1;min-width:calc(33% - 6px);padding:9px 8px;font-size:12px;font-weight:600;background:var(--surface2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--sans);text-align:center}
+.bag-action-btn:active{background:var(--surface3)}
+.bag-nodata-msg{font-size:13px;color:var(--text3);padding:4px 0 8px}
 .onboarding-num{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#0e1012;display:flex;align-items:center;justify-content:center;font-family:var(--cond);font-size:13px;font-weight:700;flex-shrink:0}
 
 /* ══ ANALYSIS ═══════════════════════════════════════════════════════════════ */
