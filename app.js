@@ -473,7 +473,7 @@ function doAsk() {
     msg = msg.replace('{' + inp.id + '}', dispVal(inp, v));
   });
   if (navigator.share) {
-    navigator.share({ title: 'Trackman drill request', text: msg }).catch(() => {});
+    navigator.share({ title: 'TrackMan drill request', text: msg }).catch(() => {});
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(msg).then(() => showToast('Copied — paste into Claude')).catch(() => prompt('Copy this:', msg));
   } else {
