@@ -1,9 +1,10 @@
-// auth.js v8
+// auth.js v9
 
 const sb = window.supabaseClient;
 let editingChipId=null,editingPuttId=null;
 let _currentUserId=null;
 let chippingCache=[],puttingCache=[];
+let _practiceSessionsAvailable=true;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function msg(text,isError=false){const el=document.getElementById('auth-message');if(!el)return;el.textContent=text||'';el.style.color=isError?'#ff4d4d':'#00d68f';}
@@ -76,18 +77,19 @@ async function deleteOneState(id){if(!_currentUserId)return;const{error}=await s
 async function loadStatsPage(){
   const{data:sd,error:se}=await sb.auth.getSession();
   if(se||!sd.session?.user){
-    ['stats-chipping-summary','stats-putting-summary','clubs-overview'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
+    ['stats-chipping-summary','stats-putting-summary','clubs-overview','stats-practice-range','stats-practice-course'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
     return;
   }
   _currentUserId=sd.session.user.id;
   await Promise.all([
-  loadTournamentPanel(),
-  loadTrackmanSummary(),
-  loadChippingSummary(),
-  loadPuttingSummary(),
-  loadClubsOverview(),
-  loadStatsGlance()
-]);
+    loadTournamentPanel(),
+    loadTrackmanSummary(),
+    loadChippingSummary(),
+    loadPuttingSummary(),
+    loadClubsOverview(),
+    loadStatsGlance(),
+    loadPracticeSessions()
+  ]);
 }
 
 // ── Tournament countdown panel ─────────────────────────────────────────────
@@ -694,23 +696,118 @@ function cancelEditPuttingSession(){editingPuttId=null;clearPuttingForm();docume
 async function deletePuttingSession(id){if(!_currentUserId)return;const{error}=await sb.from('putting_sessions').delete().eq('id',id).eq('user_id',_currentUserId);if(error){msg(error.message,true);return;}if(editingPuttId===id)cancelEditPuttingSession();msg('Deleted');await loadPuttingSummary();}
 function clearPuttingForm(){['putt-date','putt-distance','putt-holed','putt-total','putt-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
 
+// ── Practice sessions (range + course) ────────────────────────────────────
+function _renderPracticeList(sessions,type){
+  if(!sessions.length){
+    const label=type==='range'?'range sessions':'course notes';
+    return`<div class="stats-empty-small">No ${label} yet. Use the button above to add one.</div>`;
+  }
+  return sessions.slice(0,10).map(s=>{
+    const title=s.title||(type==='range'?(s.club_key||'Range session'):'Course note');
+    const sub=[s.focus_area,s.main_miss?'Miss: '+s.main_miss:null].filter(Boolean).join(' · ');
+    const confStr=s.confidence?'★'.repeat(Math.min(s.confidence,5)):'';
+    return`<div class="practice-session-row">
+      <div class="practice-session-date">${escapeHtml(s.session_date||'')}</div>
+      <div class="practice-session-title">${escapeHtml(title)}${confStr?`<span class="practice-session-conf">${confStr}</span>`:''}</div>
+      ${sub?`<div class="practice-session-sub">${escapeHtml(sub)}</div>`:''}
+      ${s.notes?`<div class="practice-session-notes">${escapeHtml(s.notes)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function loadPracticeSessions(){
+  if(!_currentUserId)return;
+  const rangeEl=document.getElementById('stats-practice-range');
+  const courseEl=document.getElementById('stats-practice-course');
+  try{
+    const{data,error}=await sb.from('practice_sessions')
+      .select('id,practice_type,session_date,club_key,focus_area,balls,good_shots,main_miss,best_cue,confidence,title,notes')
+      .eq('user_id',_currentUserId)
+      .order('session_date',{ascending:false})
+      .limit(50);
+    if(error){
+      _practiceSessionsAvailable=false;
+      const migMsg='<div class="stats-empty-small">Run the latest migration to enable this feature.</div>';
+      if(rangeEl)rangeEl.innerHTML=migMsg;
+      if(courseEl)courseEl.innerHTML=migMsg;
+      return;
+    }
+    _practiceSessionsAvailable=true;
+    const rangeSessions=(data||[]).filter(s=>s.practice_type==='range');
+    const courseSessions=(data||[]).filter(s=>s.practice_type==='course');
+    if(rangeEl)rangeEl.innerHTML=_renderPracticeList(rangeSessions,'range');
+    if(courseEl)courseEl.innerHTML=_renderPracticeList(courseSessions,'course');
+  }catch(e){
+    _practiceSessionsAvailable=false;
+    const migMsg='<div class="stats-empty-small">Run the latest migration to enable this feature.</div>';
+    if(rangeEl)rangeEl.innerHTML=migMsg;
+    if(courseEl)courseEl.innerHTML=migMsg;
+  }
+}
+
+function clearRangeForm(){['range-date','range-club','range-focus','range-balls','range-good','range-miss','range-cue','range-conf','range-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
+function clearCourseForm(){['course-date','course-title','course-focus','course-miss','course-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
+
+async function addRangeSession(){
+  if(!_currentUserId){msg('Log in first.',true);return;}
+  if(!_practiceSessionsAvailable){msg('Run the latest migration to enable range logs.',true);return;}
+  const d=id=>document.getElementById(id);
+  const{error}=await sb.from('practice_sessions').insert({
+    user_id:_currentUserId,
+    practice_type:'range',
+    session_date:d('range-date')?.value||new Date().toISOString().slice(0,10),
+    club_key:d('range-club')?.value?.trim()||null,
+    focus_area:d('range-focus')?.value?.trim()||null,
+    balls:parseInt(d('range-balls')?.value)||null,
+    good_shots:parseInt(d('range-good')?.value)||null,
+    main_miss:d('range-miss')?.value?.trim()||null,
+    best_cue:d('range-cue')?.value?.trim()||null,
+    confidence:parseInt(d('range-conf')?.value)||null,
+    notes:d('range-notes')?.value?.trim()||null
+  });
+  if(error){msg(error.message,true);return;}
+  msg('Range session added');
+  clearRangeForm();
+  await loadPracticeSessions();
+}
+
+async function addCourseNote(){
+  if(!_currentUserId){msg('Log in first.',true);return;}
+  if(!_practiceSessionsAvailable){msg('Run the latest migration to enable course notes.',true);return;}
+  const d=id=>document.getElementById(id);
+  const{error}=await sb.from('practice_sessions').insert({
+    user_id:_currentUserId,
+    practice_type:'course',
+    session_date:d('course-date')?.value||new Date().toISOString().slice(0,10),
+    title:d('course-title')?.value?.trim()||null,
+    focus_area:d('course-focus')?.value?.trim()||null,
+    main_miss:d('course-miss')?.value?.trim()||null,
+    notes:d('course-notes')?.value?.trim()||null
+  });
+  if(error){msg(error.message,true);return;}
+  msg('Course note added');
+  clearCourseForm();
+  await loadPracticeSessions();
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────
 window.loadOneState=loadOneState;window.deleteOneState=deleteOneState;
 window.loadStatsPage=loadStatsPage;
 window.startEditChippingSession=startEditChippingSession;window.deleteChippingSession=deleteChippingSession;window.cancelEditChippingSession=cancelEditChippingSession;
 window.startEditPuttingSession=startEditPuttingSession;window.deletePuttingSession=deletePuttingSession;window.cancelEditPuttingSession=cancelEditPuttingSession;
 window.openClubInAnalysis=openClubInAnalysis;
+window.addRangeSession=addRangeSession;window.addCourseNote=addCourseNote;
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const b=(id,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener('click',fn);};
   b('signup-btn',signUp);b('login-btn',logIn);b('logout-btn',logOut);
   b('add-chip-btn',addChippingSession);b('update-chip-btn',updateChippingSession);b('cancel-chip-edit-btn',cancelEditChippingSession);
   b('add-putt-btn',addPuttingSession);b('update-putt-btn',updatePuttingSession);b('cancel-putt-edit-btn',cancelEditPuttingSession);
+  b('add-range-btn',addRangeSession);b('add-course-btn',addCourseNote);
 
   // Auto-fill today's date on forms
   const today=new Date().toISOString().slice(0,10);
-  const chipDate=document.getElementById('chip-date');if(chipDate&&!chipDate.value)chipDate.value=today;
-  const puttDate=document.getElementById('putt-date');if(puttDate&&!puttDate.value)puttDate.value=today;
+  ['chip-date','putt-date','range-date','course-date'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=today;});
 
   // Live bucket counter & R12 watchers
   ['chip-in1','chip-in2','chip-in3','chip-out3','chip-attempts'].forEach(id=>{
