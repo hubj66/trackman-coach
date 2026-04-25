@@ -272,14 +272,36 @@ function _renderClubFocusSection(focusKey) {
   }
 
   // 5+ shots — detect issue directly from focusShots, not from global _todayIssues
-  const issue     = _detectFocusIssue(focusShots, focusKey);
+  const issue = _detectFocusIssue(focusShots, focusKey);
+  if (issue) {
+    issue.clubName = focusLabel;
+    // Update trend globals so the chart draws for this focus when Stats tab opens
+    _trendIssue = issue;
+    _trendShots = _todayAllShots;
+  }
   const issueCard = issue
     ? _renderFocusIssueCard(issue, focusLabel)
     : _renderFocusNoIssueCard(focusLabel, focusShots.length);
 
-  return statsCard + techCard + issueCard +
-         _renderFocusTrainCard(issue, focusLabel, focusKey) +
-         _renderFocusQuickActions();
+  const drillCat = issue ? _issueToDrillCategory(issue) : '';
+  return `
+    <div class="today-layer-toggle">
+      <button class="today-layer-btn today-layer-coach active" onclick="toggleTodayLayer('coach')">Coach</button>
+      <button class="today-layer-btn today-layer-stats" onclick="toggleTodayLayer('stats')">Stats</button>
+    </div>
+    <div class="today-coach-layer">
+      ${statsCard}${techCard}${issueCard}
+      ${_renderFocusTrainCard(issue, focusLabel, focusKey)}
+      ${_renderFocusQuickActions()}
+    </div>
+    <div class="today-stats-layer">
+      ${issue ? _renderShotPatternCard(issue) : ''}
+      ${issue ? _renderStatsProgressCard(issue) : ''}
+      ${issue ? _renderTrendCard(issue) : ''}
+      <div class="today-drill-library-row">
+        <button class="today-drill-library-btn" onclick="openDrillCatalog('${drillCat}')">Browse drill library →</button>
+      </div>
+    </div>`;
 }
 
 // ── Focus helpers ─────────────────────────────────────────────────────────
@@ -357,7 +379,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     const sliceBias  = avgFTP != null && avgFTP > 3.5;
     const hookBias   = avgFTP != null && avgFTP < -3.5;
     candidates.push({
-      key: `face_${primaryCk}`, club: primaryCk, score: sev,
+      key: `face_${primaryCk}`, club: primaryCk, type: 'direction', score: sev,
       simple: isOpen
         ? (sliceBias ? 'Face open — ball starts and curves right' : 'Face open — ball starting right')
         : (hookBias  ? 'Face closed — ball starts and curves left' : 'Face closed — ball starting left'),
@@ -379,7 +401,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     if (avgAttack > threshold) {
       const sev = Math.min((avgAttack - threshold) / 5, 1);
       candidates.push({
-        key: `attack_${primaryCk}`, club: primaryCk, score: sev * 1.1,
+        key: `attack_${primaryCk}`, club: primaryCk, type: 'attack', score: sev * 1.1,
         simple: 'Not hitting down enough — ball getting scooped',
         support: `Attack angle: ${fSign(avgAttack,1)}° (target below ${threshold}°)`,
         deeper: `Irons need a descending blow. At ${fSign(avgAttack,1)}° you're scooping — produces inconsistent carry and weak ball flight.`,
@@ -396,7 +418,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     if (carrySD > thresh) {
       const sev = Math.min(carrySD / (thresh * 1.8), 1);
       candidates.push({
-        key: `consist_${primaryCk}`, club: primaryCk, score: sev * 0.85,
+        key: `consist_${primaryCk}`, club: primaryCk, type: 'consistency', score: sev * 0.85,
         simple: 'Distance unreliable — carry spread too wide',
         support: `Avg: ${f(stats.avgCarry,0)}m · Spread: ±${f(carrySD,0)}m (target ±${thresh}m)`,
         deeper: `Carry SD of ${f(carrySD,0)}m means club selection is a guess. Below ${thresh}m is the target for course-ready consistency.`,
@@ -413,7 +435,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     if (avgSmash < target - 0.03) {
       const sev = Math.min((target - avgSmash) / 0.10, 1);
       candidates.push({
-        key: `smash_${primaryCk}`, club: primaryCk, score: sev * 0.8,
+        key: `smash_${primaryCk}`, club: primaryCk, type: 'contact', score: sev * 0.8,
         simple: 'Contact off-centre — smash factor low',
         support: `Smash: ${f(avgSmash,2)} (target ${target}+)`,
         deeper: `Every 0.05 smash improvement ≈ 5m more carry, no extra effort. Off-centre contact is costing distance and consistency.`,
