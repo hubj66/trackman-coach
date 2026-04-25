@@ -176,7 +176,7 @@ function diagWedge() {
   // fallback hardcoded tips
   const tips = [];
   if (attack > -4)
-    tips.push(`<b>Attack ${attack > 0 ? '+' : ''}${attack}°:</b> Hands forward at address — shaft leans toward target. Feel like you are hitting DOWN and through, not scooping. Get attack angle to at least −4° on Trackman.`);
+    tips.push(`<b>Attack ${attack > 0 ? '+' : ''}${attack}°:</b> Hands forward at address — shaft leans toward target. Feel like you are hitting DOWN and through, not scooping. Get attack angle to at least −4° on TrackMan.`);
 
   if (Math.abs(face) > 2 && tips.length < 3)
     tips.push(`<b>Face ${face > 0 ? '+' : ''}${face}°:</b> At 80 yards, 3° open misses the green completely. Check grip and square face at address. Slow down practice swings and feel face square at impact.`);
@@ -205,7 +205,7 @@ function diagPutter() {
     setBanner('Putting numbers look solid. Focus on speed control and green reading.', 'banner-good');
     setTips([
       'Speed ladder — 5 putts from 10, 20 and 30 ft. Record ball speed for each. This becomes your distance reference.',
-      'Green reading — good numbers with bad read still misses. Combine Trackman data with slope awareness.',
+      'Green reading — good numbers with bad read still misses. Combine TrackMan data with slope awareness.',
       'Gate drill — two tees just wider than putter face, 20 cm ahead. Keeps path and face honest.',
     ]);
     return;

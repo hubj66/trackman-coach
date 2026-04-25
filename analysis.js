@@ -112,7 +112,7 @@ async function loadAnalysis() {
   const { data: _authData } = await window.supabaseClient.auth.getSession();
   if (!_authData?.session?.user) {
     el.innerHTML = `<div class="analysis-empty">
-      <strong>Sign in to view your Trackman data</strong>
+      <strong>Sign in to view your TrackMan data</strong>
       Your shot history, progress charts and club stats will appear here.
       <small><button class="analysis-login-btn" onclick="toggleAuthPanel()">Login →</button></small>
     </div>`;
@@ -163,7 +163,7 @@ function renderAnalysis(allShots) {
     : '';
 
   if (!shots.length) {
-    el.innerHTML = unknownBanner + `<div class="analysis-empty">No <strong>${CA().clubLabel(analysisClub)}</strong> shots for this filter.<br><small>Check club aliases in the Clubs tab.</small></div>`;
+    el.innerHTML = unknownBanner + `<div class="analysis-empty">No <strong>${CA().clubLabel(analysisClub)}</strong> shots for this filter.<br><small>Check club aliases in More → Club aliases.</small></div>`;
     return;
   }
 
@@ -1240,7 +1240,7 @@ async function renderAliasManager(){
   const unknowns=CA().findUnknownClubNames(_allFetchedShots);
   const defs=CA().CLUB_DEFINITIONS;
   el.innerHTML=`
-    <p class="alias-intro">Maps raw Trackman names → canonical clubs. One place, everything reads from here.</p>
+    <p class="alias-intro">Maps raw TrackMan names → canonical clubs. One place, everything reads from here.</p>
     ${unknowns.length?`<div class="alias-unknown-box">
       <div class="alias-unknown-title">⚠ Unmapped in your data</div>
       <div class="alias-unknown-list">${unknowns.map(u=>`<div class="alias-unknown-row">
@@ -1254,7 +1254,7 @@ async function renderAliasManager(){
     </div>`:`<div class="alias-all-mapped">✓ All club names mapped</div>`}
     <div class="alias-section-title" style="margin-top:14px;">Current Mappings</div>
     <div class="alias-table-wrap"><table class="alias-table">
-      <thead><tr><th>Raw Trackman Name</th><th>Club</th><th></th></tr></thead>
+      <thead><tr><th>Raw TrackMan Name</th><th>Club</th><th></th></tr></thead>
       <tbody>${defs.map(d=>{
         const raws=CA().getRawNamesForKey(d.key);
         if(!raws.length)return`<tr class="alias-row-empty"><td colspan="3"><span class="alias-key-label">${d.label}</span> — none yet</td></tr>`;

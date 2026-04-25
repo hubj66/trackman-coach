@@ -39,7 +39,7 @@ const CLUBS = {
       { id: 'dynloft',   l: 'Dynamic loft', unit: '°',    min: 5,   max: 25,  def: 14, realistic: [11, 17], good: [12, 15] },
       { id: 'spinaxis',  l: 'Spin axis',    unit: '°',    min: -20, max: 20,  def: 0,  realistic: [-6, 6], good: [-4, 4] },
     ],
-    askTpl: 'I am a 54 handicap. My driver Trackman: face {face}°, path {path}°, attack {attack}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} m/s, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
+    askTpl: 'I am a 54 handicap. My driver TrackMan: face {face}°, path {path}°, attack {attack}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} m/s, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
   },
 
   irons: {
@@ -51,7 +51,7 @@ const CLUBS = {
       { step: 3, cue: 'Lead thumb', detail: 'Right of logo — face square at address. Weight 60/40 left.' },
     ],
     kpis: [
-      { l: 'Attack angle', realistic: '−5° to −2°',    good: '−5° to −3°',    d: 'How steeply the club descends at impact. Negative = hitting down (correct for irons). Near 0° or positive = scooping. Improved from ~0° to ~−3° — keep pushing toward −4°. Divot position tells you this without Trackman.', badge: 'br', bt: 'Critical' },
+      { l: 'Attack angle', realistic: '−5° to −2°',    good: '−5° to −3°',    d: 'How steeply the club descends at impact. Negative = hitting down (correct for irons). Near 0° or positive = scooping. Improved from ~0° to ~−3° — keep pushing toward −4°. Divot position tells you this without TrackMan.', badge: 'br', bt: 'Critical' },
       { l: 'Club path',    realistic: '±6° max',       good: '±4° max',       d: 'Direction the clubhead travels. More stable than face angle for most amateurs. Combined with face angle, determines ball curve. Your path is relatively stable — face is the priority to fix.', badge: 'br', bt: 'Critical' },
       { l: 'Face angle',   realistic: '±4°',           good: '±2.5°',         d: 'Where the face points at impact. Your primary fault: swinging from −9° to +6° — that 15° spread explains nearly all your left/right misses. Controls ~75% of start direction. This is the #1 thing to tighten.', badge: 'br', bt: 'Critical' },
       { l: 'Launch angle', realistic: '17–23°',        good: '18–21°',        d: 'Vertical angle ball leaves. Too high = scooping (attack angle problem). Too low = hands too far forward or delofted. Fix attack angle and launch fixes itself automatically.', badge: 'by', bt: 'Important' },
@@ -79,7 +79,7 @@ const CLUBS = {
       { id: 'dynloft',   l: 'Dynamic loft', unit: '°',    min: 10, max: 35,  def: 22, realistic: [19, 27], good: [20, 25] },
       { id: 'spinaxis',  l: 'Spin axis',    unit: '°',    min: -15, max: 15, def: 0,  realistic: [-6, 6], good: [-4, 4] },
     ],
-    askTpl: 'I am a 54 handicap. My iron Trackman: attack {attack}°, face {face}°, path {path}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} m/s, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
+    askTpl: 'I am a 54 handicap. My iron TrackMan: attack {attack}°, face {face}°, path {path}°, launch {launch}°, spin {spin} rpm, smash {smash}, club speed {clubspeed} m/s, dynamic loft {dynloft}°, spin axis {spinaxis}°. Give me 3 prioritised drills to fix my faults.',
   },
 
   wedge: {
@@ -117,7 +117,7 @@ const CLUBS = {
     advanced: [
       { id: 'clubspeed', l: 'Club speed', unit: ' m/s', min: 13, max: 40, def: 27, realistic: [22, 32], good: [25, 34] },
     ],
-    askTpl: 'I am a 54 handicap. My wedge Trackman: attack {attack}°, face {face}°, path {path}°, spin {spin} rpm, launch {launch}°, club speed {clubspeed} m/s. Give me 3 prioritised drills.',
+    askTpl: 'I am a 54 handicap. My wedge TrackMan: attack {attack}°, face {face}°, path {path}°, spin {spin} rpm, launch {launch}°, club speed {clubspeed} m/s. Give me 3 prioritised drills.',
   },
 
   putter: {
@@ -151,7 +151,7 @@ const CLUBS = {
       { id: 'speed', l: 'Ball speed (10ft)', unit: ' m/s', min: 0.9, max: 3.6, def: 1.8, realistic: [1.3, 2.2], good: [1.5, 2.1] },
     ],
     advanced: [],
-    askTpl: 'I am a 54 handicap. My putting Trackman: face {face}°, launch {launch}°, path {path}°. Give me 3 prioritised drills.',
+    askTpl: 'I am a 54 handicap. My putting TrackMan: face {face}°, launch {launch}°, path {path}°. Give me 3 prioritised drills.',
   },
 };
 

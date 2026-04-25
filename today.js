@@ -799,9 +799,9 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       <div class="today-empty-state">
         <div class="today-empty-icon">🏌️</div>
         <div class="today-empty-title">Start logging to get coaching</div>
-        <div class="today-empty-text">After 15+ shots in the Trackman tab, you'll see your biggest issue and a personalised practice plan here.</div>
+        <div class="today-empty-text">After 15+ shots in the TrackMan tab, you'll see your biggest issue and a personalised practice plan here.</div>
         <div class="today-quick-log-row" style="justify-content:center">
-          <button class="today-log-btn" onclick="showPage('analysis')">Log Trackman</button>
+          <button class="today-log-btn" onclick="showPage('analysis')">Log TrackMan</button>
           <button class="today-log-btn" onclick="showPage('stats')">Log short game</button>
         </div>
       </div>`;
@@ -822,7 +822,7 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       <div class="today-quick-log-row" style="margin-bottom:20px;">
         <button class="today-log-btn" onclick="showPage('analysis')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          Trackman
+          TrackMan
         </button>
         <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
@@ -930,7 +930,7 @@ function _renderTrainTodayCard(issue) {
           </div>`).join('')}
       </div>
       <div class="today-plan-cta-row">
-        <button class="today-plan-start-btn" onclick="showPage('analysis')">Start on Trackman tab →</button>
+        <button class="today-plan-start-btn" onclick="showPage('analysis')">Start on TrackMan tab →</button>
         <button class="today-plan-short-btn" onclick="shrinkTodayPlan(${short})">Make it ${short} min</button>
       </div>
     </div>
@@ -1035,7 +1035,7 @@ function _buildGenericPlan(ck, allShots) {
     key: `manual_${ck}`, club: ck, clubName, type: 'manual',
     score: 0,
     simple: `${clubName} focused session`,
-    support: carries.length ? `Last ${carries.length} shots · Median ${f(med,0)}m · ±${f(sd,1)}m` : 'No recent Trackman data for this club',
+    support: carries.length ? `Last ${carries.length} shots · Median ${f(med,0)}m · ±${f(sd,1)}m` : 'No recent TrackMan data for this club',
     drill,
     goal,
     durationMin: isPutter || isWedge ? 30 : 40,
@@ -1288,7 +1288,7 @@ function openPrePracticeMode() {
 
         ${isTransfer ? `<div class="prepractice-phase-note">Transfer phase — normal routine every shot, vary targets</div>` : ''}
 
-        <button class="prepractice-start-btn" onclick="showPage('analysis');closePrePracticeMode()">Open Trackman tab →</button>
+        <button class="prepractice-start-btn" onclick="showPage('analysis');closePrePracticeMode()">Open TrackMan tab →</button>
       </div>
       <div class="prepractice-footer">
         <button class="prepractice-log-btn" onclick="closePrePracticeMode();setTimeout(openSessionReview,150)">Done — log session result</button>
