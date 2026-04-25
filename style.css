@@ -1090,6 +1090,11 @@ body.light-theme .today-train-card{background:var(--surface2)}
 .progress-status-bad{background:var(--red-dim);color:var(--red)}
 .progress-empty{font-size:13px;color:var(--text3);padding:12px 0 4px;line-height:1.5}
 body.light-theme .progress-summary-strip,.progress-card{background:var(--surface)}
+/* Period-over-period comparison */
+.progress-period-note{font-size:11px;font-weight:400;color:var(--text3);margin-left:6px;text-transform:none}
+.progress-delta{font-size:11px;font-weight:600;margin-left:5px;letter-spacing:0.01em}
+.progress-delta-up{color:var(--green)}
+.progress-delta-dn{color:var(--red)}
 
 /* ── Profile form ────────────────────────────────────────────────────────── */
 .profile-form{display:flex;flex-direction:column;gap:14px}
