@@ -1050,6 +1050,27 @@ body.light-theme .lqa-btn{background:var(--surface);border-color:var(--border2)}
 .practice-session-notes{font-size:12px;color:var(--text3);font-style:italic}
 .stats-empty-small{font-size:13px;color:var(--text3);padding:14px 0;text-align:center;line-height:1.5}
 
+/* ── Today focus chip bar ────────────────────────────────────────────────── */
+.today-focus-bar{display:flex;gap:6px;padding:10px 14px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.today-focus-bar::-webkit-scrollbar{display:none}
+.today-focus-chip{flex-shrink:0;background:var(--surface2);border:0.5px solid var(--border);border-radius:20px;color:var(--text2);font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.3px;padding:6px 13px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;white-space:nowrap}
+.today-focus-chip.active{background:var(--green-dim);border-color:rgba(0,214,143,.3);color:var(--green)}
+.today-focus-chip:active{background:var(--surface3)}
+
+/* ── Today focus cards ───────────────────────────────────────────────────── */
+.today-focus-card{background:var(--surface);border:0.5px solid var(--border);border-radius:13px;padding:13px 14px 12px}
+.today-focus-card-label{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text2)}
+.today-health-neutral{border-color:var(--border2)}
+
+/* ── Today training plan card ────────────────────────────────────────────── */
+.today-train-card{background:var(--surface2);border:0.5px solid var(--border);border-radius:13px;padding:13px 14px 12px}
+.today-train-title{font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text);margin-bottom:9px}
+.today-train-drill{font-size:13px;color:var(--text2);margin-bottom:6px;line-height:1.5}
+.today-train-cue{font-size:12px;color:var(--text3);margin-bottom:3px;line-height:1.5}
+body.light-theme .today-focus-chip.active{background:rgba(0,180,115,.1);border-color:rgba(0,180,115,.4);color:rgba(0,150,100,1)}
+body.light-theme .today-focus-card{background:var(--surface)}
+body.light-theme .today-train-card{background:var(--surface2)}
+
 
 
 /* Local test change */
