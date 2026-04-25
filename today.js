@@ -24,7 +24,10 @@ const TODAY_FOCUS_LABELS = [
   { key:'overall',  label:'Overall' },
   { key:'driver',   label:'Driver' },
   { key:'irons',    label:'Irons' },
+  { key:'6',        label:'6i' },
   { key:'7',        label:'7i' },
+  { key:'8',        label:'8i' },
+  { key:'9',        label:'9i' },
   { key:'wedges',   label:'Wedges' },
   { key:'chipping', label:'Chipping' },
   { key:'putting',  label:'Putting' },
@@ -34,7 +37,10 @@ const TODAY_FOCUS_LABELS = [
 const TODAY_FOCUS_CLUB_KEYS = {
   driver:  ['driver'],
   irons:   ['6','7','8','9'],
+  '6':     ['6'],
   '7':     ['7'],
+  '8':     ['8'],
+  '9':     ['9'],
   wedges:  ['pw','58','sw'],
 };
 
