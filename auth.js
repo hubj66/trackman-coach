@@ -696,6 +696,111 @@ function cancelEditPuttingSession(){editingPuttId=null;clearPuttingForm();docume
 async function deletePuttingSession(id){if(!_currentUserId)return;const{error}=await sb.from('putting_sessions').delete().eq('id',id).eq('user_id',_currentUserId);if(error){msg(error.message,true);return;}if(editingPuttId===id)cancelEditPuttingSession();msg('Deleted');await loadPuttingSummary();}
 function clearPuttingForm(){['putt-date','putt-distance','putt-holed','putt-total','putt-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
 
+// ── Progress section (More → Progress) ────────────────────────────────────
+async function loadProgressSection(){
+  const el=document.getElementById('more-section-body');
+  if(!el)return;
+  if(!_currentUserId){el.innerHTML='<div class="stats-login-note">Log in to see your progress.</div>';return;}
+  el.innerHTML='<div class="stats-loading">Loading…</div>';
+  const thirty=new Date(Date.now()-30*24*3600*1000).toISOString().slice(0,10);
+  try{
+    const[tmRes,chipRes,puttRes,practiceRes]=await Promise.all([
+      sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).gte('shot_time',thirty+'T00:00:00').order('shot_time',{ascending:false}).limit(500),
+      sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
+      sb.from('putting_sessions').select('session_date,distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
+      sb.from('practice_sessions').select('session_date,practice_type').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
+    ]);
+    // TrackMan
+    const tmShots=(tmRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
+    const tmDays=[...new Set(tmShots.map(s=>(s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
+    const carries=tmShots.map(s=>s.carry).filter(Boolean);
+    const sides=tmShots.map(s=>s.side).filter(s=>s!=null);
+    const smashes=tmShots.map(s=>s.smash_factor).filter(Boolean);
+    const faces=tmShots.map(s=>s.face_angle).filter(s=>s!=null);
+    const avgCarry=avg(carries);
+    const carrySD=stdDev(carries);
+    const playablePct=sides.length?sides.filter(s=>Math.abs(s)<=20).length/sides.length*100:null;
+    const avgSmash=avg(smashes);
+    const avgFace=avg(faces);
+    // Chipping
+    const chips=chipRes.data||[];
+    const chipAtt=sum(chips.map(x=>x.attempts));
+    const chipIn2=sum(chips.map(x=>(x.inside_1m||0)+(x.between_1_2m||0)));
+    const chipOut3=sum(chips.map(x=>x.outside_3m||0));
+    const chipIn2Rate=chipAtt?chipIn2/chipAtt*100:null;
+    const chipOut3Rate=chipAtt?chipOut3/chipAtt*100:null;
+    // Putting
+    const putts=puttRes.data||[];
+    const shortPutts=putts.filter(p=>p.distance_m!=null&&p.distance_m<=2);
+    const puttHoled=sum(shortPutts.map(x=>x.holed));
+    const puttTotal=sum(shortPutts.map(x=>x.total));
+    const puttMakeRate=puttTotal?puttHoled/puttTotal*100:null;
+    // Practice
+    const practiceOk=!practiceRes.error;
+    const practiceSessions=practiceOk?(practiceRes.data||[]):[];
+    const rangeSessions=practiceSessions.filter(s=>s.practice_type==='range');
+    // Days since last
+    const allDates=[...tmDays,...chips.map(s=>s.session_date),...putts.map(s=>s.session_date),...practiceSessions.map(s=>s.session_date)].filter(Boolean).sort().reverse();
+    const lastDate=allDates[0];
+    const daysSince=lastDate?Math.floor((Date.now()-new Date(lastDate))/(24*3600*1000)):null;
+
+    function st(val,good,bad,hi=true){if(val===null||val===undefined)return null;return hi?(val>=good?'good':val>=bad?'ok':'bad'):(val<=good?'good':val<=bad?'ok':'bad');}
+    const SL={good:'✓ Improved',ok:'→ Stable',bad:'⚠ Needs attention'};
+    function chip(s){if(!s)return'';return`<span class="progress-status progress-status-${s}">${SL[s]}</span>`;}
+    function row(label,valStr,status){return`<div class="progress-metric"><div class="progress-metric-left"><div class="progress-metric-label">${escapeHtml(label)}</div><div class="progress-metric-val">${escapeHtml(valStr)}</div></div>${chip(status)}</div>`;}
+
+    const totalSG=chips.length+putts.length;
+    const summaryHtml=`<div class="progress-summary-strip">
+      <div class="progress-summary-item"><div class="progress-summary-val">${tmDays.length}</div><div class="progress-summary-label">TrackMan days</div></div>
+      <div class="progress-summary-sep"></div>
+      <div class="progress-summary-item"><div class="progress-summary-val">${totalSG}</div><div class="progress-summary-label">Short game logs</div></div>
+      <div class="progress-summary-sep"></div>
+      <div class="progress-summary-item"><div class="progress-summary-val">${daysSince===null?'–':daysSince===0?'Today':daysSince+'d'}</div><div class="progress-summary-label">Last session</div></div>
+    </div>`;
+
+    const tmHtml=tmShots.length>=5?`
+      <div class="progress-group-label">TrackMan — last 30 days</div>
+      <div class="progress-card">
+        ${row('Avg carry',avgCarry!=null?fmt(avgCarry,0)+'m':'–',st(avgCarry,100,85))}
+        ${carrySD!=null?row('Carry consistency','±'+fmt(carrySD,0)+'m SD',st(carrySD,8,14,false)):''}
+        ${playablePct!=null?row('Playable shots',fmt(playablePct,0)+'%',st(playablePct,70,50)):''}
+        ${avgSmash!=null?row('Smash factor',fmt(avgSmash,2),st(avgSmash,1.42,1.35)):''}
+        ${avgFace!=null?row('Face angle avg',(avgFace>0?'+':'')+fmt(avgFace,1)+'°',st(Math.abs(avgFace),2,4,false)):''}
+      </div>`
+      :`<div class="progress-group-label">TrackMan</div><div class="progress-empty">No TrackMan shots in the last 30 days.</div>`;
+
+    const chipHtml=chips.length?`
+      <div class="progress-group-label">Chipping — last 30 days</div>
+      <div class="progress-card">
+        ${row('Sessions',chips.length+' sessions, '+chipAtt+' attempts',null)}
+        ${chipIn2Rate!=null?row('Inside 2m',fmt(chipIn2Rate,0)+'%',st(chipIn2Rate,60,40)):''}
+        ${chipOut3Rate!=null?row('Outside 3m',fmt(chipOut3Rate,0)+'%',st(chipOut3Rate,15,25,false)):''}
+      </div>`
+      :`<div class="progress-group-label">Chipping</div><div class="progress-empty">No chipping sessions in the last 30 days.</div>`;
+
+    const puttHtml=putts.length?`
+      <div class="progress-group-label">Putting — last 30 days</div>
+      <div class="progress-card">
+        ${row('Sessions',putts.length+' sessions',null)}
+        ${puttMakeRate!=null?row('Short putt make rate (≤2m)',fmt(puttMakeRate,0)+'%',st(puttMakeRate,80,65)):''}
+      </div>`
+      :`<div class="progress-group-label">Putting</div><div class="progress-empty">No putting sessions in the last 30 days.</div>`;
+
+    const practiceHtml=`
+      <div class="progress-group-label">Practice consistency</div>
+      <div class="progress-card">
+        ${row('TrackMan days this month',tmDays.length+' / 30 days',st(tmDays.length,4,2))}
+        ${row('Short game sessions',totalSG+' sessions',st(totalSG,4,2))}
+        ${practiceOk?row('Range sessions',rangeSessions.length+' sessions',null):''}
+        ${daysSince!==null?row('Days since last session',daysSince===0?'Today':daysSince+'d ago',st(daysSince,7,14,false)):''}
+      </div>`;
+
+    el.innerHTML=summaryHtml+tmHtml+chipHtml+puttHtml+practiceHtml;
+  }catch(e){
+    el.innerHTML='<div class="stats-error">Failed to load progress. Try again.</div>';
+  }
+}
+
 // ── Practice sessions (range + course) ────────────────────────────────────
 function _renderPracticeList(sessions,type){
   if(!sessions.length){
@@ -797,6 +902,7 @@ window.startEditChippingSession=startEditChippingSession;window.deleteChippingSe
 window.startEditPuttingSession=startEditPuttingSession;window.deletePuttingSession=deletePuttingSession;window.cancelEditPuttingSession=cancelEditPuttingSession;
 window.openClubInAnalysis=openClubInAnalysis;
 window.addRangeSession=addRangeSession;window.addCourseNote=addCourseNote;
+window.loadProgressSection=loadProgressSection;
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const b=(id,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener('click',fn);};

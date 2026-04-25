@@ -59,6 +59,15 @@ function openMoreSection(name) {
     if (typeof renderAliasManager === 'function') renderAliasManager();
     return;
   }
+  if (name === 'progress') {
+    document.getElementById('more-list').style.display = 'none';
+    document.getElementById('more-aliases-section').style.display = 'none';
+    document.getElementById('more-section-title').textContent = 'Progress';
+    document.getElementById('more-section-body').innerHTML = '<div class="stats-loading">Loading…</div>';
+    document.getElementById('more-section').style.display = 'flex';
+    if (typeof window.loadProgressSection === 'function') window.loadProgressSection();
+    return;
+  }
   const section = MORE_SECTIONS[name];
   if (!section) return;
   document.getElementById('more-list').style.display = 'none';
