@@ -343,6 +343,10 @@ function _detectFocusIssue(focusShots, focusKey) {
   const carries  = focusShots.map(s => s.carry).filter(Boolean);
   const smashes  = focusShots.map(s => s.smash_factor).filter(Boolean);
 
+  // primaryCk lets _issueIdForDetected map to the correct dict entry
+  // group focuses use a representative club; individual focuses use their own key
+  const primaryCk = { irons:'7', wedges:'pw' }[focusKey] || focusKey;
+
   const candidates = [];
 
   // Face angle — needs ≥ 5 readings
@@ -353,7 +357,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     const sliceBias  = avgFTP != null && avgFTP > 3.5;
     const hookBias   = avgFTP != null && avgFTP < -3.5;
     candidates.push({
-      key: 'face', score: sev,
+      key: `face_${primaryCk}`, club: primaryCk, score: sev,
       simple: isOpen
         ? (sliceBias ? 'Face open — ball starts and curves right' : 'Face open — ball starting right')
         : (hookBias  ? 'Face closed — ball starts and curves left' : 'Face closed — ball starting left'),
@@ -375,7 +379,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     if (avgAttack > threshold) {
       const sev = Math.min((avgAttack - threshold) / 5, 1);
       candidates.push({
-        key: 'attack', score: sev * 1.1,
+        key: `attack_${primaryCk}`, club: primaryCk, score: sev * 1.1,
         simple: 'Not hitting down enough — ball getting scooped',
         support: `Attack angle: ${fSign(avgAttack,1)}° (target below ${threshold}°)`,
         deeper: `Irons need a descending blow. At ${fSign(avgAttack,1)}° you're scooping — produces inconsistent carry and weak ball flight.`,
@@ -392,7 +396,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     if (carrySD > thresh) {
       const sev = Math.min(carrySD / (thresh * 1.8), 1);
       candidates.push({
-        key: 'consistency', score: sev * 0.85,
+        key: `consist_${primaryCk}`, club: primaryCk, score: sev * 0.85,
         simple: 'Distance unreliable — carry spread too wide',
         support: `Avg: ${f(stats.avgCarry,0)}m · Spread: ±${f(carrySD,0)}m (target ±${thresh}m)`,
         deeper: `Carry SD of ${f(carrySD,0)}m means club selection is a guess. Below ${thresh}m is the target for course-ready consistency.`,
@@ -409,7 +413,7 @@ function _detectFocusIssue(focusShots, focusKey) {
     if (avgSmash < target - 0.03) {
       const sev = Math.min((target - avgSmash) / 0.10, 1);
       candidates.push({
-        key: 'smash', score: sev * 0.8,
+        key: `smash_${primaryCk}`, club: primaryCk, score: sev * 0.8,
         simple: 'Contact off-centre — smash factor low',
         support: `Smash: ${f(avgSmash,2)} (target ${target}+)`,
         deeper: `Every 0.05 smash improvement ≈ 5m more carry, no extra effort. Off-centre contact is costing distance and consistency.`,
@@ -422,7 +426,8 @@ function _detectFocusIssue(focusShots, focusKey) {
 
   if (!candidates.length) return null;
   candidates.sort((a,b) => b.score - a.score);
-  return candidates[0];
+  // Enrich with curated drill/goal/pitfall from Dict_golf.json if loaded
+  return _enrichIssueFromDict(candidates[0]);
 }
 
 function _renderFocusStatsCard(stats, focusLabel, n) {
