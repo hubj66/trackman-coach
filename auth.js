@@ -1,9 +1,10 @@
-// auth.js v8
+// auth.js v9
 
 const sb = window.supabaseClient;
 let editingChipId=null,editingPuttId=null;
 let _currentUserId=null;
 let chippingCache=[],puttingCache=[];
+let _practiceSessionsAvailable=true;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function msg(text,isError=false){const el=document.getElementById('auth-message');if(!el)return;el.textContent=text||'';el.style.color=isError?'#ff4d4d':'#00d68f';}
@@ -76,18 +77,19 @@ async function deleteOneState(id){if(!_currentUserId)return;const{error}=await s
 async function loadStatsPage(){
   const{data:sd,error:se}=await sb.auth.getSession();
   if(se||!sd.session?.user){
-    ['stats-chipping-summary','stats-putting-summary','clubs-overview'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
+    ['stats-chipping-summary','stats-putting-summary','clubs-overview','stats-practice-range','stats-practice-course'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML='<div class="stats-login-note">Log in to see stats.</div>';});
     return;
   }
   _currentUserId=sd.session.user.id;
   await Promise.all([
-  loadTournamentPanel(),
-  loadTrackmanSummary(),
-  loadChippingSummary(),
-  loadPuttingSummary(),
-  loadClubsOverview(),
-  loadStatsGlance()
-]);
+    loadTournamentPanel(),
+    loadTrackmanSummary(),
+    loadChippingSummary(),
+    loadPuttingSummary(),
+    loadClubsOverview(),
+    loadStatsGlance(),
+    loadPracticeSessions()
+  ]);
 }
 
 // ── Tournament countdown panel ─────────────────────────────────────────────
@@ -480,22 +482,97 @@ function drawSimpleTrendChart(canvas,points,label,unit,yMin,yMax,color){
 }
 
 // ── Clubs overview ─────────────────────────────────────────────────────────
+let _bagAllClubs=[],_bagGrouped={},_bagExpandedKeys=new Set(),_bagShowInactive=false;
+window.toggleBagInactive=function(v){_bagShowInactive=v;renderBagCards();};
+window.toggleBagCard=function(k){_bagExpandedKeys.has(k)?_bagExpandedKeys.delete(k):_bagExpandedKeys.add(k);renderBagCards();};
+
+function renderBagCards(){
+  const el=document.getElementById('clubs-overview');if(!el)return;
+  const BAG_ORDER=['driver','3w','5w','4','5','6','7','8','9','pw','sw','58','putter'];
+  const visible=[..._bagAllClubs]
+    .filter(c=>_bagShowInactive||c.is_active)
+    .sort((a,b)=>{const ai=BAG_ORDER.indexOf(a.club_key),bi=BAG_ORDER.indexOf(b.club_key);return(ai===-1?99:ai)-(bi===-1?99:bi);});
+  if(!visible.length){
+    el.innerHTML='<div class="bag-toolbar"><label class="bag-toggle-label"><input type="checkbox" class="bag-toggle-input"'+(_bagShowInactive?' checked':'')+'onchange="toggleBagInactive(this.checked)"> Show inactive clubs</label></div><div class="stats-empty">'+(_bagShowInactive?'No clubs found.':'No active clubs. Enable "Show inactive clubs" to see all.')+'</div>';
+    return;
+  }
+  const cards=visible.map(row=>{
+    const shots=_bagGrouped[row.club_key]||[];
+    const carries=shots.map(s=>s.carry).filter(Boolean);
+    const avgC=avg(carries),carrySD=stdDev(carries);
+    const sides=shots.map(s=>s.side).filter(x=>x!=null),avgSide=avg(sides);
+    const miss=!avgSide?'–':avgSide>5?'Right':avgSide<-5?'Left':'Straight';
+    const n=shots.length;
+    const conf=n>=15?'High':n>=5?'Medium':n>0?'Low':'–';
+    const playable=sides.length?Math.round(sides.filter(x=>Math.abs(x)<=15).length/sides.length*100)+'%':'–';
+    const avgSmash=avg(shots.map(s=>s.smash_factor).filter(Boolean));
+    const avgBall=avg(shots.map(s=>s.ball_speed).filter(Boolean));
+    const avgFace=avg(shots.map(s=>s.face_angle).filter(Boolean));
+    const avgPath=avg(shots.map(s=>s.club_path).filter(Boolean));
+    const f2p=(avgFace!=null&&avgPath!=null)?avgFace-avgPath:null;
+    const expanded=_bagExpandedKeys.has(row.club_key);
+    const missChip=miss==='Straight'?'chip-ok':(miss==='–'?'chip-neutral':'chip-warn');
+    const k=escapeHtml(row.club_key||'');
+    return`<div class="bag-card${row.is_active?'':' bag-card-inactive'}${expanded?' bag-card-open':''}">
+<div class="bag-card-head" onclick="toggleBagCard('${k}')">
+  <div class="bag-card-info">
+    <span class="bag-card-name">${escapeHtml(row.club_name)}${row.is_active?'':' <span class="bag-inactive-badge">Inactive</span>'}</span>
+    <div class="bag-card-meta">${n>0
+      ?`<span class="bag-card-carry">${Math.round(avgC)}m</span>${miss!=='–'?`<span class="bag-miss-chip ${missChip}">${miss}</span>`:''}<span class="bag-card-conf">${conf}</span>`
+      :'<span class="bag-nodata-chip">No data</span>'
+    }</div>
+  </div>
+  <span class="bag-card-chevron">${expanded?'▲':'▼'}</span>
+</div>
+${expanded?`<div class="bag-card-body">
+  ${n>0?`<div class="bag-sections">
+    <div class="bag-section"><div class="bag-sec-title">Distance</div>
+      <div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>
+      ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
+      ${carries.length>1?`<div class="bag-stat-row"><span>Range</span><strong>${Math.round(Math.min(...carries))}–${Math.round(Math.max(...carries))}m</strong></div>`:''}
+    </div>
+    <div class="bag-section"><div class="bag-sec-title">Direction</div>
+      <div class="bag-stat-row"><span>Avg side</span><strong>${avgSide!=null?fmt(avgSide)+'m':'–'}</strong></div>
+      <div class="bag-stat-row"><span>Main miss</span><strong>${miss}</strong></div>
+      <div class="bag-stat-row"><span>Playable</span><strong>${playable}</strong></div>
+    </div>
+    <div class="bag-section"><div class="bag-sec-title">Contact</div>
+      <div class="bag-stat-row"><span>Smash</span><strong>${avgSmash?fmt(avgSmash,2):'–'}</strong></div>
+      <div class="bag-stat-row"><span>Ball speed</span><strong>${avgBall?Math.round(avgBall)+'m/s':'–'}</strong></div>
+      <div class="bag-stat-row"><span>Confidence</span><strong>${conf} (${n} shots)</strong></div>
+    </div>
+    ${(avgFace!=null||avgPath!=null)?`<div class="bag-section"><div class="bag-sec-title">Swing cause</div>
+      ${avgFace!=null?`<div class="bag-stat-row"><span>Face angle</span><strong>${fmt(avgFace,1)}°</strong></div>`:''}
+      ${avgPath!=null?`<div class="bag-stat-row"><span>Club path</span><strong>${fmt(avgPath,1)}°</strong></div>`:''}
+      ${f2p!=null?`<div class="bag-stat-row"><span>Face-to-path</span><strong>${fmt(f2p,1)}°</strong></div>`:''}
+    </div>`:''}
+  </div>`:`<div class="bag-nodata-msg">No shots yet. Import TrackMan data or log practice.</div>`}
+  <div class="bag-actions">
+    <button class="bag-action-btn" onclick="event.stopPropagation();showPage('coach')">Open Coach</button>
+    <button class="bag-action-btn" onclick="event.stopPropagation();openClubInAnalysis('${k}')">TrackMan shots</button>
+    <button class="bag-action-btn" onclick="event.stopPropagation();showPage('stats')">Log practice</button>
+  </div>
+</div>`:''}
+</div>`;
+  }).join('');
+  el.innerHTML=`<div class="bag-toolbar"><label class="bag-toggle-label"><input type="checkbox" class="bag-toggle-input"${_bagShowInactive?' checked':''} onchange="toggleBagInactive(this.checked)"> Show inactive clubs</label></div><div class="bag-cards">${cards}</div>`;
+}
+
 async function loadClubsOverview(){
   const el=document.getElementById('clubs-overview');if(!el)return;
+  if(!_currentUserId){el.innerHTML='<div class="stats-empty">Log in to see your bag.</div>';return;}
   el.innerHTML='<div class="stats-loading">Loading…</div>';
   const CA=window.clubAliases;await CA.loadAliases();
   const[clubsRes,shotsRes]=await Promise.all([
-    sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('is_active',true).order('club_name'),
+    sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('user_id',_currentUserId).order('club_name'),
     sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).limit(2000)
   ]);
-
-  // Onboarding state: check via public API (CA._aliasMap is private)
   const hasAliases=CA.CLUB_DEFINITIONS.some(d=>CA.getRawNamesForKey(d.key).length>0);
   if(!hasAliases){
     el.innerHTML=`<div class="clubs-onboarding">
       <div class="clubs-onboarding-title">Set up your bag</div>
       <div class="clubs-onboarding-steps">
-        <div class="clubs-onboarding-step"><span class="onboarding-num">1</span><span>Hit balls on the Trackman simulator</span></div>
+        <div class="clubs-onboarding-step"><span class="onboarding-num">1</span><span>Hit balls on the TrackMan simulator</span></div>
         <div class="clubs-onboarding-step"><span class="onboarding-num">2</span><span>Come back to this page</span></div>
         <div class="clubs-onboarding-step"><span class="onboarding-num">3</span><span>Tap More → Club aliases to map TrackMan names to your clubs</span></div>
       </div>
@@ -504,76 +581,17 @@ async function loadClubsOverview(){
     if(am&&typeof renderAliasManager==='function')renderAliasManager();
     return;
   }
-
   if(clubsRes.error||!clubsRes.data?.length){
     el.innerHTML='<div class="stats-empty">No clubs found.</div>';
     const am=document.getElementById('alias-manager');if(am&&typeof renderAliasManager==='function')renderAliasManager();
     return;
   }
-
   const progressShots=(shotsRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
-  const grouped=CA.groupShotsByClub(progressShots);
-  const BAG_ORDER=['driver','3w','5w','4','5','6','7','8','9','pw','sw','58','putter'];
-  const FITTED_KEYS=new Set(['6','7','8','9','pw','58']);
-
-  const orderedClubs=[...clubsRes.data].sort((a,b)=>{
-    const ai=BAG_ORDER.indexOf(a.club_key),bi=BAG_ORDER.indexOf(b.club_key);
-    return(ai===-1?99:ai)-(bi===-1?99:bi);
-  });
-
-  // Build carry data for gapping check
-  const carryByKey={};
-  orderedClubs.forEach(row=>{
-    const carries=(grouped[row.club_key]||[]).map(s=>s.carry).filter(Boolean);
-    carryByKey[row.club_key]=carries.length?{avg:avg(carries),sd:stdDev(carries)||0}:null;
-  });
-
-  el.innerHTML=`<div class="clubs-grid">${orderedClubs.map(row=>{
-    const shots=grouped[row.club_key]||[];
-    const carries=shots.map(s=>s.carry).filter(Boolean);
-    const avgCarry=avg(carries);
-    const carrySD=stdDev(carries);
-    const avgSmash=avg(shots.map(s=>s.smash_factor).filter(Boolean));
-    const avgSpin=avg(shots.map(s=>s.spin_rate).filter(Boolean));
-    const sides=shots.map(s=>s.side).filter(x=>x!=null),avgSide=avg(sides);
-    const miss=!avgSide?'–':avgSide>5?'Right':avgSide<-5?'Left':'Straight';
-    const hasData=shots.length>0;
-    const fittedBadge=FITTED_KEYS.has(row.club_key)
-      ?`<span class="fit-badge fit-yes">Fitted</span>`
-      :`<span class="fit-badge fit-no">Not fitted</span>`;
-
-    let gapWarn='';
-    if(hasData&&avgCarry){
-      const nextKey=BAG_ORDER[BAG_ORDER.indexOf(row.club_key)+1];
-      const nextData=nextKey?carryByKey[nextKey]:null;
-      if(nextData&&nextData.avg){
-        const gap=avgCarry-nextData.avg;
-        const combinedSD=(carrySD||0)+(nextData.sd||0);
-        if(gap<combinedSD*0.8&&gap>=0)
-          gapWarn=`<div class="gap-warning">Gap overlap with next club (${Math.round(gap)}m gap, combined ±${Math.round(combinedSD)}m)</div>`;
-      }
-    }
-
-    return`<div class="club-card" onclick="openClubInAnalysis('${escapeHtml(row.club_key||'')}')">
-      <div class="club-card-header">
-        <div class="club-card-name">${escapeHtml(row.club_name)}</div>
-        <div style="display:flex;gap:5px;align-items:center">${fittedBadge}<div class="club-card-badge">${hasData?shots.length+' shots':'No data'}</div></div>
-      </div>
-      ${row.brand||row.model?`<div class="club-card-model">${escapeHtml([row.brand,row.model].filter(Boolean).join(' '))}</div>`:''}
-      ${hasData?`
-        <div class="club-carry-hero">${Math.round(avgCarry)}m</div>
-        <div class="club-carry-label">avg carry · ±${fmt(carrySD)}m</div>
-        <div class="club-stats-grid" style="margin-top:8px">
-          <div class="club-stat"><div class="club-stat-label">Smash</div><div class="club-stat-val">${fmt(avgSmash,2)}</div></div>
-          <div class="club-stat"><div class="club-stat-label">Spin</div><div class="club-stat-val">${avgSpin?Math.round(avgSpin):'–'}</div></div>
-          <div class="club-stat"><div class="club-stat-label">Miss</div><div class="club-stat-val">${miss}</div></div>
-        </div>
-        ${gapWarn}
-        <div class="club-card-cta">Tap to analyse →</div>
-      `:`<div class="club-card-nodata">No shots yet</div>`}
-    </div>`;
-  }).join('')}</div>`;
-
+  _bagAllClubs=clubsRes.data;
+  _bagGrouped=CA.groupShotsByClub(progressShots);
+  _bagExpandedKeys=new Set();
+  _bagShowInactive=false;
+  renderBagCards();
   const am=document.getElementById('alias-manager');
   if(am&&typeof renderAliasManager==='function')renderAliasManager();
 }
@@ -678,23 +696,118 @@ function cancelEditPuttingSession(){editingPuttId=null;clearPuttingForm();docume
 async function deletePuttingSession(id){if(!_currentUserId)return;const{error}=await sb.from('putting_sessions').delete().eq('id',id).eq('user_id',_currentUserId);if(error){msg(error.message,true);return;}if(editingPuttId===id)cancelEditPuttingSession();msg('Deleted');await loadPuttingSummary();}
 function clearPuttingForm(){['putt-date','putt-distance','putt-holed','putt-total','putt-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
 
+// ── Practice sessions (range + course) ────────────────────────────────────
+function _renderPracticeList(sessions,type){
+  if(!sessions.length){
+    const label=type==='range'?'range sessions':'course notes';
+    return`<div class="stats-empty-small">No ${label} yet. Use the button above to add one.</div>`;
+  }
+  return sessions.slice(0,10).map(s=>{
+    const title=s.title||(type==='range'?(s.club_key||'Range session'):'Course note');
+    const sub=[s.focus_area,s.main_miss?'Miss: '+s.main_miss:null].filter(Boolean).join(' · ');
+    const confStr=s.confidence?'★'.repeat(Math.min(s.confidence,5)):'';
+    return`<div class="practice-session-row">
+      <div class="practice-session-date">${escapeHtml(s.session_date||'')}</div>
+      <div class="practice-session-title">${escapeHtml(title)}${confStr?`<span class="practice-session-conf">${confStr}</span>`:''}</div>
+      ${sub?`<div class="practice-session-sub">${escapeHtml(sub)}</div>`:''}
+      ${s.notes?`<div class="practice-session-notes">${escapeHtml(s.notes)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function loadPracticeSessions(){
+  if(!_currentUserId)return;
+  const rangeEl=document.getElementById('stats-practice-range');
+  const courseEl=document.getElementById('stats-practice-course');
+  try{
+    const{data,error}=await sb.from('practice_sessions')
+      .select('id,practice_type,session_date,club_key,focus_area,balls,good_shots,main_miss,best_cue,confidence,title,notes')
+      .eq('user_id',_currentUserId)
+      .order('session_date',{ascending:false})
+      .limit(50);
+    if(error){
+      _practiceSessionsAvailable=false;
+      const migMsg='<div class="stats-empty-small">Run the latest migration to enable this feature.</div>';
+      if(rangeEl)rangeEl.innerHTML=migMsg;
+      if(courseEl)courseEl.innerHTML=migMsg;
+      return;
+    }
+    _practiceSessionsAvailable=true;
+    const rangeSessions=(data||[]).filter(s=>s.practice_type==='range');
+    const courseSessions=(data||[]).filter(s=>s.practice_type==='course');
+    if(rangeEl)rangeEl.innerHTML=_renderPracticeList(rangeSessions,'range');
+    if(courseEl)courseEl.innerHTML=_renderPracticeList(courseSessions,'course');
+  }catch(e){
+    _practiceSessionsAvailable=false;
+    const migMsg='<div class="stats-empty-small">Run the latest migration to enable this feature.</div>';
+    if(rangeEl)rangeEl.innerHTML=migMsg;
+    if(courseEl)courseEl.innerHTML=migMsg;
+  }
+}
+
+function clearRangeForm(){['range-date','range-club','range-focus','range-balls','range-good','range-miss','range-cue','range-conf','range-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
+function clearCourseForm(){['course-date','course-title','course-focus','course-miss','course-notes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});}
+
+async function addRangeSession(){
+  if(!_currentUserId){msg('Log in first.',true);return;}
+  if(!_practiceSessionsAvailable){msg('Run the latest migration to enable range logs.',true);return;}
+  const d=id=>document.getElementById(id);
+  const{error}=await sb.from('practice_sessions').insert({
+    user_id:_currentUserId,
+    practice_type:'range',
+    session_date:d('range-date')?.value||new Date().toISOString().slice(0,10),
+    club_key:d('range-club')?.value?.trim()||null,
+    focus_area:d('range-focus')?.value?.trim()||null,
+    balls:parseInt(d('range-balls')?.value)||null,
+    good_shots:parseInt(d('range-good')?.value)||null,
+    main_miss:d('range-miss')?.value?.trim()||null,
+    best_cue:d('range-cue')?.value?.trim()||null,
+    confidence:parseInt(d('range-conf')?.value)||null,
+    notes:d('range-notes')?.value?.trim()||null
+  });
+  if(error){msg(error.message,true);return;}
+  msg('Range session added');
+  clearRangeForm();
+  await loadPracticeSessions();
+}
+
+async function addCourseNote(){
+  if(!_currentUserId){msg('Log in first.',true);return;}
+  if(!_practiceSessionsAvailable){msg('Run the latest migration to enable course notes.',true);return;}
+  const d=id=>document.getElementById(id);
+  const{error}=await sb.from('practice_sessions').insert({
+    user_id:_currentUserId,
+    practice_type:'course',
+    session_date:d('course-date')?.value||new Date().toISOString().slice(0,10),
+    title:d('course-title')?.value?.trim()||null,
+    focus_area:d('course-focus')?.value?.trim()||null,
+    main_miss:d('course-miss')?.value?.trim()||null,
+    notes:d('course-notes')?.value?.trim()||null
+  });
+  if(error){msg(error.message,true);return;}
+  msg('Course note added');
+  clearCourseForm();
+  await loadPracticeSessions();
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────
 window.loadOneState=loadOneState;window.deleteOneState=deleteOneState;
 window.loadStatsPage=loadStatsPage;
 window.startEditChippingSession=startEditChippingSession;window.deleteChippingSession=deleteChippingSession;window.cancelEditChippingSession=cancelEditChippingSession;
 window.startEditPuttingSession=startEditPuttingSession;window.deletePuttingSession=deletePuttingSession;window.cancelEditPuttingSession=cancelEditPuttingSession;
 window.openClubInAnalysis=openClubInAnalysis;
+window.addRangeSession=addRangeSession;window.addCourseNote=addCourseNote;
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const b=(id,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener('click',fn);};
   b('signup-btn',signUp);b('login-btn',logIn);b('logout-btn',logOut);
   b('add-chip-btn',addChippingSession);b('update-chip-btn',updateChippingSession);b('cancel-chip-edit-btn',cancelEditChippingSession);
   b('add-putt-btn',addPuttingSession);b('update-putt-btn',updatePuttingSession);b('cancel-putt-edit-btn',cancelEditPuttingSession);
+  b('add-range-btn',addRangeSession);b('add-course-btn',addCourseNote);
 
   // Auto-fill today's date on forms
   const today=new Date().toISOString().slice(0,10);
-  const chipDate=document.getElementById('chip-date');if(chipDate&&!chipDate.value)chipDate.value=today;
-  const puttDate=document.getElementById('putt-date');if(puttDate&&!puttDate.value)puttDate.value=today;
+  ['chip-date','putt-date','range-date','course-date'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=today;});
 
   // Live bucket counter & R12 watchers
   ['chip-in1','chip-in2','chip-in3','chip-out3','chip-attempts'].forEach(id=>{

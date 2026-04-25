@@ -4,6 +4,9 @@ let _todayAllShots = [];
 let _todayIssues   = [];
 let _trendIssue    = null;
 let _trendShots    = null;
+let _todayFocus    = 'overall';
+let _todayChipSessions = [];
+let _todayPuttSessions = [];
 
 const PICKER_CLUBS = [
   { ck:'driver', label:'Driver' },
@@ -15,6 +18,25 @@ const PICKER_CLUBS = [
   { ck:'58',     label:'58°' },
   { ck:'putter', label:'Putt' },
 ];
+
+// ── Focus selector ────────────────────────────────────────────────────────
+const TODAY_FOCUS_LABELS = [
+  { key:'overall',  label:'Overall' },
+  { key:'driver',   label:'Driver' },
+  { key:'irons',    label:'Irons' },
+  { key:'7',        label:'7i' },
+  { key:'wedges',   label:'Wedges' },
+  { key:'chipping', label:'Chipping' },
+  { key:'putting',  label:'Putting' },
+];
+
+// Maps focus key → club key(s) for filtering shots
+const TODAY_FOCUS_CLUB_KEYS = {
+  driver:  ['driver'],
+  irons:   ['6','7','8','9'],
+  '7':     ['7'],
+  wedges:  ['pw','58','sw'],
+};
 
 const GLOSSARY_TERMS = {
   face_angle: {
@@ -154,6 +176,245 @@ const DRILL_CATALOG = [
     cue:'Die in the zone.' },
 ];
 
+// ── Focus selector functions ──────────────────────────────────────────────
+
+function _renderFocusChips() {
+  return `<div class="today-focus-bar">${
+    TODAY_FOCUS_LABELS.map(f =>
+      `<button class="today-focus-chip${_todayFocus===f.key?' active':''}" onclick="setTodayFocus('${f.key}')">${escapeHtml(f.label)}</button>`
+    ).join('')
+  }</div>`;
+}
+
+window.setTodayFocus = function(key) {
+  if (!_todayAllShots) return;
+  _todayFocus = key;
+  _renderTodayPage();
+};
+
+function _renderTodayPage() {
+  const el = document.getElementById('today-content');
+  if (!el) return;
+  const chips = _renderFocusChips();
+
+  if (_todayFocus === 'chipping') {
+    requestAnimationFrame(() => { el.innerHTML = chips + _renderChippingFocus(); });
+    return;
+  }
+  if (_todayFocus === 'putting') {
+    requestAnimationFrame(() => { el.innerHTML = chips + _renderPuttingFocus(); });
+    return;
+  }
+  if (_todayFocus !== 'overall') {
+    requestAnimationFrame(() => { el.innerHTML = chips + _renderClubFocusSection(_todayFocus); });
+    return;
+  }
+
+  // Overall: read fixedIssues from localStorage (written by initTodayTab after fresh load)
+  const sevenDaysAgo = new Date(Date.now()-7*24*3600*1000).toISOString().slice(0,10);
+  let fi = [];
+  try {
+    const prev = JSON.parse(localStorage.getItem('today_prev_issues')||'[]');
+    fi = prev.filter(pi=>pi.date>=sevenDaysAgo && !_todayIssues.find(ci=>ci.key===pi.key)).slice(0,1);
+  } catch(e) {}
+
+  const health     = _buildHealthTiles(_todayAllShots, _todayChipSessions, _todayPuttSessions);
+  const improved   = _detectImprovement(_todayAllShots);
+  const regression = _detectRegression(_todayAllShots);
+
+  requestAnimationFrame(() => {
+    el.innerHTML = chips + _renderTodayContent(_todayIssues, health, improved, regression, _todayAllShots.length, fi);
+  });
+}
+
+function _renderClubFocusSection(focusKey) {
+  const CA = window.clubAliases;
+  const clubKeys = TODAY_FOCUS_CLUB_KEYS[focusKey] || [focusKey];
+  const focusLabel = TODAY_FOCUS_LABELS.find(f => f.key === focusKey)?.label || focusKey;
+
+  const focusShots = CA
+    ? _todayAllShots.filter(s => clubKeys.some(ck => CA.shotMatchesClub(s, ck))).slice(0, 50)
+    : [];
+
+  if (!CA || focusShots.length < 5) {
+    return `<div class="today-empty-state" style="margin-top:8px;">
+      <div class="today-empty-icon">🏌️</div>
+      <div class="today-empty-title">Not enough ${escapeHtml(focusLabel)} data</div>
+      <div class="today-empty-text">Add at least 10 recent ${escapeHtml(focusLabel)} shots in TrackMan to get a coaching tip here.</div>
+      <button class="today-log-btn" onclick="showPage('analysis')">Go to TrackMan →</button>
+    </div>`;
+  }
+
+  // Top issue for this focus
+  const focusIssues = _todayIssues.filter(i => clubKeys.includes(i.club));
+  const mainIssue = focusIssues[0] || null;
+
+  // Quick stats
+  const carries = focusShots.map(s=>s.carry).filter(Boolean);
+  const avgCarry = carries.length ? Math.round(carries.reduce((a,b)=>a+b,0)/carries.length) : null;
+  const sides = focusShots.map(s=>s.side).filter(s=>s!=null);
+  const playable = sides.length ? sides.filter(s=>Math.abs(s)<=20).length : 0;
+  const playableRate = sides.length ? Math.round(playable/sides.length*100) : null;
+
+  const issueHtml = mainIssue ? `
+    <div class="today-focus-card" style="margin:12px 14px 0;">
+      <div class="today-focus-card-label">Main issue — ${escapeHtml(focusLabel)}</div>
+      <div class="today-issue-simple" style="margin:6px 0 3px;">${escapeHtml(mainIssue.simple)}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">${escapeHtml(mainIssue.support||'')}</div>
+    </div>` : `
+    <div class="today-focus-card today-health-good" style="margin:12px 14px 0;">
+      <div class="today-focus-card-label">${escapeHtml(focusLabel)} — looking solid</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:6px;">
+        ${avgCarry ? `Avg carry: ${avgCarry}m` : ''}
+        ${playableRate != null ? ` · Playable: ${playableRate}%` : ''}
+      </div>
+    </div>`;
+
+  const quickBtn = `<div class="today-quick-log-row" style="margin:0 14px 20px;">
+    <button class="today-log-btn" onclick="showPage('analysis')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      TrackMan
+    </button>
+  </div>`;
+
+  return issueHtml + _renderFocusTrainCard(mainIssue, focusLabel, focusKey) + quickBtn;
+}
+
+function _renderFocusTrainCard(issue, focusLabel, focusKey) {
+  const warmup = focusKey === 'driver'
+    ? 'Easy driver swings at 70%, focus on clean contact'
+    : focusKey === 'wedges'
+      ? 'Chip & pitch at half swing to feel ground contact'
+      : '5–10 balls at easy tempo, 70% pace';
+  const technical = issue
+    ? (issue.drill || `Work on: ${issue.simple}`)
+    : `${focusLabel} consistency block — same target, 10 balls`;
+  const random = issue
+    ? `Vary targets. One thought: ${issue.goal ? issue.goal.split('·')[0].trim() : 'controlled start line'}`
+    : `Pick 3 targets, 4 balls each, commit before stepping in`;
+  const duration = issue?.durationMin || 40;
+  return `
+    <div class="today-train-card" style="margin:10px 14px 10px;">
+      <div class="today-train-title">${duration}-min range plan — ${escapeHtml(focusLabel)}</div>
+      <div class="today-train-drill">🔥 Warm-up (8 min): ${escapeHtml(warmup)}</div>
+      <div class="today-train-drill">🎯 Technical (15 min): ${escapeHtml(technical)}</div>
+      <div class="today-train-drill">🔀 Random (10 min): ${escapeHtml(random)}</div>
+      <div class="today-train-cue">📝 After: log focus area, main miss &amp; best cue in Logbook</div>
+    </div>`;
+}
+
+function _renderChippingFocus() {
+  const sessions = _todayChipSessions || [];
+  if (sessions.length < 2) {
+    return `<div class="today-empty-state" style="margin-top:8px;">
+      <div class="today-empty-icon">⛳</div>
+      <div class="today-empty-title">Not enough chipping data yet</div>
+      <div class="today-empty-text">Log at least 2 chipping sessions to get a focused coaching tip.</div>
+      <div class="today-quick-log-row" style="justify-content:center">
+        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">Log chipping</button>
+      </div>
+    </div>`;
+  }
+  const totalAtt = sessions.reduce((a,b)=>a+(b.attempts||0),0);
+  const in1  = sessions.reduce((a,b)=>a+(b.inside_1m||0),0);
+  const in2  = sessions.reduce((a,b)=>a+(b.inside_1m||0)+(b.between_1_2m||0),0);
+  const out3 = sessions.reduce((a,b)=>a+(b.outside_3m||0),0);
+  const in2Rate  = totalAtt ? Math.round(in2/totalAtt*100) : 0;
+  const out3Rate = totalAtt ? Math.round(out3/totalAtt*100) : 0;
+  const cls = in2Rate >= 60 ? 'today-health-good' : in2Rate >= 40 ? 'today-health-ok' : 'today-health-bad';
+  let issue, drill, cue;
+  if (out3Rate > 25) {
+    issue = 'Distance control — too many chips outside 3m';
+    drill = 'Chip-spots: 3 landing spots, 6 balls each. Score landing accuracy, not proximity to hole.';
+    cue   = 'Pick a precise landing spot before you swing';
+  } else if (in2Rate < 40) {
+    issue = 'Touch and distance control need work';
+    drill = 'One club, three distances. Weight forward, brush the ground first.';
+    cue   = 'Weight forward all the way through';
+  } else {
+    issue = null;
+    drill = 'Gate drill: chip to a gate 1m past the flag. 20 balls.';
+    cue   = 'Land softly, let it run to the flag';
+  }
+  return `
+    <div class="today-focus-card ${cls}" style="margin:12px 14px 0;">
+      <div class="today-focus-card-label">Chipping — last ${sessions.length} sessions</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin:6px 0 2px;">${in2Rate}% inside 2m</div>
+      <div style="font-size:12px;color:var(--text3);">Inside 1m: ${totalAtt?Math.round(in1/totalAtt*100):0}% · Outside 3m: ${out3Rate}%</div>
+      ${issue ? `<div style="font-size:12px;color:var(--amber);margin-top:5px;">⚠ ${escapeHtml(issue)}</div>` : `<div style="font-size:12px;color:var(--green);margin-top:5px;">✓ Solid chipping — keep building</div>`}
+    </div>
+    <div class="today-train-card" style="margin:10px 14px 10px;">
+      <div class="today-train-title">Chipping practice plan</div>
+      <div class="today-train-drill">🎯 Drill: ${escapeHtml(drill)}</div>
+      <div class="today-train-drill">📊 Target: 20–30 attempts</div>
+      <div class="today-train-cue">💡 Cue: ${escapeHtml(cue)}</div>
+      <div class="today-train-cue">📝 Log: date, attempts, inside 2m count</div>
+    </div>
+    <div class="today-quick-log-row" style="margin:0 14px 20px;">
+      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
+        Log chipping
+      </button>
+    </div>`;
+}
+
+function _renderPuttingFocus() {
+  const sessions = _todayPuttSessions || [];
+  if (sessions.length < 2) {
+    return `<div class="today-empty-state" style="margin-top:8px;">
+      <div class="today-empty-icon">⛳</div>
+      <div class="today-empty-title">Not enough putting data yet</div>
+      <div class="today-empty-text">Log at least 2 putting sessions to get a focused coaching tip.</div>
+      <div class="today-quick-log-row" style="justify-content:center">
+        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">Log putting</button>
+      </div>
+    </div>`;
+  }
+  const shortSess = sessions.filter(s => s.distance_m != null && s.distance_m <= 2);
+  const lagSess   = sessions.filter(s => s.distance_m != null && s.distance_m > 3);
+  const shortHoled = shortSess.reduce((a,b)=>a+(b.holed||0),0);
+  const shortTotal = shortSess.reduce((a,b)=>a+(b.total||0),0);
+  const shortRate  = shortTotal ? Math.round(shortHoled/shortTotal*100) : null;
+  const lagHoled = lagSess.reduce((a,b)=>a+(b.holed||0),0);
+  const lagTotal = lagSess.reduce((a,b)=>a+(b.total||0),0);
+  const lagRate  = lagTotal ? Math.round(lagHoled/lagTotal*100) : null;
+  const cls = shortRate != null ? (shortRate >= 80 ? 'today-health-good' : shortRate >= 65 ? 'today-health-ok' : 'today-health-bad') : 'today-health-neutral';
+  let issue, drill, cue;
+  if (shortRate != null && shortRate < 65) {
+    issue = `Short putt make rate is ${shortRate}% — needs work`;
+    drill = '5-in-a-row ladder: make 5 in a row from 1m, then step back to 1.5m. Miss — return to start.';
+    cue   = 'See the line, commit before you pull the putter back';
+  } else if (lagRate != null && lagRate < 40) {
+    issue = 'Lag pace — leaving putts too far away';
+    drill = 'Past-the-hole lag: 5–10m putts. Every putt must finish 30cm past. Never short.';
+    cue   = 'Always commit past the hole';
+  } else {
+    issue = null;
+    drill = 'Gate putting: 2 tees as gate 30cm ahead. Every putt through the gate.';
+    cue   = 'Control the start line, not the result';
+  }
+  return `
+    <div class="today-focus-card ${cls}" style="margin:12px 14px 0;">
+      <div class="today-focus-card-label">Putting — last ${sessions.length} sessions</div>
+      ${shortRate != null ? `<div style="font-size:14px;font-weight:600;color:var(--text);margin:6px 0 2px;">${shortRate}% make rate (≤2m)</div>` : ''}
+      ${lagRate != null ? `<div style="font-size:12px;color:var(--text3);">Lag make rate (>3m): ${lagRate}%</div>` : ''}
+      ${issue ? `<div style="font-size:12px;color:var(--amber);margin-top:5px;">⚠ ${escapeHtml(issue)}</div>` : `<div style="font-size:12px;color:var(--green);margin-top:5px;">✓ Solid putting — keep the 5-in-a-row habit</div>`}
+    </div>
+    <div class="today-train-card" style="margin:10px 14px 10px;">
+      <div class="today-train-title">Putting practice plan</div>
+      <div class="today-train-drill">🎯 Drill: ${escapeHtml(drill)}</div>
+      <div class="today-train-drill">📊 Target: 20–30 attempts</div>
+      <div class="today-train-cue">💡 Cue: ${escapeHtml(cue)}</div>
+      <div class="today-train-cue">📝 Log: date, distance, attempts, makes</div>
+    </div>
+    <div class="today-quick-log-row" style="margin:0 14px 20px;">
+      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
+        Log putting
+      </button>
+    </div>`;
+}
+
 async function initTodayTab() {
   const el = document.getElementById('today-content');
   if (!el) return;
@@ -202,30 +463,23 @@ async function initTodayTab() {
   const puttSessions = putts || [];
 
   const issues    = _detectTodayIssues(allShots, puttSessions);
-  const health    = _buildHealthTiles(allShots, chipSessions, puttSessions);
-  const improved  = _detectImprovement(allShots);
-  const regression = _detectRegression(allShots);
 
-  _todayAllShots = allShots;
-  _todayIssues   = issues;
-  _trendIssue    = issues[0] || null;
-  _trendShots    = allShots;
+  _todayAllShots      = allShots;
+  _todayIssues        = issues;
+  _todayChipSessions  = chipSessions;
+  _todayPuttSessions  = puttSessions;
+  _trendIssue         = issues[0] || null;
+  _trendShots         = allShots;
 
-  // Detect fixed issues (present last time, gone now)
-  const today10 = new Date().toISOString().slice(0,10);
-  const sevenDaysAgo = new Date(Date.now()-7*24*3600*1000).toISOString().slice(0,10);
-  let fixedIssues = [];
+  // Update localStorage so fixedIssues detection works on the next load
   try {
-    const prev = JSON.parse(localStorage.getItem('today_prev_issues')||'[]');
-    fixedIssues = prev.filter(pi=>pi.date>=sevenDaysAgo && !issues.find(ci=>ci.key===pi.key)).slice(0,1);
+    const today10 = new Date().toISOString().slice(0,10);
     localStorage.setItem('today_prev_issues', JSON.stringify(
       issues.map(i=>({key:i.key,simple:i.simple,date:today10}))
     ));
   } catch(e) {}
 
-  requestAnimationFrame(() => {
-    el.innerHTML = _renderTodayContent(issues, health, improved, regression, allShots.length, fixedIssues);
-  });
+  _renderTodayPage();
 }
 
 // ── Dict_golf enrichment ───────────────────────────────────────────────────

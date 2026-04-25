@@ -308,6 +308,39 @@ button:active{background:var(--surface4)}
 .clubs-onboarding-title{font-family:var(--cond);font-size:17px;font-weight:700;margin-bottom:12px}
 .clubs-onboarding-steps{display:flex;flex-direction:column;gap:10px}
 .clubs-onboarding-step{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text2)}
+
+/* ══ BAG PAGE ═══════════════════════════════════════════════════════════════ */
+.bag-toolbar{display:flex;align-items:center;padding:8px 14px 10px;border-bottom:0.5px solid var(--border);margin-bottom:8px}
+.bag-toggle-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer;user-select:none}
+.bag-toggle-input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.bag-cards{padding:0 14px 16px;display:flex;flex-direction:column;gap:6px}
+.bag-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .15s}
+.bag-card-inactive{opacity:.45}
+.bag-card-open{border-color:var(--border2)}
+.bag-card-head{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;gap:12px;-webkit-tap-highlight-color:transparent}
+.bag-card-head:active{background:var(--surface2)}
+.bag-card-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.bag-card-name{font-family:var(--cond);font-size:17px;font-weight:700;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.bag-inactive-badge{font-family:var(--mono);font-size:9px;background:var(--surface3);color:var(--text3);padding:2px 6px;border-radius:8px;font-weight:400}
+.bag-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bag-card-carry{font-family:var(--cond);font-size:15px;font-weight:700;color:var(--green)}
+.bag-miss-chip{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
+.chip-ok{background:var(--green-dim);color:var(--green)}
+.chip-warn{background:var(--amber-dim);color:var(--amber)}
+.chip-neutral{background:var(--surface3);color:var(--text3)}
+.bag-card-conf{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.bag-nodata-chip{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.bag-card-chevron{font-size:10px;color:var(--text3);flex-shrink:0}
+.bag-card-body{border-top:0.5px solid var(--border);padding:14px}
+.bag-sections{display:flex;flex-direction:column;gap:14px}
+.bag-sec-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px}
+.bag-stat-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.bag-stat-row span{color:var(--text2)}
+.bag-stat-row strong{color:var(--text);font-weight:600}
+.bag-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:0.5px solid var(--border)}
+.bag-action-btn{flex:1;min-width:calc(33% - 6px);padding:9px 8px;font-size:12px;font-weight:600;background:var(--surface2);border:0.5px solid var(--border2);border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--sans);text-align:center}
+.bag-action-btn:active{background:var(--surface3)}
+.bag-nodata-msg{font-size:13px;color:var(--text3);padding:4px 0 8px}
 .onboarding-num{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#0e1012;display:flex;align-items:center;justify-content:center;font-family:var(--cond);font-size:13px;font-weight:700;flex-shrink:0}
 
 /* ══ ANALYSIS ═══════════════════════════════════════════════════════════════ */
@@ -1000,6 +1033,43 @@ body.light-theme .today-layer-btn.active{box-shadow:0 1px 3px rgba(0,0,0,.1)}
 .drill-item-cue em{font-style:italic}
 body.light-theme .drill-catalog-backdrop{background:rgba(0,0,0,.25)}
 body.light-theme .drill-catalog-sheet,.drill-catalog-header{background:var(--surface)}
+
+/* ── Logbook quick-add bar ──────────────────────────────────────────────── */
+.logbook-quick-add{display:flex;gap:8px;padding:10px 14px 6px;flex-wrap:wrap}
+.lqa-btn{flex:1;min-width:calc(50% - 4px);background:var(--surface2);border:0.5px solid var(--border2);border-radius:10px;color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:600;padding:10px 8px;cursor:pointer;transition:background .15s,color .15s;text-align:center;line-height:1.3}
+.lqa-btn:active{background:var(--surface3);color:var(--text)}
+body.light-theme .lqa-btn{background:var(--surface);border-color:var(--border2)}
+
+/* ── Practice session rows ──────────────────────────────────────────────── */
+.practice-session-row{padding:10px 0;border-bottom:0.5px solid var(--border);display:flex;flex-direction:column;gap:3px}
+.practice-session-row:last-child{border-bottom:none}
+.practice-session-date{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.practice-session-title{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.practice-session-conf{font-size:10px;color:var(--amber);font-weight:400;letter-spacing:1px}
+.practice-session-sub{font-size:12px;color:var(--text2)}
+.practice-session-notes{font-size:12px;color:var(--text3);font-style:italic}
+.stats-empty-small{font-size:13px;color:var(--text3);padding:14px 0;text-align:center;line-height:1.5}
+
+/* ── Today focus chip bar ────────────────────────────────────────────────── */
+.today-focus-bar{display:flex;gap:6px;padding:10px 14px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.today-focus-bar::-webkit-scrollbar{display:none}
+.today-focus-chip{flex-shrink:0;background:var(--surface2);border:0.5px solid var(--border);border-radius:20px;color:var(--text2);font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.3px;padding:6px 13px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;white-space:nowrap}
+.today-focus-chip.active{background:var(--green-dim);border-color:rgba(0,214,143,.3);color:var(--green)}
+.today-focus-chip:active{background:var(--surface3)}
+
+/* ── Today focus cards ───────────────────────────────────────────────────── */
+.today-focus-card{background:var(--surface);border:0.5px solid var(--border);border-radius:13px;padding:13px 14px 12px}
+.today-focus-card-label{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text2)}
+.today-health-neutral{border-color:var(--border2)}
+
+/* ── Today training plan card ────────────────────────────────────────────── */
+.today-train-card{background:var(--surface2);border:0.5px solid var(--border);border-radius:13px;padding:13px 14px 12px}
+.today-train-title{font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text);margin-bottom:9px}
+.today-train-drill{font-size:13px;color:var(--text2);margin-bottom:6px;line-height:1.5}
+.today-train-cue{font-size:12px;color:var(--text3);margin-bottom:3px;line-height:1.5}
+body.light-theme .today-focus-chip.active{background:rgba(0,180,115,.1);border-color:rgba(0,180,115,.4);color:rgba(0,150,100,1)}
+body.light-theme .today-focus-card{background:var(--surface)}
+body.light-theme .today-train-card{background:var(--surface2)}
 
 
 

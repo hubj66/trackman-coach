@@ -119,3 +119,32 @@ CREATE INDEX IF NOT EXISTS idx_aliases_raw          ON club_aliases (lower(trim(
 -- 3. Existing club_aliases rows have user_id = NULL and become global aliases
 --    visible to all users — this is correct default behaviour.
 -- 4. Test with two different user accounts to confirm data isolation.
+
+-- ── Phase 6: practice_sessions table ────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS practice_sessions (
+  id            uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id       uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  practice_type text        NOT NULL DEFAULT 'range',  -- 'range' | 'course'
+  session_date  date        NOT NULL DEFAULT current_date,
+  club_key      text,
+  focus_area    text,
+  balls         integer,
+  good_shots    integer,
+  main_miss     text,
+  best_cue      text,
+  confidence    integer,    -- 1-5
+  title         text,
+  notes         text,
+  created_at    timestamptz DEFAULT now()
+);
+
+ALTER TABLE practice_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own_practice_sessions" ON practice_sessions;
+CREATE POLICY "own_practice_sessions" ON practice_sessions
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_practice_user_date
+  ON practice_sessions (user_id, session_date DESC);

@@ -217,9 +217,18 @@
     </div>
   </div>
 
-  <!-- ══ STATS ════════════════════════════════════════════════════════════════ -->
+  <!-- ══ STATS (LOGBOOK) ══════════════════════════════════════════════════════ -->
   <div id="page-stats" class="page-section" style="display:none;">
     <div class="main">
+      <div class="page-intro">Your logbook</div>
+
+      <!-- Quick-add bar -->
+      <div class="logbook-quick-add">
+        <button class="lqa-btn" onclick="document.getElementById('acc-stats-chipping').classList.add('open');openLogForm('chip-form');setTimeout(()=>document.getElementById('sub-head-chip-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Chipping</button>
+        <button class="lqa-btn" onclick="document.getElementById('acc-stats-putting').classList.add('open');openLogForm('putt-form');setTimeout(()=>document.getElementById('sub-head-putt-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Putting</button>
+        <button class="lqa-btn" onclick="document.getElementById('acc-stats-range').classList.add('open');openLogForm('range-form');setTimeout(()=>document.getElementById('sub-head-range-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Range</button>
+        <button class="lqa-btn" onclick="document.getElementById('acc-stats-course').classList.add('open');openLogForm('course-form');setTimeout(()=>document.getElementById('sub-head-course-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Course note</button>
+      </div>
 
       <!-- Tournament countdown -->
       <div id="stats-tournament" class="stats-tournament" style="display:none;"></div>
@@ -330,13 +339,89 @@
         </div>
       </div>
 
+      <!-- Range practice accordion -->
+      <div class="acc" id="acc-stats-range">
+        <div class="acc-head" onclick="toggleAccById('acc-stats-range')">
+          <div class="acc-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M3 17l9-13 9 13"/><line x1="12" y1="4" x2="12" y2="20"/>
+            </svg>
+          </div>
+          <div class="acc-title">Range</div><div class="acc-subtitle">Full-swing practice logs</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body">
+          <div class="stats-section-pad">
+            <div id="stats-practice-range"></div>
+            <div class="log-sub-head" id="sub-head-range-form" onclick="toggleLogForm('range-form')">
+              <span class="log-sub-label">+ Log session</span>
+              <span class="log-sub-arrow">›</span>
+            </div>
+            <div class="log-sub-body" id="sub-body-range-form">
+              <div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
+                <div class="form-grid">
+                  <input id="range-date" type="date">
+                  <input id="range-club" type="text" placeholder="Club (e.g. 7i, Driver)" autocorrect="off" spellcheck="false">
+                  <input id="range-focus" type="text" placeholder="Focus area (e.g. face angle)" autocorrect="off" spellcheck="false">
+                  <input id="range-balls" type="number" placeholder="Balls hit" inputmode="numeric">
+                  <input id="range-good" type="number" placeholder="Good shots" inputmode="numeric">
+                  <input id="range-miss" type="text" placeholder="Main miss (e.g. pull left)" autocorrect="off" spellcheck="false">
+                  <input id="range-cue" type="text" placeholder="Best swing cue" autocorrect="off" spellcheck="false">
+                  <input id="range-conf" type="number" min="1" max="5" placeholder="Confidence 1–5" inputmode="numeric">
+                  <textarea id="range-notes" class="form-span-2" placeholder="Notes…" rows="2" autocorrect="off" spellcheck="false"></textarea>
+                </div>
+                <div class="form-actions">
+                  <button id="add-range-btn">Add session</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Course notes accordion -->
+      <div class="acc" id="acc-stats-course">
+        <div class="acc-head" onclick="toggleAccById('acc-stats-course')">
+          <div class="acc-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <div class="acc-title">Course notes</div><div class="acc-subtitle">Round notes &amp; on-course observations</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body">
+          <div class="stats-section-pad">
+            <div id="stats-practice-course"></div>
+            <div class="log-sub-head" id="sub-head-course-form" onclick="toggleLogForm('course-form')">
+              <span class="log-sub-label">+ Add note</span>
+              <span class="log-sub-arrow">›</span>
+            </div>
+            <div class="log-sub-body" id="sub-body-course-form">
+              <div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
+                <div class="form-grid">
+                  <input id="course-date" type="date">
+                  <input id="course-title" type="text" placeholder="Title (e.g. Saturday round)" autocorrect="off" spellcheck="false">
+                  <input id="course-focus" type="text" placeholder="Focus area" autocorrect="off" spellcheck="false">
+                  <input id="course-miss" type="text" placeholder="Main miss" autocorrect="off" spellcheck="false">
+                  <textarea id="course-notes" class="form-span-2" placeholder="Notes…" rows="2" autocorrect="off" spellcheck="false"></textarea>
+                </div>
+                <div class="form-actions">
+                  <button id="add-course-btn">Add note</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
   <!-- ══ CLUBS ════════════════════════════════════════════════════════════════ -->
   <div id="page-clubs" class="page-section" style="display:none;">
     <div class="main">
-      <div class="page-intro">Your bag · tap a club to open Analysis</div>
+      <div class="page-intro">Your bag</div>
       <div id="clubs-overview" style="padding:0 14px 16px;"></div>
     </div>
   </div>
