@@ -895,6 +895,75 @@ async function addCourseNote(){
   await loadPracticeSessions();
 }
 
+// ── Profile section (More → Profile) ──────────────────────────────────────
+let _profileExists=false;
+
+async function loadProfileSection(){
+  const el=document.getElementById('more-section-body');
+  if(!el)return;
+  if(!_currentUserId){
+    el.innerHTML='<div class="stats-login-note">Log in to view and edit your profile.</div>';
+    return;
+  }
+  el.innerHTML='<div class="stats-loading">Loading…</div>';
+  try{
+    const{data,error}=await sb.from('profiles').select('display_name,handicap,dominant_hand,main_goal').eq('user_id',_currentUserId).maybeSingle();
+    if(error&&error.code!=='PGRST116'){
+      // Table likely doesn't exist yet
+      el.innerHTML='<div class="more-placeholder">Run the latest migration to enable profile settings.<br><br><code style="font-size:11px;color:var(--text3)">migration.sql → Phase 9 block</code></div>';
+      return;
+    }
+    _profileExists=!!data;
+    el.innerHTML=`<div class="profile-form">
+      <div class="profile-field">
+        <label class="profile-label">Display name</label>
+        <input id="profile-name" type="text" placeholder="e.g. Joel" value="${escapeHtml(data?.display_name||'')}" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="profile-field">
+        <label class="profile-label">Handicap</label>
+        <input id="profile-handicap" type="number" step="0.1" min="0" max="54" placeholder="e.g. 18.4" value="${data?.handicap!=null?data.handicap:''}" inputmode="decimal">
+      </div>
+      <div class="profile-field">
+        <label class="profile-label">Dominant hand</label>
+        <select id="profile-hand">
+          <option value="right"${(data?.dominant_hand||'right')==='right'?' selected':''}>Right</option>
+          <option value="left"${data?.dominant_hand==='left'?' selected':''}>Left</option>
+        </select>
+      </div>
+      <div class="profile-field">
+        <label class="profile-label">Main goal</label>
+        <input id="profile-goal" type="text" placeholder="e.g. Break 90" value="${escapeHtml(data?.main_goal||'')}" autocorrect="off" spellcheck="false">
+      </div>
+      <button id="save-profile-btn" class="profile-save-btn" onclick="saveProfile()">Save profile</button>
+      <div id="profile-msg" class="profile-msg"></div>
+    </div>`;
+  }catch(e){
+    el.innerHTML='<div class="stats-error">Failed to load profile. Try again.</div>';
+  }
+}
+
+async function saveProfile(){
+  if(!_currentUserId)return;
+  const btn=document.getElementById('save-profile-btn');
+  const msgEl=document.getElementById('profile-msg');
+  if(btn)btn.disabled=true;
+  const display_name=document.getElementById('profile-name')?.value?.trim()||null;
+  const hVal=document.getElementById('profile-handicap')?.value;
+  const handicap=hVal!==''&&hVal!=null?parseFloat(hVal):null;
+  const dominant_hand=document.getElementById('profile-hand')?.value||'right';
+  const main_goal=document.getElementById('profile-goal')?.value?.trim()||null;
+  const{error}=await sb.from('profiles').upsert({
+    user_id:_currentUserId,display_name,handicap,dominant_hand,main_goal,updated_at:new Date().toISOString()
+  },{onConflict:'user_id'});
+  if(btn)btn.disabled=false;
+  if(error){
+    if(msgEl){msgEl.textContent='Error: '+error.message;msgEl.classList.add('error');}
+  }else{
+    _profileExists=true;
+    if(msgEl){msgEl.textContent='Saved ✓';msgEl.classList.remove('error');setTimeout(()=>{if(msgEl)msgEl.textContent='';},2500);}
+  }
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────
 window.loadOneState=loadOneState;window.deleteOneState=deleteOneState;
 window.loadStatsPage=loadStatsPage;
@@ -903,6 +972,7 @@ window.startEditPuttingSession=startEditPuttingSession;window.deletePuttingSessi
 window.openClubInAnalysis=openClubInAnalysis;
 window.addRangeSession=addRangeSession;window.addCourseNote=addCourseNote;
 window.loadProgressSection=loadProgressSection;
+window.loadProfileSection=loadProfileSection;window.saveProfile=saveProfile;
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const b=(id,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener('click',fn);};

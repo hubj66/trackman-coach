@@ -148,3 +148,25 @@ CREATE POLICY "own_practice_sessions" ON practice_sessions
 
 CREATE INDEX IF NOT EXISTS idx_practice_user_date
   ON practice_sessions (user_id, session_date DESC);
+
+-- ── Phase 9: profiles table ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id            uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id       uuid        NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name  text,
+  handicap      numeric(4,1),
+  dominant_hand text        DEFAULT 'right',
+  main_goal     text,
+  updated_at    timestamptz DEFAULT now()
+);
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own_profile" ON profiles;
+CREATE POLICY "own_profile" ON profiles
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_profiles_user
+  ON profiles (user_id);

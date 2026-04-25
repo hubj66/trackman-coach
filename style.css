@@ -1091,6 +1091,16 @@ body.light-theme .today-train-card{background:var(--surface2)}
 .progress-empty{font-size:13px;color:var(--text3);padding:12px 0 4px;line-height:1.5}
 body.light-theme .progress-summary-strip,.progress-card{background:var(--surface)}
 
+/* ── Profile form ────────────────────────────────────────────────────────── */
+.profile-form{display:flex;flex-direction:column;gap:14px}
+.profile-field{display:flex;flex-direction:column;gap:5px}
+.profile-label{font-size:12px;font-weight:600;color:var(--text2);font-family:var(--sans)}
+.profile-save-btn{width:100%;padding:13px 0;background:var(--green);color:#0e1012;border:none;border-radius:10px;font-family:var(--cond);font-size:14px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:opacity .15s;margin-top:4px}
+.profile-save-btn:active{opacity:.8}
+.profile-save-btn:disabled{opacity:.5;cursor:default}
+.profile-msg{font-size:13px;text-align:center;min-height:20px;color:var(--green);transition:opacity .3s}
+.profile-msg.error{color:var(--red)}
+
 
 
 /* Local test change */

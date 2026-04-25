@@ -44,11 +44,20 @@ function toggleMorePanel() {
 }
 
 const MORE_SECTIONS = {
-  progress:    { title: 'Progress',        html: '<div class="more-placeholder">Progress tracking coming soon.<br><br>Train regularly and your stats will appear here as you log sessions.</div>' },
+  progress:    { title: 'Progress',        html: '' }, // handled by openMoreSection special case
   players:     { title: 'Players',         html: '<div class="more-placeholder">Each player can log in and has private data. Sharing and coach access will be added later.</div>' },
-  import:      { title: 'Import settings', html: '<div class="more-placeholder">Import settings coming soon.<br><br>Use More → Club aliases to map TrackMan club names to your bag.</div>' },
-  profile:     { title: 'Profile',         html: '<div class="more-placeholder">Profile settings coming soon.</div>' },
-  appsettings: { title: 'App settings',    html: '<div class="more-placeholder">Your golf data is stored under your own user account.<br><br>Version: 0.3</div>' }
+  import:      { title: 'Import settings', html: `<div class="more-placeholder">
+    <p style="margin-bottom:10px;"><strong>TrackMan data</strong><br>Upload TrackMan CSV files using the Import button inside the TrackMan tab.</p>
+    <p style="margin-bottom:14px;"><strong>Club aliases</strong><br>Map raw TrackMan club names (e.g. "7-Iron") to your bag clubs (e.g. "7i") so coaching and stats work correctly.</p>
+    <button onclick="closeMoreSection();openMoreSection('aliases')" style="width:100%;padding:11px;background:var(--surface2);border:0.5px solid var(--border2);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;">Open Club aliases →</button>
+    <p style="color:var(--text3);font-size:12px;margin-top:16px;">Direct CSV import history and auto-mapping coming in a future update.</p>
+  </div>` },
+  profile:     { title: 'Profile',         html: '' }, // handled by openMoreSection special case
+  appsettings: { title: 'App settings',    html: `<div class="more-placeholder">
+    <p style="margin-bottom:12px;"><strong>Data &amp; privacy</strong><br>Your golf data is stored privately under your own account. No one else can see your shots, sessions, or settings.</p>
+    <p style="margin-bottom:12px;"><strong>Account</strong><br>Use the Account button at the top of any page to log in, log out, or change theme.</p>
+    <p style="color:var(--text3);font-size:12px;">Version 0.4 · TrackMan Coach</p>
+  </div>` }
 };
 
 function openMoreSection(name) {
@@ -66,6 +75,15 @@ function openMoreSection(name) {
     document.getElementById('more-section-body').innerHTML = '<div class="stats-loading">Loading…</div>';
     document.getElementById('more-section').style.display = 'flex';
     if (typeof window.loadProgressSection === 'function') window.loadProgressSection();
+    return;
+  }
+  if (name === 'profile') {
+    document.getElementById('more-list').style.display = 'none';
+    document.getElementById('more-aliases-section').style.display = 'none';
+    document.getElementById('more-section-title').textContent = 'Profile';
+    document.getElementById('more-section-body').innerHTML = '<div class="stats-loading">Loading…</div>';
+    document.getElementById('more-section').style.display = 'flex';
+    if (typeof window.loadProfileSection === 'function') window.loadProfileSection();
     return;
   }
   const section = MORE_SECTIONS[name];
