@@ -230,54 +230,266 @@ function _renderTodayPage() {
 function _renderClubFocusSection(focusKey) {
   const CA = window.clubAliases;
   const clubKeys = TODAY_FOCUS_CLUB_KEYS[focusKey] || [focusKey];
-  const focusLabel = TODAY_FOCUS_LABELS.find(f => f.key === focusKey)?.label || focusKey;
+  const focusLabel = TODAY_FOCUS_LABELS.find(fl => fl.key === focusKey)?.label || focusKey;
 
   const focusShots = CA
-    ? _todayAllShots.filter(s => clubKeys.some(ck => CA.shotMatchesClub(s, ck))).slice(0, 50)
+    ? _todayAllShots.filter(s => clubKeys.some(ck => CA.shotMatchesClub(s, ck))).slice(0, 60)
     : [];
 
-  if (!CA || focusShots.length < 5) {
+  // 0 shots — clear empty state with both action buttons
+  if (!CA || focusShots.length === 0) {
     return `<div class="today-empty-state" style="margin-top:8px;">
       <div class="today-empty-icon">🏌️</div>
-      <div class="today-empty-title">Not enough ${escapeHtml(focusLabel)} data</div>
-      <div class="today-empty-text">Add at least 10 recent ${escapeHtml(focusLabel)} shots in TrackMan to get a coaching tip here.</div>
-      <button class="today-log-btn" onclick="showPage('analysis')">Go to TrackMan →</button>
+      <div class="today-empty-title">No ${escapeHtml(focusLabel)} shots yet</div>
+      <div class="today-empty-text">Hit some shots and log them in TrackMan to get ${escapeHtml(focusLabel)} coaching here.</div>
+      <div class="today-quick-log-row" style="justify-content:center;gap:8px;">
+        <button class="today-log-btn" onclick="showPage('analysis')">Open TrackMan →</button>
+        <button class="today-log-btn" onclick="showPage('stats')">Log range →</button>
+      </div>
     </div>`;
   }
 
-  // Top issue for this focus
-  const focusIssues = _todayIssues.filter(i => clubKeys.includes(i.club));
-  const mainIssue = focusIssues[0] || null;
+  const stats     = _buildFocusStats(focusShots);
+  const statsCard = _renderFocusStatsCard(stats, focusLabel, focusShots.length);
+  const techCard  = _renderFocusTechnicalCard(stats, focusLabel);
 
-  // Quick stats
-  const carries = focusShots.map(s=>s.carry).filter(Boolean);
-  const avgCarry = carries.length ? Math.round(carries.reduce((a,b)=>a+b,0)/carries.length) : null;
-  const sides = focusShots.map(s=>s.side).filter(s=>s!=null);
-  const playable = sides.length ? sides.filter(s=>Math.abs(s)<=20).length : 0;
-  const playableRate = sides.length ? Math.round(playable/sides.length*100) : null;
+  // 1–4 shots — show what we have, flag insufficient data
+  if (focusShots.length < 5) {
+    return statsCard + techCard +
+      `<div class="today-focus-card" style="margin:10px 14px 0;">
+        <div class="today-focus-card-label">Not enough data yet</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:5px;">
+          ${escapeHtml(String(focusShots.length))} shot${focusShots.length===1?'':'s'} recorded.
+          Add at least 10 recent ${escapeHtml(focusLabel)} shots for a reliable diagnosis.
+        </div>
+      </div>` + _renderFocusQuickActions();
+  }
 
-  const issueHtml = mainIssue ? `
-    <div class="today-focus-card" style="margin:12px 14px 0;">
+  // 5+ shots — detect issue directly from focusShots, not from global _todayIssues
+  const issue     = _detectFocusIssue(focusShots, focusKey);
+  const issueCard = issue
+    ? _renderFocusIssueCard(issue, focusLabel)
+    : _renderFocusNoIssueCard(focusLabel, focusShots.length);
+
+  return statsCard + techCard + issueCard +
+         _renderFocusTrainCard(issue, focusLabel, focusKey) +
+         _renderFocusQuickActions();
+}
+
+// ── Focus helpers ─────────────────────────────────────────────────────────
+
+function _buildFocusStats(shots) {
+  const carries  = shots.map(s => s.carry).filter(Boolean);
+  const sides    = shots.map(s => s.side).filter(s => s != null);
+  const faces    = shots.map(s => s.face_angle).filter(x => x != null);
+  const paths    = shots.map(s => s.club_path).filter(x => x != null);
+  const ftps     = shots.map(s => s.face_to_path).filter(x => x != null);
+  const attacks  = shots.map(s => s.attack_angle).filter(x => x != null);
+  const smashes  = shots.map(s => s.smash_factor).filter(Boolean);
+
+  const avgCarry = statAvg(carries);
+  const carrySD  = statStdDev(carries);
+
+  // Good-shot carry = avg of top third
+  const sortedC  = [...carries].sort((a,b) => b-a);
+  const topN     = Math.max(1, Math.floor(sortedC.length / 3));
+  const goodCarry = sortedC.length ? statAvg(sortedC.slice(0, topN)) : null;
+
+  const carryMin = carries.length ? Math.min(...carries) : null;
+  const carryMax = carries.length ? Math.max(...carries) : null;
+
+  const playableCount = sides.filter(s => Math.abs(s) <= 20).length;
+  const playableRate  = sides.length ? Math.round(playableCount / sides.length * 100) : null;
+
+  // Main miss direction
+  const leftMisses  = sides.filter(s => s < -10).length;
+  const rightMisses = sides.filter(s => s > 10).length;
+  let mainMiss = null;
+  if (sides.length >= 3) {
+    if      (rightMisses > leftMisses * 1.5) mainMiss = 'Right';
+    else if (leftMisses > rightMisses * 1.5) mainMiss = 'Left';
+    else if (leftMisses + rightMisses > 0)   mainMiss = 'Both sides';
+  }
+
+  const dates   = shots.map(s => (s.shot_time || s.created_at)?.slice(0,10)).filter(Boolean).sort().reverse();
+  const lastDate = dates[0] || null;
+
+  return {
+    n: shots.length,
+    avgCarry, goodCarry, carrySD, carryMin, carryMax,
+    playableRate, mainMiss, lastDate,
+    avgFace:   statAvg(faces),
+    avgPath:   statAvg(paths),
+    avgFTP:    statAvg(ftps),
+    avgAttack: statAvg(attacks),
+    avgSmash:  statAvg(smashes),
+  };
+}
+
+function _detectFocusIssue(focusShots, focusKey) {
+  const stats = _buildFocusStats(focusShots);
+  const { avgFace, avgAttack, carrySD, avgSmash, avgFTP } = stats;
+  const isIrons  = ['irons','7','6','8','9'].includes(focusKey);
+  const isWedges = focusKey === 'wedges';
+  const isDriver = focusKey === 'driver';
+  const faces    = focusShots.map(s => s.face_angle).filter(x => x != null);
+  const attacks  = focusShots.map(s => s.attack_angle).filter(x => x != null);
+  const carries  = focusShots.map(s => s.carry).filter(Boolean);
+  const smashes  = focusShots.map(s => s.smash_factor).filter(Boolean);
+
+  const candidates = [];
+
+  // Face angle — needs ≥ 5 readings
+  if (faces.length >= 5 && avgFace != null && Math.abs(avgFace) > 2) {
+    const badFacePct = faces.filter(ff => Math.abs(ff) > 2).length / faces.length;
+    const sev        = Math.min(Math.abs(avgFace) / 7 + badFacePct * 0.5, 1);
+    const isOpen     = avgFace > 0;
+    const sliceBias  = avgFTP != null && avgFTP > 3.5;
+    const hookBias   = avgFTP != null && avgFTP < -3.5;
+    candidates.push({
+      key: 'face', score: sev,
+      simple: isOpen
+        ? (sliceBias ? 'Face open — ball starts and curves right' : 'Face open — ball starting right')
+        : (hookBias  ? 'Face closed — ball starts and curves left' : 'Face closed — ball starting left'),
+      support: `Face avg: ${fSign(avgFace,1)}° · Bad shots: ${Math.round(badFacePct*100)}%${avgFTP != null ? ` · FTP: ${fSign(avgFTP,1)}°` : ''}`,
+      deeper: isOpen
+        ? `Averaging ${fSign(avgFace,1)}° open. Face accounts for ~75% of start direction.${sliceBias ? ` FTP of ${fSign(avgFTP,1)}° adds curve right — a slice pattern.` : ''}`
+        : `Averaging ${fSign(avgFace,1)}° closed — ball launches left.${hookBias ? ` FTP of ${fSign(avgFTP,1)}° adds hook curve.` : ''}`,
+      drill: isOpen
+        ? 'Face control gate: two tees just outside the ball, swing without catching the right tee.'
+        : 'Check grip — feel the face stay square all the way through impact.',
+      goal: 'Face avg inside ±2°',
+      durationMin: 40,
+    });
+  }
+
+  // Attack angle — irons / wedges only, needs ≥ 5 readings
+  if ((isIrons || isWedges) && attacks.length >= 5 && avgAttack != null) {
+    const threshold = isWedges ? -4 : -2;
+    if (avgAttack > threshold) {
+      const sev = Math.min((avgAttack - threshold) / 5, 1);
+      candidates.push({
+        key: 'attack', score: sev * 1.1,
+        simple: 'Not hitting down enough — ball getting scooped',
+        support: `Attack angle: ${fSign(avgAttack,1)}° (target below ${threshold}°)`,
+        deeper: `Irons need a descending blow. At ${fSign(avgAttack,1)}° you're scooping — produces inconsistent carry and weak ball flight.`,
+        drill: 'Ball-then-turf drill: draw a line, club must strike ball before line — every time.',
+        goal: `Attack angle below ${threshold}°`,
+        durationMin: 40,
+      });
+    }
+  }
+
+  // Carry consistency — needs ≥ 7 carries
+  if (carries.length >= 7 && carrySD != null) {
+    const thresh = isWedges ? 8 : isDriver ? 18 : 14;
+    if (carrySD > thresh) {
+      const sev = Math.min(carrySD / (thresh * 1.8), 1);
+      candidates.push({
+        key: 'consistency', score: sev * 0.85,
+        simple: 'Distance unreliable — carry spread too wide',
+        support: `Avg: ${f(stats.avgCarry,0)}m · Spread: ±${f(carrySD,0)}m (target ±${thresh}m)`,
+        deeper: `Carry SD of ${f(carrySD,0)}m means club selection is a guess. Below ${thresh}m is the target for course-ready consistency.`,
+        drill: 'Consistency block: 10 balls to one target, same swing pace each time.',
+        goal: `Carry SD below ${thresh}m`,
+        durationMin: 30,
+      });
+    }
+  }
+
+  // Smash factor — needs ≥ 5 readings
+  if (smashes.length >= 5 && avgSmash != null) {
+    const target = isDriver ? 1.42 : 1.28;
+    if (avgSmash < target - 0.03) {
+      const sev = Math.min((target - avgSmash) / 0.10, 1);
+      candidates.push({
+        key: 'smash', score: sev * 0.8,
+        simple: 'Contact off-centre — smash factor low',
+        support: `Smash: ${f(avgSmash,2)} (target ${target}+)`,
+        deeper: `Every 0.05 smash improvement ≈ 5m more carry, no extra effort. Off-centre contact is costing distance and consistency.`,
+        drill: 'Impact tape drill: place tape on face, 10 shots — note where the ball is hitting.',
+        goal: `Smash above ${target}`,
+        durationMin: 35,
+      });
+    }
+  }
+
+  if (!candidates.length) return null;
+  candidates.sort((a,b) => b.score - a.score);
+  return candidates[0];
+}
+
+function _renderFocusStatsCard(stats, focusLabel, n) {
+  const { avgCarry, goodCarry, carryMin, carryMax, carrySD, playableRate, mainMiss, lastDate } = stats;
+  const carryStr = avgCarry != null ? `${f(avgCarry,0)}m avg carry` : '–';
+  const goodStr  = goodCarry != null ? ` · ${f(goodCarry,0)}m good shot` : '';
+  const items = [
+    (carryMin != null && carryMax != null) ? `${f(carryMin,0)}–${f(carryMax,0)}m range` : null,
+    carrySD   != null ? `±${f(carrySD,0)}m spread` : null,
+    playableRate != null ? `${playableRate}% playable` : null,
+    mainMiss  ? `Miss: ${mainMiss}` : null,
+    lastDate  ? `Last: ${lastDate}` : null,
+  ].filter(Boolean);
+  return `
+    <div class="today-focus-stats-card">
+      <div class="today-focus-stats-head">${escapeHtml(focusLabel)} — ${n} shot${n===1?'':'s'}</div>
+      <div class="today-focus-stats-carry">${escapeHtml(carryStr)}${escapeHtml(goodStr)}</div>
+      ${items.length ? `<div class="today-focus-stats-sub">${items.map(escapeHtml).join(' · ')}</div>` : ''}
+    </div>`;
+}
+
+function _renderFocusTechnicalCard(stats, focusLabel) {
+  const { avgFace, avgPath, avgFTP, avgAttack, avgSmash } = stats;
+  const items = [
+    avgFace   != null ? `Face: ${fSign(avgFace,1)}°`     : null,
+    avgPath   != null ? `Path: ${fSign(avgPath,1)}°`     : null,
+    avgFTP    != null ? `F→P: ${fSign(avgFTP,1)}°`       : null,
+    avgAttack != null ? `Attack: ${fSign(avgAttack,1)}°` : null,
+    avgSmash  != null ? `Smash: ${f(avgSmash,2)}`        : null,
+  ].filter(Boolean);
+  if (!items.length) return '';
+  return `
+    <div class="today-focus-tech-card">
+      <div class="today-focus-tech-label">Technical pattern</div>
+      <div class="today-focus-tech-row">${items.map(escapeHtml).join('  ·  ')}</div>
+    </div>`;
+}
+
+function _renderFocusIssueCard(issue, focusLabel) {
+  return `
+    <div class="today-focus-card today-focus-card-issue" style="margin:10px 14px 0;">
       <div class="today-focus-card-label">Main issue — ${escapeHtml(focusLabel)}</div>
-      <div class="today-issue-simple" style="margin:6px 0 3px;">${escapeHtml(mainIssue.simple)}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">${escapeHtml(mainIssue.support||'')}</div>
-    </div>` : `
-    <div class="today-focus-card today-health-good" style="margin:12px 14px 0;">
-      <div class="today-focus-card-label">${escapeHtml(focusLabel)} — looking solid</div>
-      <div style="font-size:13px;color:var(--text2);margin-top:6px;">
-        ${avgCarry ? `Avg carry: ${avgCarry}m` : ''}
-        ${playableRate != null ? ` · Playable: ${playableRate}%` : ''}
+      <div class="today-issue-simple" style="margin:6px 0 3px;">${escapeHtml(issue.simple)}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">${escapeHtml(issue.support)}</div>
+      ${issue.deeper ? `<div style="font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5;">${escapeHtml(issue.deeper)}</div>` : ''}
+    </div>`;
+}
+
+function _renderFocusNoIssueCard(focusLabel, n) {
+  const lowData = n < 10;
+  return `
+    <div class="today-focus-card today-health-neutral" style="margin:10px 14px 0;">
+      <div class="today-focus-card-label">No strong issue detected — ${escapeHtml(focusLabel)}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:5px;">
+        ${lowData
+          ? `Only ${n} shots — not enough for a confident pattern yet. Add more shots for a reliable diagnosis.`
+          : `Numbers look reasonable. Train consistency or choose Overall for your biggest current problem.`}
       </div>
     </div>`;
+}
 
-  const quickBtn = `<div class="today-quick-log-row" style="margin:0 14px 20px;">
-    <button class="today-log-btn" onclick="showPage('analysis')">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      TrackMan
-    </button>
-  </div>`;
-
-  return issueHtml + _renderFocusTrainCard(mainIssue, focusLabel, focusKey) + quickBtn;
+function _renderFocusQuickActions() {
+  return `
+    <div class="today-quick-log-row" style="margin:0 14px 20px;">
+      <button class="today-log-btn" onclick="showPage('analysis')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        TrackMan
+      </button>
+      <button class="today-log-btn" onclick="showPage('stats')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Log range
+      </button>
+    </div>`;
 }
 
 function _renderFocusTrainCard(issue, focusLabel, focusKey) {
