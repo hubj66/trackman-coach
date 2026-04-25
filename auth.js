@@ -702,15 +702,23 @@ async function loadProgressSection(){
   if(!el)return;
   if(!_currentUserId){el.innerHTML='<div class="stats-login-note">Log in to see your progress.</div>';return;}
   el.innerHTML='<div class="stats-loading">Loading…</div>';
-  const thirty=new Date(Date.now()-30*24*3600*1000).toISOString().slice(0,10);
+  const now=Date.now();
+  const thirty=new Date(now-30*24*3600*1000).toISOString().slice(0,10);
+  const sixty=new Date(now-60*24*3600*1000).toISOString().slice(0,10);
   try{
-    const[tmRes,chipRes,puttRes,practiceRes]=await Promise.all([
+    // Current period (last 30 days) and previous period (days 30–60) fetched together
+    const[tmRes,chipRes,puttRes,practiceRes,
+          tmPrevRes,chipPrevRes,puttPrevRes]=await Promise.all([
       sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).gte('shot_time',thirty+'T00:00:00').order('shot_time',{ascending:false}).limit(500),
       sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
       sb.from('putting_sessions').select('session_date,distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
       sb.from('practice_sessions').select('session_date,practice_type').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
+      // Previous period
+      sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).gte('shot_time',sixty+'T00:00:00').lt('shot_time',thirty+'T00:00:00').limit(500),
+      sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
+      sb.from('putting_sessions').select('distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
     ]);
-    // TrackMan
+    // ── Current period ──
     const tmShots=(tmRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
     const tmDays=[...new Set(tmShots.map(s=>(s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
     const carries=tmShots.map(s=>s.carry).filter(Boolean);
@@ -744,10 +752,58 @@ async function loadProgressSection(){
     const lastDate=allDates[0];
     const daysSince=lastDate?Math.floor((Date.now()-new Date(lastDate))/(24*3600*1000)):null;
 
+    // ── Previous period ──
+    const tmPrev=(tmPrevRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
+    const prevCarries=tmPrev.map(s=>s.carry).filter(Boolean);
+    const prevSides=tmPrev.map(s=>s.side).filter(s=>s!=null);
+    const prevSmashes=tmPrev.map(s=>s.smash_factor).filter(Boolean);
+    const prevAvgCarry=avg(prevCarries);
+    const prevCarrySD=stdDev(prevCarries);
+    const prevPlayablePct=prevSides.length?prevSides.filter(s=>Math.abs(s)<=20).length/prevSides.length*100:null;
+    const prevAvgSmash=avg(prevSmashes);
+    const chipPrev=chipPrevRes.data||[];
+    const prevChipAtt=sum(chipPrev.map(x=>x.attempts));
+    const prevChipIn2=sum(chipPrev.map(x=>(x.inside_1m||0)+(x.between_1_2m||0)));
+    const prevChipOut3=sum(chipPrev.map(x=>x.outside_3m||0));
+    const prevChipIn2Rate=prevChipAtt?prevChipIn2/prevChipAtt*100:null;
+    const prevChipOut3Rate=prevChipAtt?prevChipOut3/prevChipAtt*100:null;
+    const puttPrev=puttPrevRes.data||[];
+    const prevShortPutts=puttPrev.filter(p=>p.distance_m!=null&&p.distance_m<=2);
+    const prevPuttHoled=sum(prevShortPutts.map(x=>x.holed));
+    const prevPuttTotal=sum(prevShortPutts.map(x=>x.total));
+    const prevPuttMakeRate=prevPuttTotal?prevPuttHoled/prevPuttTotal*100:null;
+    const hasPrevTm=tmPrev.length>=5;
+    const hasPrevChip=chipPrev.length>0;
+    const hasPrevPutt=puttPrev.length>0;
+
+    // ── Status helpers ──
+    // Period-over-period: improveThr = delta needed for "Improved", stableThr = decline before "Needs attention"
+    // hi=true means higher is better (carry, playable%), hi=false means lower is better (carrySD)
+    function stDelta(curr,prev,hasPrev,improveThr,stableThr,hi=true){
+      if(curr===null||curr===undefined)return null;
+      if(!hasPrev||prev===null||prev===undefined)return'ok'; // no comparison data → neutral
+      const d=hi?(curr-prev):(prev-curr); // positive d = improvement
+      if(d>=improveThr)return'good';
+      if(d>=-stableThr)return'ok';
+      return'bad';
+    }
+    // Absolute fallback used for practice consistency metrics
     function st(val,good,bad,hi=true){if(val===null||val===undefined)return null;return hi?(val>=good?'good':val>=bad?'ok':'bad'):(val<=good?'good':val<=bad?'ok':'bad');}
     const SL={good:'✓ Improved',ok:'→ Stable',bad:'⚠ Needs attention'};
     function chip(s){if(!s)return'';return`<span class="progress-status progress-status-${s}">${SL[s]}</span>`;}
-    function row(label,valStr,status){return`<div class="progress-metric"><div class="progress-metric-left"><div class="progress-metric-label">${escapeHtml(label)}</div><div class="progress-metric-val">${escapeHtml(valStr)}</div></div>${chip(status)}</div>`;}
+
+    // Delta display: +3m, −5%pts, etc. — green if improvement, red if decline
+    function deltaStr(curr,prev,hasPrev,unit,decimals=0,hi=true){
+      if(!hasPrev||curr==null||prev==null)return'';
+      const d=curr-prev;
+      const fmtD=fmt(Math.abs(d),decimals);
+      if(fmtD==='0'||(decimals>0&&parseFloat(fmtD)===0))return'';
+      const sign=d>0?'+':'−';
+      const isGood=(d>0)===hi;
+      return` <span class="progress-delta progress-delta-${isGood?'up':'dn'}">${sign}${fmtD}${unit}</span>`;
+    }
+    // row() accepts optional deltaHtml (raw HTML string, not escaped)
+    function row(label,valStr,status,deltaHtml=''){return`<div class="progress-metric"><div class="progress-metric-left"><div class="progress-metric-label">${escapeHtml(label)}</div><div class="progress-metric-val">${escapeHtml(valStr)}${deltaHtml}</div></div>${chip(status)}</div>`;}
 
     const totalSG=chips.length+putts.length;
     const summaryHtml=`<div class="progress-summary-strip">
@@ -758,31 +814,32 @@ async function loadProgressSection(){
       <div class="progress-summary-item"><div class="progress-summary-val">${daysSince===null?'–':daysSince===0?'Today':daysSince+'d'}</div><div class="progress-summary-label">Last session</div></div>
     </div>`;
 
+    const periodNote=`<span class="progress-period-note">vs prev 30d</span>`;
     const tmHtml=tmShots.length>=5?`
-      <div class="progress-group-label">TrackMan — last 30 days</div>
+      <div class="progress-group-label">TrackMan — last 30 days ${hasPrevTm?periodNote:''}</div>
       <div class="progress-card">
-        ${row('Avg carry',avgCarry!=null?fmt(avgCarry,0)+'m':'–',st(avgCarry,100,85))}
-        ${carrySD!=null?row('Carry consistency','±'+fmt(carrySD,0)+'m SD',st(carrySD,8,14,false)):''}
-        ${playablePct!=null?row('Playable shots',fmt(playablePct,0)+'%',st(playablePct,70,50)):''}
-        ${avgSmash!=null?row('Smash factor',fmt(avgSmash,2),st(avgSmash,1.42,1.35)):''}
+        ${row('Avg carry',avgCarry!=null?fmt(avgCarry,0)+'m':'–',stDelta(avgCarry,prevAvgCarry,hasPrevTm,3,3),deltaStr(avgCarry,prevAvgCarry,hasPrevTm,'m',0))}
+        ${carrySD!=null?row('Carry consistency','±'+fmt(carrySD,0)+'m SD',stDelta(carrySD,prevCarrySD,hasPrevTm,2,2,false),deltaStr(carrySD,prevCarrySD,hasPrevTm,'m',0,false)):''}
+        ${playablePct!=null?row('Playable shots',fmt(playablePct,0)+'%',stDelta(playablePct,prevPlayablePct,hasPrevTm,5,5),deltaStr(playablePct,prevPlayablePct,hasPrevTm,'%pts',0)):''}
+        ${avgSmash!=null?row('Smash factor',fmt(avgSmash,2),stDelta(avgSmash,prevAvgSmash,hasPrevTm,0.02,0.02),deltaStr(avgSmash,prevAvgSmash,hasPrevTm,'',2)):''}
         ${avgFace!=null?row('Face angle avg',(avgFace>0?'+':'')+fmt(avgFace,1)+'°',st(Math.abs(avgFace),2,4,false)):''}
       </div>`
       :`<div class="progress-group-label">TrackMan</div><div class="progress-empty">No TrackMan shots in the last 30 days.</div>`;
 
     const chipHtml=chips.length?`
-      <div class="progress-group-label">Chipping — last 30 days</div>
+      <div class="progress-group-label">Chipping — last 30 days ${hasPrevChip?periodNote:''}</div>
       <div class="progress-card">
         ${row('Sessions',chips.length+' sessions, '+chipAtt+' attempts',null)}
-        ${chipIn2Rate!=null?row('Inside 2m',fmt(chipIn2Rate,0)+'%',st(chipIn2Rate,60,40)):''}
-        ${chipOut3Rate!=null?row('Outside 3m',fmt(chipOut3Rate,0)+'%',st(chipOut3Rate,15,25,false)):''}
+        ${chipIn2Rate!=null?row('Inside 2m',fmt(chipIn2Rate,0)+'%',stDelta(chipIn2Rate,prevChipIn2Rate,hasPrevChip,5,5),deltaStr(chipIn2Rate,prevChipIn2Rate,hasPrevChip,'%pts',0)):''}
+        ${chipOut3Rate!=null?row('Outside 3m',fmt(chipOut3Rate,0)+'%',stDelta(chipOut3Rate,prevChipOut3Rate,hasPrevChip,5,5,false),deltaStr(chipOut3Rate,prevChipOut3Rate,hasPrevChip,'%pts',0,false)):''}
       </div>`
       :`<div class="progress-group-label">Chipping</div><div class="progress-empty">No chipping sessions in the last 30 days.</div>`;
 
     const puttHtml=putts.length?`
-      <div class="progress-group-label">Putting — last 30 days</div>
+      <div class="progress-group-label">Putting — last 30 days ${hasPrevPutt?periodNote:''}</div>
       <div class="progress-card">
         ${row('Sessions',putts.length+' sessions',null)}
-        ${puttMakeRate!=null?row('Short putt make rate (≤2m)',fmt(puttMakeRate,0)+'%',st(puttMakeRate,80,65)):''}
+        ${puttMakeRate!=null?row('Short putt make rate (≤2m)',fmt(puttMakeRate,0)+'%',stDelta(puttMakeRate,prevPuttMakeRate,hasPrevPutt,5,5),deltaStr(puttMakeRate,prevPuttMakeRate,hasPrevPutt,'%pts',0)):''}
       </div>`
       :`<div class="progress-group-label">Putting</div><div class="progress-empty">No putting sessions in the last 30 days.</div>`;
 
