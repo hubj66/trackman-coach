@@ -475,17 +475,23 @@ function _renderFocusStatsCard(stats, focusLabel, n) {
 function _renderFocusTechnicalCard(stats, focusLabel) {
   const { avgFace, avgPath, avgFTP, avgAttack, avgSmash } = stats;
   const items = [
-    avgFace   != null ? `Face: ${fSign(avgFace,1)}°`     : null,
-    avgPath   != null ? `Path: ${fSign(avgPath,1)}°`     : null,
-    avgFTP    != null ? `F→P: ${fSign(avgFTP,1)}°`       : null,
-    avgAttack != null ? `Attack: ${fSign(avgAttack,1)}°` : null,
-    avgSmash  != null ? `Smash: ${f(avgSmash,2)}`        : null,
+    avgFace   != null ? { lbl: 'Face',   val: fSign(avgFace,1)+'°'   } : null,
+    avgPath   != null ? { lbl: 'Path',   val: fSign(avgPath,1)+'°'   } : null,
+    avgFTP    != null ? { lbl: 'F→P',    val: fSign(avgFTP,1)+'°'    } : null,
+    avgAttack != null ? { lbl: 'Attack', val: fSign(avgAttack,1)+'°' } : null,
+    avgSmash  != null ? { lbl: 'Smash',  val: f(avgSmash,2)          } : null,
   ].filter(Boolean);
   if (!items.length) return '';
+  const chips = items.map(it =>
+    `<div class="today-focus-tech-chip">
+      <span class="today-focus-tech-chip-lbl">${escapeHtml(it.lbl)}</span>
+      <span class="today-focus-tech-chip-val">${escapeHtml(it.val)}</span>
+    </div>`
+  ).join('');
   return `
     <div class="today-focus-tech-card">
       <div class="today-focus-tech-label">Technical pattern</div>
-      <div class="today-focus-tech-row">${items.map(escapeHtml).join('  ·  ')}</div>
+      <div class="today-focus-tech-chips">${chips}</div>
     </div>`;
 }
 
@@ -514,18 +520,20 @@ function _renderFocusNoIssueCard(focusLabel, n) {
 
 function _renderFocusQuickActions() {
   return `
-    <div class="today-quick-log-row" style="margin:0 14px 20px;">
-      <button class="today-log-btn" onclick="showPage('analysis')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        TrackMan
-      </button>
-      <button class="today-log-btn" onclick="showPage('stats')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Log range
-      </button>
-      <button class="today-log-btn" onclick="openSessionReview()">
+    <div class="today-focus-actions">
+      <div class="today-quick-log-row" style="margin:0;">
+        <button class="today-log-btn" onclick="showPage('analysis')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          TrackMan
+        </button>
+        <button class="today-log-btn" onclick="showPage('stats')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Log range
+        </button>
+      </div>
+      <button class="today-log-btn today-log-btn-full" onclick="openSessionReview()">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-        Log result
+        Log session result
       </button>
     </div>`;
 }
