@@ -500,6 +500,12 @@ function renderBagCards(){
     const shots=_bagGrouped[row.club_key]||[];
     const carries=shots.map(s=>s.carry).filter(Boolean);
     const avgC=avg(carries),carrySD=stdDev(carries);
+    // Trim top/bottom 10 % to remove outlier shanks from the range display
+    const sortedC=[...carries].sort((a,b)=>a-b);
+    const trimN=sortedC.length>=10?Math.round(sortedC.length*0.1):sortedC.length>=5?1:0;
+    const trimmedC=sortedC.slice(trimN,sortedC.length-trimN||undefined);
+    const carryMin=trimmedC.length?Math.round(trimmedC[0]):null;
+    const carryMax=trimmedC.length?Math.round(trimmedC[trimmedC.length-1]):null;
     const sides=shots.map(s=>s.side).filter(x=>x!=null),avgSide=avg(sides);
     const miss=!avgSide?'–':avgSide>5?'Right':avgSide<-5?'Left':'Straight';
     const n=shots.length;
@@ -529,7 +535,7 @@ ${expanded?`<div class="bag-card-body">
     <div class="bag-section"><div class="bag-sec-title">Distance</div>
       <div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>
       ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
-      ${carries.length>1?`<div class="bag-stat-row"><span>Range</span><strong>${Math.round(Math.min(...carries))}–${Math.round(Math.max(...carries))}m</strong></div>`:''}
+      ${(carryMin!=null&&carryMax!=null&&carryMin!==carryMax)?`<div class="bag-stat-row"><span>Typical range</span><strong>${carryMin}–${carryMax}m</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Direction</div>
       <div class="bag-stat-row"><span>Avg side</span><strong>${avgSide!=null?fmt(avgSide)+'m':'–'}</strong></div>
