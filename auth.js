@@ -440,45 +440,79 @@ function drawSimpleTrendChart(canvas,points,label,unit,yMin,yMax,color){
   canvas.width=w*dpr;canvas.height=h*dpr;
   canvas.style.width=w+'px';canvas.style.height=h+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+
+  const light=document.body.classList.contains('light-theme');
+  const gridClr =light?'rgba(0,0,0,0.08)' :'rgba(255,255,255,0.05)';
+  const axisClr =light?'#5a5550'           :'#4e5660';
+  const titleClr=light?'#1a1916'           :'#f0ede8';
+
   const values=points.map(p=>p.val);
-  const dates=points.map(p=>p.date);
-  const pad={t:22,r:16,b:28,l:42};
+  const dates =points.map(p=>p.date);
+  const pad={t:24,r:18,b:30,l:44};
   const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   const dataMin=Math.min(...values),dataMax=Math.max(...values);
   const rangeMin=Math.min(yMin,dataMin-5),rangeMax=Math.max(yMax,dataMax+5);
   const px=i=>pad.l+(i/(values.length-1))*cw;
   const py=v=>pad.t+ch-((v-rangeMin)/(rangeMax-rangeMin))*ch;
-  ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
-  ctx.font="9px 'DM Mono',monospace";ctx.fillStyle='#4e5660';ctx.textAlign='right';
+
+  // Smooth catmull-rom helper
+  function smLine(xs,ys){const n=xs.length;for(let i=0;i<n-1;i++){const x0=xs[Math.max(0,i-1)],y0=ys[Math.max(0,i-1)],x1=xs[i],y1=ys[i],x2=xs[i+1],y2=ys[i+1],x3=xs[Math.min(n-1,i+2)],y3=ys[Math.min(n-1,i+2)];ctx.bezierCurveTo(x1+(x2-x0)/6,y1+(y2-y0)/6,x2-(x3-x1)/6,y2-(y3-y1)/6,x2,y2);}}
+
+  // Grid lines + y-axis labels
+  ctx.font="9px 'DM Mono',monospace";ctx.fillStyle=axisClr;ctx.textAlign='right';
   for(let i=0;i<=3;i++){
     const y=pad.t+(ch/3)*i,val=rangeMax-((rangeMax-rangeMin)/3)*i;
+    ctx.strokeStyle=gridClr;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
     ctx.fillText(val.toFixed(0)+unit,pad.l-4,y+3);
   }
+
+  const xs=values.map((_,i)=>px(i)),ys=values.map(v=>py(v));
+
+  // Fill area
   const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
-  grad.addColorStop(0,color+'33');grad.addColorStop(1,color+'05');
-  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(px(0),py(values[0]));
-  values.forEach((v,i)=>ctx.lineTo(px(i),py(v)));
-  ctx.lineTo(px(values.length-1),pad.t+ch);ctx.lineTo(px(0),pad.t+ch);ctx.closePath();ctx.fill();
+  grad.addColorStop(0,color+'44');grad.addColorStop(0.6,color+'18');grad.addColorStop(1,color+'00');
+  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(xs[0],ys[0]);smLine(xs,ys);
+  ctx.lineTo(xs[xs.length-1],pad.t+ch);ctx.lineTo(xs[0],pad.t+ch);ctx.closePath();ctx.fill();
+
+  // Main line
   ctx.strokeStyle=color;ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.beginPath();values.forEach((v,i)=>i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v)));ctx.stroke();
+  ctx.beginPath();ctx.moveTo(xs[0],ys[0]);smLine(xs,ys);ctx.stroke();
+
+  // Raw dots (small, subdued)
   ctx.fillStyle=color;
-  values.forEach((v,i)=>{ctx.beginPath();ctx.arc(px(i),py(v),3,0,Math.PI*2);ctx.fill();});
+  values.forEach((_,i)=>{ctx.globalAlpha=0.5;ctx.beginPath();ctx.arc(xs[i],ys[i],2.5,0,Math.PI*2);ctx.fill();});
+  ctx.globalAlpha=1;
+
+  // Trend line
   const n=values.length,sX=values.reduce((_,__,i)=>_+i,0),sY=values.reduce((a,b)=>a+b,0);
   const sXY=values.reduce((a,v,i)=>a+i*v,0),sX2=values.reduce((a,_,i)=>a+i*i,0);
   const slope=(n*sXY-sX*sY)/(n*sX2-sX*sX),intercept=(sY-slope*sX)/n;
   const tCol=slope>0.1?'#00d68f':slope<-0.1?'#ff4d4d':'#8a9099';
-  ctx.strokeStyle=tCol;ctx.lineWidth=1.5;ctx.globalAlpha=0.6;ctx.setLineDash([6,4]);
+  ctx.strokeStyle=tCol;ctx.lineWidth=1.5;ctx.globalAlpha=0.55;ctx.setLineDash([6,4]);
   ctx.beginPath();ctx.moveTo(px(0),py(intercept));ctx.lineTo(px(n-1),py(slope*(n-1)+intercept));ctx.stroke();
   ctx.setLineDash([]);ctx.globalAlpha=1;
-  ctx.fillStyle='#f0ede8';ctx.font="700 10px 'Barlow Condensed',sans-serif";ctx.textAlign='left';
+
+  // Last-value highlighted dot
+  const lx=xs[xs.length-1],ly=ys[ys.length-1],lv=values[values.length-1];
+  ctx.shadowColor=color;ctx.shadowBlur=8;
+  ctx.fillStyle=color;ctx.beginPath();ctx.arc(lx,ly,5,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(lx,ly,2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=color;ctx.font="700 9px 'DM Mono',monospace";ctx.textAlign='right';
+  ctx.fillText(lv.toFixed(1)+unit,lx-8,ly-6);
+
+  // Title + trend delta (top row)
+  ctx.fillStyle=titleClr;ctx.font="700 10px 'Barlow Condensed',sans-serif";ctx.textAlign='left';
   ctx.fillText(label,pad.l,pad.t-8);
   const diff=slope*(n-1),arrow=slope>0.1?'↑':slope<-0.1?'↓':'→';
   ctx.fillStyle=tCol;ctx.textAlign='right';ctx.font="700 10px 'Barlow Condensed',sans-serif";
   ctx.fillText(`${arrow} ${diff>0?'+':''}${diff.toFixed(1)}${unit}`,w-pad.r,pad.t-8);
-  ctx.fillStyle='#4e5660';ctx.font="9px 'DM Mono',monospace";ctx.textAlign='center';
+
+  // X-axis date labels
+  ctx.fillStyle=axisClr;ctx.font="9px 'DM Mono',monospace";ctx.textAlign='center';
   const step=Math.max(1,Math.floor(dates.length/4));
-  dates.forEach((d,i)=>{if(i%step===0)ctx.fillText(d.slice(5),px(i),pad.t+ch+16);});
+  dates.forEach((d,i)=>{if(i%step===0||i===dates.length-1)ctx.fillText(d.slice(5),px(i),pad.t+ch+18);});
 }
 
 // ── Clubs overview ─────────────────────────────────────────────────────────

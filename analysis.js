@@ -229,8 +229,10 @@ function _cv() {
     ground:      light ? 'rgba(0,0,0,0.22)'   : 'rgba(255,255,255,0.18)',
     center:      light ? 'rgba(0,0,0,0.18)'   : 'rgba(255,255,255,0.12)',
     sessionSep:  light ? 'rgba(0,0,0,0.10)'   : 'rgba(255,255,255,0.09)',
-    gradTop:     light ? 'rgba(0,148,88,0.18)' : 'rgba(0,214,143,0.13)',
+    gradTop:     light ? 'rgba(0,148,88,0.22)' : 'rgba(0,214,143,0.18)',
     gradBot:     light ? 'rgba(0,148,88,0)'    : 'rgba(0,214,143,0)',
+    titleTxt:    light ? '#1a1916'             : '#f0ede8',
+    lineColor:   light ? '#007a45'             : '#00d68f',
     // Golf field
     rough1:      light ? '#9dbf78'             : '#111b0d',
     rough2:      light ? '#90b56e'             : '#0e1709',
@@ -556,6 +558,9 @@ function drawProgressChart(key,shots){
   canvas.style.width=w+'px';canvas.style.height=h+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
 
+  // Shared smooth catmull-rom → bezier helper (needs ctx in scope)
+  function smLine(xs,ys){const n=xs.length;for(let i=0;i<n-1;i++){const x0=xs[Math.max(0,i-1)],y0=ys[Math.max(0,i-1)],x1=xs[i],y1=ys[i],x2=xs[i+1],y2=ys[i+1],x3=xs[Math.min(n-1,i+2)],y3=ys[Math.min(n-1,i+2)];ctx.bezierCurveTo(x1+(x2-x0)/6,y1+(y2-y0)/6,x2-(x3-x1)/6,y2-(y3-y1)/6,x2,y2);}}
+
   // ── Special: rolling playable-rate chart ──────────────────────────────
   if (key === 'playable_rate') {
     const cv2=_cv();
@@ -588,17 +593,22 @@ function drawProgressChart(key,shots){
     ctx.fillText('target 70%',w-pad2.r-2,tY-3);
     const grad2=ctx.createLinearGradient(0,pad2.t,0,pad2.t+ch2);
     grad2.addColorStop(0,cv2.gradTop);grad2.addColorStop(1,cv2.gradBot);
-    ctx.fillStyle=grad2;ctx.beginPath();ctx.moveTo(px2(0),py2(pts[0]));
-    pts.forEach((v,i)=>ctx.lineTo(px2(i),py2(v)));
-    ctx.lineTo(px2(pts.length-1),pad2.t+ch2);ctx.lineTo(px2(0),pad2.t+ch2);ctx.closePath();ctx.fill();
+    const pxs2=pts.map((_,i)=>px2(i)),pys2=pts.map(v=>py2(v));
+    ctx.fillStyle=grad2;ctx.beginPath();ctx.moveTo(pxs2[0],pys2[0]);smLine(pxs2,pys2);
+    ctx.lineTo(pxs2[pxs2.length-1],pad2.t+ch2);ctx.lineTo(pxs2[0],pad2.t+ch2);ctx.closePath();ctx.fill();
     pts.forEach((v,i)=>{
-      ctx.fillStyle=v>=70?'#00d68f':v>=50?'#ffaa00':'#ff4d4d';ctx.globalAlpha=0.85;
-      ctx.beginPath();ctx.arc(px2(i),py2(v),3.5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=v>=70?'#00d68f':v>=50?'#ffaa00':'#ff4d4d';ctx.globalAlpha=0.6;
+      ctx.beginPath();ctx.arc(pxs2[i],pys2[i],2.5,0,Math.PI*2);ctx.fill();
     });
     ctx.globalAlpha=1;
     const roll2=pts.map((_,i)=>{const s2=pts.slice(Math.max(0,i-4),i+1);return s2.reduce((a,b)=>a+b,0)/s2.length;});
-    ctx.strokeStyle='#00d68f';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.beginPath();roll2.forEach((v,i)=>i===0?ctx.moveTo(px2(i),py2(v)):ctx.lineTo(px2(i),py2(v)));ctx.stroke();
+    const rys2=roll2.map(v=>py2(v));
+    ctx.strokeStyle=cv2.lineColor;ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(pxs2[0],rys2[0]);smLine(pxs2,rys2);ctx.stroke();
+    const plLast=pts[pts.length-1],plLx=pxs2[pxs2.length-1],plLy=pys2[pys2.length-1];
+    ctx.shadowColor=cv2.lineColor;ctx.shadowBlur=8;
+    ctx.fillStyle=cv2.lineColor;ctx.globalAlpha=1;ctx.beginPath();ctx.arc(plLx,plLy,5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(plLx,plLy,2,0,Math.PI*2);ctx.fill();
     const lastRate=pts[pts.length-1];
     const rCol=lastRate>=70?'#00d68f':lastRate>=50?'#ffaa00':'#ff4d4d';
     ctx.font="700 11px 'Barlow Condensed',sans-serif";ctx.textAlign='left';ctx.fillStyle=rCol;
@@ -654,16 +664,24 @@ function drawProgressChart(key,shots){
 
   const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
   grad.addColorStop(0,cv.gradTop);grad.addColorStop(1,cv.gradBot);
-  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(px(0),py(values[0]));
-  values.forEach((v,i)=>ctx.lineTo(px(i),py(v)));
-  ctx.lineTo(px(values.length-1),pad.t+ch);ctx.lineTo(px(0),pad.t+ch);ctx.closePath();ctx.fill();
+  const xs=values.map((_,i)=>px(i)),ys=values.map(v=>py(v));
+  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(xs[0],ys[0]);smLine(xs,ys);
+  ctx.lineTo(xs[xs.length-1],pad.t+ch);ctx.lineTo(xs[0],pad.t+ch);ctx.closePath();ctx.fill();
 
-  values.forEach((v,i)=>{ctx.fillStyle=colorMap[dates[i]]||'#00d68f';ctx.globalAlpha=0.85;ctx.beginPath();ctx.arc(px(i),py(v),3.5,0,Math.PI*2);ctx.fill();});
+  values.forEach((v,i)=>{ctx.fillStyle=colorMap[dates[i]]||cv.lineColor;ctx.globalAlpha=0.65;ctx.beginPath();ctx.arc(xs[i],ys[i],3,0,Math.PI*2);ctx.fill();});
   ctx.globalAlpha=1;
 
-  const roll=values.map((_,i)=>{const w2=values.slice(Math.max(0,i-4),i+1);return w2.reduce((a,b)=>a+b,0)/w2.length;});
-  ctx.strokeStyle='#00d68f';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.beginPath();roll.forEach((v,i)=>i===0?ctx.moveTo(px(i),py(v)):ctx.lineTo(px(i),py(v)));ctx.stroke();
+  const roll=values.map((_,i)=>{const sl=values.slice(Math.max(0,i-4),i+1);return sl.reduce((a,b)=>a+b,0)/sl.length;});
+  const rys=roll.map(v=>py(v));
+  ctx.strokeStyle=cv.lineColor;ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.beginPath();ctx.moveTo(xs[0],rys[0]);smLine(xs,rys);ctx.stroke();
+  // Last-value highlighted dot
+  const lvx=xs[xs.length-1],lvy=ys[ys.length-1],lvv=values[values.length-1];
+  ctx.shadowColor=cv.lineColor;ctx.shadowBlur=8;
+  ctx.fillStyle=cv.lineColor;ctx.beginPath();ctx.arc(lvx,lvy,5,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(lvx,lvy,2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=cv.lineColor;ctx.textAlign='right';ctx.font="700 9px 'DM Mono',monospace";
+  ctx.fillText((isSign?(lvv>0?'+':'')+lvv.toFixed(1):lvv.toFixed(key==='spin_rate'?0:1)),lvx-8,lvy-7);
 
   const n=values.length,sX=values.reduce((_,__,i)=>_+i,0),sY=values.reduce((a,b)=>a+b,0);
   const sXY=values.reduce((a,v,i)=>a+i*v,0),sX2=values.reduce((a,_,i)=>a+i*i,0);
@@ -677,11 +695,11 @@ function drawProgressChart(key,shots){
   const diff=tEnd-tStart,arrow=slope>0.01?'↑':slope<-0.01?'↓':'→';
   ctx.font="700 10px 'Barlow Condensed',sans-serif";ctx.textAlign='right';ctx.fillStyle=tCol;
   ctx.fillText(`${arrow} ${diff>0?'+':''}${diff.toFixed(key==='spin_rate'?0:1)}`,w-pad.r,pad.t-12);
-  ctx.fillStyle='#f0ede8';ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
+  ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
   ctx.fillText(`${progLabel(key).toUpperCase()} · ${values.length} shots`,pad.l,pad.t-12);
 
   const ud=[...new Set(dates)];ctx.font="9px 'DM Mono',monospace";ctx.textAlign='left';let lx=pad.l;
-  ud.forEach(d=>{if(lx>w-60)return;const col=colorMap[d]||'#00d68f';ctx.fillStyle=col;ctx.beginPath();ctx.arc(lx+4,pad.t+ch+20,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6a7380';ctx.fillText(d.slice(5),lx+12,pad.t+ch+23);lx+=54;});
+  ud.forEach(d=>{if(lx>w-60)return;const col=colorMap[d]||cv.lineColor;ctx.fillStyle=col;ctx.beginPath();ctx.arc(lx+4,pad.t+ch+20,4,0,Math.PI*2);ctx.fill();ctx.fillStyle=cv.dim;ctx.fillText(d.slice(5),lx+12,pad.t+ch+23);lx+=54;});
 
   // Baseline note
   const noteEl=document.getElementById('progress-baseline-note');
