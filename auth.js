@@ -555,7 +555,34 @@ ${expanded?`<div class="bag-card-body">
 </div>`:''}
 </div>`;
   }).join('');
-  el.innerHTML=`<div class="bag-toolbar"><label class="bag-toggle-label"><input type="checkbox" class="bag-toggle-input"${_bagShowInactive?' checked':''} onchange="toggleBagInactive(this.checked)"> Show inactive clubs</label></div><div class="bag-cards">${cards}</div>`;
+  // Distance map — clubs with ≥2 carry readings sorted longest to shortest
+  const gapData = visible
+    .map(row => {
+      const shots = _bagGrouped[row.club_key] || [];
+      const carries = shots.map(s => s.carry).filter(Boolean);
+      const ac = avg(carries);
+      return (ac != null && carries.length >= 2)
+        ? { name: row.club_name, key: row.club_key, ac: Math.round(ac) }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.ac - a.ac);
+
+  let gapSectionHtml = '';
+  if (gapData.length >= 2) {
+    const gapRows = gapData.map((d, i) => {
+      const gap = i > 0 ? gapData[i - 1].ac - d.ac : null;
+      const gapChip = gap == null
+        ? '<span class="bag-gap-chip bag-gap-first">—</span>'
+        : gap > 15
+          ? `<span class="bag-gap-chip bag-gap-wide">${gap}m</span>`
+          : `<span class="bag-gap-chip">${gap}m</span>`;
+      return `<div class="bag-gap-row">${gapChip}<span class="bag-gap-club">${escapeHtml(d.name)}</span><span class="bag-gap-carry">${d.ac}m</span></div>`;
+    }).join('');
+    gapSectionHtml = `<details class="bag-gap-section"><summary class="bag-gap-title">Distance map <span class="bag-gap-count">${gapData.length} clubs</span></summary><div class="bag-gap-rows">${gapRows}</div></details>`;
+  }
+
+  el.innerHTML=`<div class="bag-toolbar"><label class="bag-toggle-label"><input type="checkbox" class="bag-toggle-input"${_bagShowInactive?' checked':''} onchange="toggleBagInactive(this.checked)"> Show inactive clubs</label></div>${gapSectionHtml}<div class="bag-cards">${cards}</div>`;
 }
 
 async function loadClubsOverview(){

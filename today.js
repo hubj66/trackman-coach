@@ -292,6 +292,7 @@ function _renderClubFocusSection(focusKey) {
     <div class="today-coach-layer">
       ${statsCard}${techCard}${issueCard}
       ${_renderFocusTrainCard(issue, focusLabel, focusKey)}
+      ${_renderDrillHistoryCard()}
       ${_renderFocusQuickActions()}
     </div>
     <div class="today-stats-layer">
@@ -521,6 +522,10 @@ function _renderFocusQuickActions() {
       <button class="today-log-btn" onclick="showPage('stats')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Log range
+      </button>
+      <button class="today-log-btn" onclick="openSessionReview()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Log result
       </button>
     </div>`;
 }
