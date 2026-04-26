@@ -100,23 +100,24 @@ function _drawShotShape() {
   ctx.scale(dpr, dpr);
 
   const shape = getShotShape(face, path);
+  const isLight = document.body.classList.contains('light-theme');
 
   // Fairway background with stripes
   const sw = 22;
-  const c1 = '#1e3420';
-  const c2 = '#182818';
+  const c1 = isLight ? '#3a6030' : '#1e3420';
+  const c2 = isLight ? '#2e5228' : '#182818';
   for (let i = 0; i * sw < w; i++) {
     ctx.fillStyle = i % 2 === 0 ? c1 : c2;
     ctx.fillRect(i * sw, 0, sw, h);
   }
 
   // Rough edges
-  ctx.fillStyle = '#0e1e0e';
+  ctx.fillStyle = isLight ? '#1e3818' : '#0e1e0e';
   ctx.fillRect(0, 0, w * 0.13, h);
   ctx.fillRect(w * 0.87, 0, w * 0.13, h);
 
   // Rough edge lines
-  ctx.strokeStyle = '#2a4a2a';
+  ctx.strokeStyle = isLight ? '#2a5022' : '#2a4a2a';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(w * 0.13, 0);
@@ -130,7 +131,7 @@ function _drawShotShape() {
 
   // Target line
   const cx = w / 2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)';
   ctx.lineWidth = 1.5;
   ctx.setLineDash([8, 7]);
   ctx.beginPath();

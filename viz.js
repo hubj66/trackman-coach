@@ -17,9 +17,7 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   };
 }
 
-// viz.js — premium dark sports aesthetic canvas drawings
-
-const d = true; // dark mode always on
+// viz.js — canvas drawings, theme-aware
 
 function sc(id, h) {
   const c = document.getElementById(id);
@@ -54,24 +52,57 @@ function idealMid(id) {
 
 // ── Theme colors ───────────────────────────────────────────────────────────
 function T() {
+  if (document.body.classList.contains('light-theme')) {
+    return {
+      bg:           '#e0dbd2',
+      surface:      '#f5f2ed',
+      s2:           '#ede8e1',
+      s3:           '#e3ddd6',
+      text:         '#1a1916',
+      text2:        '#2e3828',
+      text3:        '#7a7770',
+      border:       'rgba(0,0,0,0.1)',
+      green:        '#007a45',
+      amber:        '#b07000',
+      red:          '#c02020',
+      stripe1:      '#3a6030',
+      stripe2:      '#2e5228',
+      fwStripe1:    '#4a7838',
+      fwStripe2:    '#3c6830',
+      sky1:         '#4a88be',
+      sky2:         '#80b8e0',
+      targetLine:   'rgba(0,0,0,0.18)',
+      labelSub:     'rgba(0,0,0,0.45)',
+      labelFaint:   'rgba(0,0,0,0.28)',
+      golferStroke: 'rgba(0,0,0,0.55)',
+      golferFill:   'rgba(0,0,0,0.22)',
+      groundGuide:  'rgba(0,0,0,0.15)',
+    };
+  }
   return {
-    bg:      '#0e1012',
-    surface: '#161819',
-    s2:      '#1d2023',
-    s3:      '#252a2d',
-    text:    '#f0ede8',
-    text2:   '#8a9099',
-    text3:   '#3e4650',
-    border:  'rgba(255,255,255,0.07)',
-    green:   '#00d68f',
-    amber:   '#ffaa00',
-    red:     '#ff4d4d',
-    stripe1: '#1b3020',
-    stripe2: '#152618',
-    fwStripe1: '#1f3822',
-    fwStripe2: '#19301a',
-    sky1:    '#050a10',
-    sky2:    '#0c1620',
+    bg:           '#0e1012',
+    surface:      '#161819',
+    s2:           '#1d2023',
+    s3:           '#252a2d',
+    text:         '#f0ede8',
+    text2:        '#8a9099',
+    text3:        '#3e4650',
+    border:       'rgba(255,255,255,0.07)',
+    green:        '#00d68f',
+    amber:        '#ffaa00',
+    red:          '#ff4d4d',
+    stripe1:      '#1b3020',
+    stripe2:      '#152618',
+    fwStripe1:    '#1f3822',
+    fwStripe2:    '#19301a',
+    sky1:         '#050a10',
+    sky2:         '#0c1620',
+    targetLine:   'rgba(255,255,255,0.1)',
+    labelSub:     'rgba(255,255,255,0.2)',
+    labelFaint:   'rgba(255,255,255,0.12)',
+    golferStroke: 'rgba(255,255,255,0.25)',
+    golferFill:   'rgba(255,255,255,0.11)',
+    groundGuide:  'rgba(255,255,255,0.14)',
   };
 }
 
@@ -310,13 +341,13 @@ function drawFaceBoth(cid, did, you, ideal, updateDesc) {
   const cx = w / 2, ballY = h * 0.46, clubY = h * 0.64;
 
   // Target line
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = t.targetLine; ctx.lineWidth = 1;
   ctx.setLineDash([6, 5]);
   ctx.beginPath(); ctx.moveTo(cx, 22); ctx.lineTo(cx, ballY - 14); ctx.stroke();
   ctx.setLineDash([]);
 
   drawFlag(ctx, cx, 18);
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillStyle = t.labelSub;
   ctx.font = "500 8px 'DM Mono', monospace"; ctx.textAlign = 'center';
   ctx.fillText('TARGET', cx, 15);
 
@@ -391,13 +422,13 @@ function drawPathBoth(cid, did, you, ideal, updateDesc) {
   const cx = w / 2, ballY = h * 0.50;
 
   // Target line
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = t.targetLine; ctx.lineWidth = 1;
   ctx.setLineDash([7, 6]);
   ctx.beginPath(); ctx.moveTo(cx, 14); ctx.lineTo(cx, h - 14); ctx.stroke();
   ctx.setLineDash([]);
 
   drawFlag(ctx, cx, 14);
-  ctx.font = "500 8px 'DM Mono', monospace"; ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.font = "500 8px 'DM Mono', monospace"; ctx.fillStyle = t.labelSub;
   ctx.textAlign = 'left'; ctx.fillText('OUTSIDE', cx + 8, 48);
   ctx.textAlign = 'right'; ctx.fillText('INSIDE', cx - 8, 48);
 
@@ -488,7 +519,7 @@ function drawPathBoth(cid, did, you, ideal, updateDesc) {
   const ili = Math.round(ipts.length * 0.8);
   drawPill(ctx, ipts[ili].x - 30, ipts[ili].y, 'TARGET ' + ideal + '°', t.green, 'right');
 
-  ctx.font = "500 7px 'DM Mono', monospace"; ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.textAlign = 'center';
+  ctx.font = "500 7px 'DM Mono', monospace"; ctx.fillStyle = t.labelFaint; ctx.textAlign = 'center';
   ctx.fillText('BACKSWING', pts[2].x, pts[2].y + 12);
   ctx.fillText('FOLLOW-THROUGH', lp.x, lp.y - 12);
 
@@ -542,7 +573,7 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   }
 
   // Ground guide
-  ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 0.8;
+  ctx.strokeStyle = t.groundGuide; ctx.lineWidth = 0.8;
   ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(bx - 70, gy + 2); ctx.lineTo(bx + 50, gy + 2); ctx.stroke();
   ctx.setLineDash([]);
@@ -572,8 +603,8 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   const handsY = by - 42;
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillStyle = 'rgba(255,255,255,0.11)';
+  ctx.strokeStyle = t.golferStroke;
+  ctx.fillStyle = t.golferFill;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -679,13 +710,13 @@ function drawAttackBoth(cid, did, you, ideal, updateDesc) {
   // Labels
   ctx.fillStyle = ac; ctx.font = "700 28px 'Barlow Condensed', sans-serif"; ctx.textAlign = 'left';
   ctx.fillText((you > 0 ? '+' : '') + Math.round(you) + '°', 14, 38);
-  ctx.font = "500 10px 'DM Mono', monospace"; ctx.fillStyle = '#3a4550';
+  ctx.font = "500 10px 'DM Mono', monospace"; ctx.fillStyle = t.text2;
   ctx.fillText('ATTACK ANGLE', 14, 52);
   ctx.fillStyle = t.green; ctx.globalAlpha = 0.6;
   ctx.fillText('IDEAL ' + (ideal > 0 ? '+' : '') + ideal + '°', 14, 66);
   ctx.globalAlpha = 1;
 
-  ctx.font = "500 8px 'DM Mono', monospace"; ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.textAlign = 'center';
+  ctx.font = "500 8px 'DM Mono', monospace"; ctx.fillStyle = t.labelSub; ctx.textAlign = 'center';
   ctx.fillText('IMPACT', bx, gy + 18);
 
   if (!updateDesc) return;
