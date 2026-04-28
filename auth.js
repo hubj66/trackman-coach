@@ -5,6 +5,8 @@ let editingChipId=null,editingPuttId=null;
 let _currentUserId=null;
 let chippingCache=[],puttingCache=[];
 let _practiceSessionsAvailable=true;
+let _bagOnCourseGrouped={};
+let _pendingRoundImport=null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function msg(text,isError=false){const el=document.getElementById('auth-message');if(!el)return;el.textContent=text||'';el.style.color=isError?'#ff4d4d':'#00d68f';}
@@ -88,7 +90,8 @@ async function loadStatsPage(){
     loadPuttingSummary(),
     loadClubsOverview(),
     loadStatsGlance(),
-    loadPracticeSessions()
+    loadPracticeSessions(),
+    loadRoundsSummary()
   ]);
 }
 
@@ -551,6 +554,14 @@ function renderBagCards(){
     const avgPath=avg(shots.map(s=>s.club_path).filter(Boolean));
     const f2p=(avgFace!=null&&avgPath!=null)?avgFace-avgPath:null;
     const expanded=_bagExpandedKeys.has(row.club_key);
+    const ocShots=_bagOnCourseGrouped[row.club_key]||[];
+    const ocDists=ocShots.map(s=>s.distance_m).filter(x=>x!=null&&x>0);
+    const ocAvgDist=ocDists.length>=3?Math.round(ocDists.reduce((a,b)=>a+b,0)/ocDists.length):null;
+    const ocGap=ocAvgDist!=null&&avgC!=null?ocAvgDist-Math.round(avgC):null;
+    const ocDirShots=ocShots.filter(s=>s.miss_direction);
+    const ocLeft=ocDirShots.filter(s=>s.miss_direction==='left').length;
+    const ocRight=ocDirShots.filter(s=>s.miss_direction==='right').length;
+    const ocMissDir=ocDirShots.length>=3?(ocLeft>ocRight?'Left':ocRight>ocLeft?'Right':'Straight'):null;
     const missChip=miss==='Straight'?'chip-ok':(miss==='–'?'chip-neutral':'chip-warn');
     const k=escapeHtml(row.club_key||'');
     return`<div class="bag-card${row.is_active?'':' bag-card-inactive'}${expanded?' bag-card-open':''}">
@@ -570,11 +581,13 @@ ${expanded?`<div class="bag-card-body">
       <div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>
       ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
       ${(carryMin!=null&&carryMax!=null&&carryMin!==carryMax)?`<div class="bag-stat-row"><span>Typical range</span><strong>${carryMin}–${carryMax}m</strong></div>`:''}
+      ${ocAvgDist!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>On course avg</span><strong>${ocAvgDist}m${ocGap!=null&&Math.abs(ocGap)>=5?` <span class="bag-oc-gap">(${ocGap>0?'+':''}${Math.round(ocGap)}m vs range)</span>`:''}</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Direction</div>
       <div class="bag-stat-row"><span>Avg side</span><strong>${avgSide!=null?fmt(avgSide)+'m':'–'}</strong></div>
       <div class="bag-stat-row"><span>Main miss</span><strong>${miss}</strong></div>
       <div class="bag-stat-row"><span>Playable</span><strong>${playable}</strong></div>
+      ${ocMissDir!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>On-course miss</span><strong>${ocMissDir}</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Contact</div>
       <div class="bag-stat-row"><span>Smash</span><strong>${avgSmash?fmt(avgSmash,2):'–'}</strong></div>
@@ -630,9 +643,10 @@ async function loadClubsOverview(){
   if(!_currentUserId){el.innerHTML='<div class="stats-empty">Log in to see your bag.</div>';return;}
   el.innerHTML='<div class="stats-loading">Loading…</div>';
   const CA=window.clubAliases;await CA.loadAliases();
-  const[clubsRes,shotsRes]=await Promise.all([
+  const[clubsRes,shotsRes,roundShotsRes]=await Promise.all([
     sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('user_id',_currentUserId).order('club_name'),
-    sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).limit(2000)
+    sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).limit(2000),
+    sb.from('round_shots').select('club,distance_m,miss_direction').eq('user_id',_currentUserId).limit(2000)
   ]);
   const hasAliases=CA.CLUB_DEFINITIONS.some(d=>CA.getRawNamesForKey(d.key).length>0);
   if(!hasAliases){
@@ -656,6 +670,13 @@ async function loadClubsOverview(){
   const progressShots=(shotsRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
   _bagAllClubs=clubsRes.data;
   _bagGrouped=CA.groupShotsByClub(progressShots);
+  const _normClub=window.normaliseRoundClub||(()=>null);
+  _bagOnCourseGrouped={};
+  (roundShotsRes.data||[]).filter(s=>s.distance_m!=null&&s.distance_m>2&&(s.club||'').toLowerCase()!=='putter').forEach(s=>{
+    const key=_normClub(s.club);if(!key)return;
+    if(!_bagOnCourseGrouped[key])_bagOnCourseGrouped[key]=[];
+    _bagOnCourseGrouped[key].push(s);
+  });
   _bagExpandedKeys=new Set();
   _bagShowInactive=false;
   renderBagCards();
@@ -775,7 +796,8 @@ async function loadProgressSection(){
   try{
     // Current period (last 30 days) and previous period (days 30–60) fetched together
     const[tmRes,chipRes,puttRes,practiceRes,
-          tmPrevRes,chipPrevRes,puttPrevRes]=await Promise.all([
+          tmPrevRes,chipPrevRes,puttPrevRes,
+          roundsRes,roundShotsDirRes]=await Promise.all([
       sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).gte('shot_time',thirty+'T00:00:00').order('shot_time',{ascending:false}).limit(500),
       sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
       sb.from('putting_sessions').select('session_date,distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
@@ -784,6 +806,9 @@ async function loadProgressSection(){
       sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).gte('shot_time',sixty+'T00:00:00').lt('shot_time',thirty+'T00:00:00').limit(500),
       sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       sb.from('putting_sessions').select('distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
+      // Rounds (graceful: tables may not exist yet)
+      sb.from('rounds').select('id,round_date,total_strokes,total_putts').eq('user_id',_currentUserId).gte('round_date',thirty).order('round_date',{ascending:false}),
+      sb.from('round_shots').select('miss_direction').eq('user_id',_currentUserId).gte('created_at',thirty+'T00:00:00').limit(500),
     ]);
     // ── Current period ──
     const tmShots=(tmRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
@@ -814,6 +839,11 @@ async function loadProgressSection(){
     const practiceOk=!practiceRes.error;
     const practiceSessions=practiceOk?(practiceRes.data||[]):[];
     const rangeSessions=practiceSessions.filter(s=>s.practice_type==='range');
+    // Rounds
+    const roundsOk=!roundsRes.error;
+    const recentRounds=roundsOk?(roundsRes.data||[]):[];
+    const roundShotsDirOk=!roundShotsDirRes.error;
+    const roundShotsDir=roundShotsDirOk?(roundShotsDirRes.data||[]):[];
     // Days since last
     const allDates=[...tmDays,...chips.map(s=>s.session_date),...putts.map(s=>s.session_date),...practiceSessions.map(s=>s.session_date)].filter(Boolean).sort().reverse();
     const lastDate=allDates[0];
@@ -919,7 +949,41 @@ async function loadProgressSection(){
         ${daysSince!==null?row('Days since last session',daysSince===0?'Today':daysSince+'d ago',st(daysSince,7,14,false)):''}
       </div>`;
 
-    el.innerHTML=summaryHtml+tmHtml+chipHtml+puttHtml+practiceHtml;
+    // On-course rounds
+    let roundsHtml;
+    if(!roundsOk){
+      roundsHtml='<div class="progress-group-label">On-course</div><div class="progress-empty">Run the latest migration to enable round tracking.</div>';
+    }else if(!recentRounds.length){
+      roundsHtml='<div class="progress-group-label">On-course</div><div class="progress-empty">Log a round to see on-course progress.</div>';
+    }else{
+      const rWithScore=recentRounds.filter(r=>r.total_strokes);
+      const avgScore=rWithScore.length?Math.round(rWithScore.reduce((s,r)=>s+r.total_strokes,0)/rWithScore.length):null;
+      const rWithPutts=recentRounds.filter(r=>r.total_putts);
+      const avgPuttsRound=rWithPutts.length?fmt(rWithPutts.reduce((s,r)=>s+r.total_putts,0)/rWithPutts.length,1):null;
+      const dirShots=roundShotsDir.filter(s=>s.miss_direction);
+      const ocLeft=dirShots.filter(s=>s.miss_direction==='left').length;
+      const ocRight=dirShots.filter(s=>s.miss_direction==='right').length;
+      const ocTotal=dirShots.length;
+      let ocMissNote=null;
+      if(ocTotal>=5){
+        const lp=ocLeft/ocTotal*100,rp=ocRight/ocTotal*100;
+        const ocDir=lp>55?'left':rp>55?'right':null;
+        if(ocDir){
+          const tmDir=avgFace!=null?(avgFace>1?'right':avgFace<-1?'left':null):null;
+          const match=tmDir&&tmDir===ocDir;
+          ocMissNote=`Miss ${ocDir} on course${match?' — matches TrackMan pattern':tmDir?' — opposite to TrackMan':''}`;
+        }else{ocMissNote='No clear miss pattern';}
+      }
+      roundsHtml=`<div class="progress-group-label">On-course — last 30 days</div>
+      <div class="progress-card">
+        ${row('Rounds played',recentRounds.length+(recentRounds.length===1?' round':' rounds'),null)}
+        ${avgScore!=null?row('Avg score',avgScore+' strokes',null):''}
+        ${avgPuttsRound!=null?row('Avg putts per round',avgPuttsRound,null):''}
+        ${ocMissNote!=null?row('On-course miss',ocMissNote,null):''}
+      </div>`;
+    }
+
+    el.innerHTML=summaryHtml+tmHtml+chipHtml+puttHtml+practiceHtml+roundsHtml;
   }catch(e){
     el.innerHTML='<div class="stats-error">Failed to load progress. Try again.</div>';
   }
@@ -1088,6 +1152,149 @@ async function saveProfile(){
   }
 }
 
+// ══ Round tracking UI ═════════════════════════════════════════════════════════
+
+async function loadRoundsSummary(){
+  const summaryEl=document.getElementById('stats-rounds-summary');
+  const listEl=document.getElementById('stats-rounds-list');
+  if(!summaryEl&&!listEl)return;
+  if(!_currentUserId){if(summaryEl)summaryEl.innerHTML='<div class="stats-login-note">Log in to see rounds.</div>';return;}
+  try{
+    const rounds=await window.loadRounds(10);
+    if(!rounds.length){
+      if(summaryEl)summaryEl.innerHTML='<div class="stats-empty-small">No rounds yet. Import your first round above.</div>';
+      if(listEl)listEl.innerHTML='';
+      return;
+    }
+    const last=rounds[0];
+    const rWithPutts=rounds.filter(r=>r.total_putts);
+    const avgPutts=rWithPutts.length?Math.round(rWithPutts.reduce((s,r)=>s+r.total_putts,0)/rWithPutts.length):null;
+    if(summaryEl)summaryEl.innerHTML=`<div class="round-kpi-band">
+      <div class="round-kpi-item"><div class="round-kpi-val">${rounds.length}</div><div class="round-kpi-lbl">Rounds</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${last.total_strokes??'–'}</div><div class="round-kpi-lbl">Last score</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${avgPutts??'–'}</div><div class="round-kpi-lbl">Avg putts</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${last.round_date}</div><div class="round-kpi-lbl">Last round</div></div>
+    </div>`;
+    if(listEl)listEl.innerHTML=rounds.slice(0,5).map(r=>`
+      <div class="round-row" id="round-row-${escapeHtml(r.id)}">
+        <div class="round-row-head" onclick="toggleRoundRow('${escapeHtml(r.id)}')">
+          <div class="round-row-info">
+            <span class="round-date">${escapeHtml(r.round_date)}</span>
+            <span class="round-course">${escapeHtml(r.course_name)}</span>
+          </div>
+          <div class="round-row-kpis">
+            ${r.total_strokes?`<span class="round-score">${r.total_strokes}</span>`:''}
+            ${r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:''}
+          </div>
+          <span class="round-arrow">›</span>
+        </div>
+        <div class="round-row-body" id="round-body-${escapeHtml(r.id)}" style="display:none;"></div>
+      </div>`).join('');
+  }catch(e){
+    const m='<div class="stats-empty-small">Run the latest migration to enable round tracking.</div>';
+    if(summaryEl)summaryEl.innerHTML=m;
+    if(listEl)listEl.innerHTML='';
+  }
+}
+
+window.toggleRoundRow=async function(roundId){
+  const body=document.getElementById('round-body-'+roundId);
+  const head=document.querySelector(`#round-row-${roundId} .round-row-head`);
+  if(!body)return;
+  if(body.style.display==='none'||!body.style.display){
+    body.style.display='block';
+    body.innerHTML='<div class="round-body-loading">Loading…</div>';
+    if(head)head.classList.add('open');
+    try{
+      const shots=await window.loadRoundShots(roundId);
+      const summary=window.computeRoundSummary(shots);
+      body.innerHTML=_renderRoundBody(shots,summary,roundId);
+    }catch(e){
+      body.innerHTML='<div class="stats-error">Failed to load shots.</div>';
+    }
+  }else{
+    body.style.display='none';
+    if(head)head.classList.remove('open');
+  }
+};
+
+function _renderRoundBody(shots,summary,roundId){
+  const byHole={};
+  shots.forEach(s=>{if(!byHole[s.hole])byHole[s.hole]=[];byHole[s.hole].push(s);});
+  const holeNums=Object.keys(byHole).map(Number).sort((a,b)=>a-b);
+  const rows=holeNums.map(h=>{
+    const hs=byHole[h];
+    const par=hs[0]?.par??'–';
+    const strokes=hs.length;
+    const putts=hs.filter(s=>(s.club||'').toLowerCase()==='putter').length;
+    const clubs=[...new Set(hs.map(s=>s.club).filter(Boolean))].join(', ');
+    const notes=hs.map(s=>s.comment).filter(Boolean).join('; ');
+    return`<tr><td>${h}</td><td>${par}</td><td>${strokes}</td><td>${putts}</td><td>${escapeHtml(clubs)}</td><td style="max-width:120px;word-break:break-word">${escapeHtml(notes)}</td></tr>`;
+  }).join('');
+  const totRow=`<tr class="round-table-total"><td colspan="2">Total</td><td>${summary.totalStrokes}</td><td>${summary.totalPutts}</td><td colspan="2"></td></tr>`;
+  return`<div class="round-table-wrap"><table class="round-table">
+    <thead><tr><th>Hole</th><th>Par</th><th>Shots</th><th>Putts</th><th>Clubs</th><th>Notes</th></tr></thead>
+    <tbody>${rows}${totRow}</tbody>
+  </table></div>
+  <div class="round-body-actions">
+    <button class="round-delete-btn" onclick="deleteRoundById('${escapeHtml(roundId)}')">Delete round</button>
+  </div>`;
+}
+
+window.deleteRoundById=async function(roundId){
+  if(!_currentUserId)return;
+  if(!confirm('Delete this round and all its shots?'))return;
+  const result=await window.deleteRound(roundId);
+  if(!result.ok){alert('Error: '+(result.error?.message||'Unknown'));return;}
+  await loadRoundsSummary();
+};
+
+function previewRoundImport(){
+  const ta=document.getElementById('rounds-import-tsv');
+  const preEl=document.getElementById('rounds-import-preview');
+  const impBtn=document.getElementById('rounds-import-btn');
+  const text=ta?.value||'';
+  if(!text.trim()){
+    if(preEl)preEl.innerHTML='<span style="color:var(--red)">Paste your GolfPad data first.</span>';
+    return;
+  }
+  try{
+    const parsed=window.parseGolfPadTSV(text);
+    _pendingRoundImport=parsed;
+    const holeSummary=parsed.holes.map(h=>{
+      const diff=h.par?h.strokes-h.par:null;
+      const vs=diff===null?'':diff===0?' (par)':diff>0?` (+${diff})`:(` (${diff})`);
+      return`H${h.hole}: ${h.strokes} shots${vs}`;
+    }).join(' · ');
+    if(preEl)preEl.innerHTML=`<div><strong>Found:</strong> ${parsed.holes.length} holes · ${parsed.shots.length} shots · ${escapeHtml(parsed.courseName)} · ${escapeHtml(parsed.roundDate)}</div><div style="margin-top:6px;color:var(--text3);font-size:11px;">${escapeHtml(holeSummary)}</div>`;
+    if(impBtn)impBtn.style.display='inline-block';
+  }catch(e){
+    _pendingRoundImport=null;
+    if(preEl)preEl.innerHTML='<span style="color:var(--red)">Parse error: '+escapeHtml(e.message)+'</span>';
+    if(impBtn)impBtn.style.display='none';
+  }
+}
+
+async function confirmRoundImport(){
+  if(!_pendingRoundImport){previewRoundImport();return;}
+  const msgEl=document.getElementById('rounds-import-msg');
+  const impBtn=document.getElementById('rounds-import-btn');
+  if(impBtn)impBtn.disabled=true;
+  const result=await window.importRound(_pendingRoundImport);
+  if(impBtn)impBtn.disabled=false;
+  if(!result.ok){
+    if(msgEl){msgEl.textContent='Error: '+(result.error?.message||'Unknown error');msgEl.style.color='var(--red)';}
+    return;
+  }
+  if(msgEl){msgEl.textContent='Round imported!';msgEl.style.color='var(--green)';}
+  _pendingRoundImport=null;
+  const ta=document.getElementById('rounds-import-tsv');if(ta)ta.value='';
+  const preEl=document.getElementById('rounds-import-preview');if(preEl)preEl.innerHTML='';
+  if(impBtn)impBtn.style.display='none';
+  setTimeout(()=>{if(msgEl)msgEl.textContent='';},3000);
+  await loadRoundsSummary();
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────
 window.loadOneState=loadOneState;window.deleteOneState=deleteOneState;
 window.loadStatsPage=loadStatsPage;
@@ -1097,6 +1304,8 @@ window.openClubInAnalysis=openClubInAnalysis;
 window.addRangeSession=addRangeSession;window.addCourseNote=addCourseNote;
 window.loadProgressSection=loadProgressSection;
 window.loadProfileSection=loadProfileSection;window.saveProfile=saveProfile;
+window.loadRoundsSummary=loadRoundsSummary;
+window.previewRoundImport=previewRoundImport;window.confirmRoundImport=confirmRoundImport;
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const b=(id,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener('click',fn);};

@@ -1134,6 +1134,38 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
 .profile-msg{font-size:13px;text-align:center;min-height:20px;color:var(--green);transition:opacity .3s}
 .profile-msg.error{color:var(--red)}
 
+/* ── Round tracking ────────────────────────────────────────────────────────── */
+.round-kpi-band{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;padding:10px 0 12px;border-bottom:0.5px solid var(--border);margin-bottom:8px}
+.round-kpi-band::-webkit-scrollbar{display:none}
+.round-kpi-item{flex:1;text-align:center;min-width:70px}
+.round-kpi-val{font-family:var(--cond);font-size:20px;font-weight:700;color:var(--text);line-height:1.1}
+.round-kpi-lbl{font-size:11px;color:var(--text3);margin-top:2px}
+.round-row{border-bottom:0.5px solid var(--border)}
+.round-row:last-child{border-bottom:none}
+.round-row-head{display:flex;align-items:center;gap:8px;padding:11px 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.round-row-head.open .round-arrow{transform:rotate(90deg)}
+.round-row-info{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.round-date{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.round-course{font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.round-row-kpis{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.round-score{font-family:var(--cond);font-size:17px;font-weight:700;color:var(--text)}
+.round-putts{font-size:12px;color:var(--text3);background:var(--surface2);border-radius:6px;padding:2px 6px}
+.round-arrow{font-size:16px;color:var(--text3);transition:transform .2s;flex-shrink:0}
+.round-row-body{padding-bottom:8px}
+.round-body-loading{font-size:13px;color:var(--text3);padding:8px 0}
+.round-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:10px}
+.round-table{width:100%;border-collapse:collapse;font-size:12px;min-width:360px}
+.round-table th{text-align:left;padding:5px 8px 5px 0;color:var(--text3);font-weight:600;font-family:var(--sans);border-bottom:0.5px solid var(--border);white-space:nowrap}
+.round-table td{padding:5px 8px 5px 0;color:var(--text);border-bottom:0.5px solid var(--border)}
+.round-table tr:last-child td{border-bottom:none}
+.round-table-total td{font-weight:700;color:var(--text);border-top:0.5px solid var(--border)}
+.round-body-actions{margin-top:4px}
+.round-delete-btn{font-size:12px;color:var(--red);background:none;border:0.5px solid var(--red);border-radius:7px;padding:5px 12px;cursor:pointer;opacity:.8}
+.round-delete-btn:active{opacity:.5}
+/* Bag on-course rows */
+.bag-stat-oncourse span{color:var(--text3);font-style:italic}
+.bag-oc-gap{font-size:11px;color:var(--text3);font-weight:400;margin-left:4px}
+
 
 
 /* Local test change */
