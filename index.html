@@ -228,6 +228,7 @@
         <button class="lqa-btn" onclick="document.getElementById('acc-stats-putting').classList.add('open');openLogForm('putt-form');setTimeout(()=>document.getElementById('sub-head-putt-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Putting</button>
         <button class="lqa-btn" onclick="document.getElementById('acc-stats-range').classList.add('open');openLogForm('range-form');setTimeout(()=>document.getElementById('sub-head-range-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Range</button>
         <button class="lqa-btn" onclick="document.getElementById('acc-stats-course').classList.add('open');openLogForm('course-form');setTimeout(()=>document.getElementById('sub-head-course-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Course note</button>
+        <button class="lqa-btn" onclick="document.getElementById('acc-stats-rounds').classList.add('open');setTimeout(()=>document.getElementById('acc-stats-rounds')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Round</button>
       </div>
 
       <!-- Tournament countdown -->
@@ -415,6 +416,47 @@
         </div>
       </div>
 
+      <!-- Rounds accordion -->
+      <div class="acc" id="acc-stats-rounds">
+        <div class="acc-head" onclick="toggleAccById('acc-stats-rounds')">
+          <div class="acc-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </div>
+          <div class="acc-title">Rounds</div>
+          <div class="acc-subtitle">On-course shot data</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body">
+          <div class="stats-section-pad">
+            <div id="stats-rounds-summary"></div>
+            <div class="log-sub-head" id="sub-head-rounds-import" onclick="toggleLogForm('rounds-import')">
+              <span class="log-sub-label">+ Import from GolfPad</span>
+              <span class="log-sub-arrow">›</span>
+            </div>
+            <div class="log-sub-body" id="sub-body-rounds-import">
+              <div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
+                <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5;">
+                  Copy all rows from your GolfPad export (including headers) and paste below.
+                </div>
+                <textarea id="rounds-import-tsv" rows="6"
+                  placeholder="Paste GolfPad tab-separated data here…"
+                  style="width:100%;font-family:monospace;font-size:11px;box-sizing:border-box;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:8px;padding:8px;resize:vertical;"
+                  autocorrect="off" spellcheck="false"></textarea>
+                <div id="rounds-import-preview" style="margin-top:8px;font-size:12px;color:var(--text3);line-height:1.5;"></div>
+                <div class="form-actions">
+                  <button id="rounds-preview-btn" onclick="previewRoundImport()">Preview</button>
+                  <button id="rounds-import-btn" onclick="confirmRoundImport()" style="display:none;">Import round</button>
+                </div>
+                <div id="rounds-import-msg" class="alias-msg"></div>
+              </div>
+            </div>
+            <div id="stats-rounds-list"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -512,6 +554,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=2"></script>
   <script src="auth.js?v=7"></script>
+  <script src="rounds.js?v=1"></script>
   <script src="distances.js?v=3"></script>
   <script src="clubs.js?v=3"></script>
   <script src="viz.js?v=2"></script>

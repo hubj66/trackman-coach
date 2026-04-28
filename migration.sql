@@ -170,3 +170,52 @@ CREATE POLICY "own_profile" ON profiles
 
 CREATE INDEX IF NOT EXISTS idx_profiles_user
   ON profiles (user_id);
+
+-- ── Round tracking: rounds and round_shots tables ────────────────────────────
+
+CREATE TABLE IF NOT EXISTS rounds (
+  id            uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id       uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  round_date    date        NOT NULL,
+  course_name   text        NOT NULL,
+  tees          text,
+  total_strokes integer,
+  total_putts   integer,
+  notes         text,
+  created_at    timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS round_shots (
+  id             uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+  round_id       uuid        NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+  user_id        uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  hole           integer     NOT NULL,
+  par            integer,
+  hcp            integer,
+  shot_number    integer     NOT NULL,
+  club           text,
+  distance_m     numeric(6,1),
+  lie            text,
+  comment        text,
+  is_penalty     boolean     DEFAULT false,
+  miss_direction text,       -- null | 'left' | 'right' | 'straight'
+  created_at     timestamptz DEFAULT now()
+);
+
+ALTER TABLE rounds      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE round_shots ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own_rounds"      ON rounds;
+DROP POLICY IF EXISTS "own_round_shots" ON round_shots;
+
+CREATE POLICY "own_rounds" ON rounds
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "own_round_shots" ON round_shots
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_rounds_user_date     ON rounds      (user_id, round_date DESC);
+CREATE INDEX IF NOT EXISTS idx_round_shots_round    ON round_shots (round_id);
+CREATE INDEX IF NOT EXISTS idx_round_shots_user     ON round_shots (user_id, hole);
