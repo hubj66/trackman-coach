@@ -31,14 +31,25 @@ function parseRoundDist(val) {
 
 const PENALTY_RE = /penalty|out on the|stroke and distance|\bOB\b/i;
 
-// GolfPad uses M/D/YYYY format.
+// Supports M/D/YYYY (GolfPad default) and DD.MM.YYYY (European export).
 function parseDateToISO(raw) {
   if (!raw) return null;
-  const parts = raw.trim().split('/');
-  if (parts.length !== 3) return null;
-  const [m, d, yr] = parts.map(Number);
-  if (isNaN(m) || isNaN(d) || isNaN(yr)) return null;
-  return `${yr}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const s = raw.trim();
+  if (s.includes('/')) {
+    const parts = s.split('/');
+    if (parts.length !== 3) return null;
+    const [m, d, yr] = parts.map(Number);
+    if (isNaN(m) || isNaN(d) || isNaN(yr)) return null;
+    return `${yr}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  if (s.includes('.')) {
+    const parts = s.split('.');
+    if (parts.length !== 3) return null;
+    const [d, m, yr] = parts.map(Number);
+    if (isNaN(d) || isNaN(m) || isNaN(yr)) return null;
+    return `${yr}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  return null;
 }
 
 /**
