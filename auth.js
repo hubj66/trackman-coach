@@ -1472,11 +1472,27 @@ function _mrRender(){
   const h=_mr.holes[_mr.cur]||{par:null,hcp:null,shots:[]};
   const shots=h.shots||[];
   const isLast=_mr.cur===_mr.total;
-  el.innerHTML=`<div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <span style="font-weight:600;font-size:15px;">Hole ${_mr.cur} <span style="font-weight:400;color:var(--text3);font-size:13px;">of ${_mr.total}</span></span>
-      <span style="font-size:12px;color:var(--text3);">${_mr.roundDate} · ${escapeHtml(_mr.courseName)}</span>
+  // Dot progress: filled = has shots, current = highlighted ring
+  const dots=Array.from({length:_mr.total},(_,i)=>{
+    const n=i+1;
+    const filled=(_mr.holes[n]?.shots||[]).length>0;
+    const cur=n===_mr.cur;
+    return`<span onclick="_mrGoTo(${n})" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 2px;cursor:pointer;
+      background:${cur?'var(--accent)':(filled?'var(--text2)':'var(--border)')};
+      box-shadow:${cur?'0 0 0 2px var(--surface),0 0 0 3px var(--accent)':'none'};
+      transition:background 0.15s;"></span>`;
+  }).join('');
+  el.innerHTML=`<div id="mr-hole-card" class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;touch-action:pan-y;">
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:6px;">${_mr.roundDate} · ${escapeHtml(_mr.courseName)}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <button onclick="_mr.cur>1&&_mrNav(-1)" style="background:none;border:none;font-size:22px;padding:4px 10px;color:${_mr.cur>1?'var(--text)':'var(--border)'};cursor:${_mr.cur>1?'pointer':'default'};">‹</button>
+      <div style="text-align:center;">
+        <div style="font-weight:700;font-size:18px;line-height:1.1;">Hole ${_mr.cur}</div>
+        <div style="font-size:11px;color:var(--text3);">of ${_mr.total}</div>
+      </div>
+      <button onclick="_mrNav(1)" style="background:none;border:none;font-size:22px;padding:4px 10px;color:var(--text);cursor:pointer;" title="${isLast?'Add hole':'Next'}">›</button>
     </div>
+    <div style="text-align:center;margin-bottom:12px;line-height:1;">${dots}</div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <div style="flex:1;">
         <label style="font-size:11px;color:var(--text3);">Par</label>
@@ -1489,13 +1505,13 @@ function _mrRender(){
       </div>
       <div style="flex:1;">
         <label style="font-size:11px;color:var(--text3);">Stroke index</label>
-        <input type="number" min="1" max="18" placeholder="HCP" value="${h.hcp??''}"
+        <input type="number" min="1" max="18" placeholder="—" value="${h.hcp??''}"
           style="width:100%;box-sizing:border-box;"
           onchange="_mrHoleField(${_mr.cur},'hcp',this.value)">
       </div>
     </div>
     <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Shots</div>
-    ${shots.length===0?`<div style="color:var(--text3);font-size:12px;margin-bottom:8px;">No shots yet. Add the first shot below.</div>`:''}
+    ${shots.length===0?`<div style="color:var(--text3);font-size:12px;margin-bottom:8px;">No shots yet — add the first shot below.</div>`:''}
     ${shots.map((s,i)=>`<div style="border:0.5px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;">
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600;">Shot ${i+1}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
@@ -1513,19 +1529,42 @@ function _mrRender(){
         <button style="background:none;color:var(--red);border:0.5px solid var(--red);padding:4px 8px;font-size:11px;border-radius:6px;" onclick="_mrRemoveShot(${i})">✕</button>
       </div>
     </div>`).join('')}
-    <div class="form-actions" style="flex-wrap:wrap;gap:8px;">
+    <div class="form-actions" style="flex-wrap:wrap;gap:8px;margin-top:4px;">
       <button onclick="_mrAddShot()" style="background:var(--surface2);color:var(--text);">+ Add shot</button>
-      ${_mr.cur>1?`<button onclick="_mrNav(-1)" style="background:var(--surface2);color:var(--text);">← Prev</button>`:''}
-      ${!isLast?`<button onclick="_mrNav(1)">Next hole →</button>`:''}
-      ${isLast?`<button onclick="_mrAddHole()" style="background:var(--surface2);color:var(--text);">+ Add hole</button>`:''}
-      ${isLast?`<button onclick="_mrFinish()">${_mr.editRoundId?'Save changes':'Finish &amp; import'}</button>`:''}
+      <div style="flex:1;"></div>
       ${_mr.editRoundId?`<button onclick="_mrCancelEdit()" style="background:none;color:var(--text3);border:0.5px solid var(--border);">Cancel</button>`:''}
+      <button onclick="_mrFinish()" style="background:var(--accent);color:#fff;">${_mr.editRoundId?'Save':'Done &amp; import'}</button>
     </div>
   </div>`;
+  _mrAttachSwipe();
 }
+
+function _mrAttachSwipe(){
+  const card=document.getElementById('mr-hole-card');
+  if(!card)return;
+  let sx=0,sy=0;
+  card.addEventListener('touchstart',e=>{
+    sx=e.touches[0].clientX;
+    sy=e.touches[0].clientY;
+  },{passive:true});
+  card.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx;
+    const dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx)*0.8)return;
+    if(dx<0){_mrNav(1);}   // swipe left  → next / add hole
+    else    {_mrNav(-1);}  // swipe right → prev
+  },{passive:true});
+}
+
+window._mrGoTo=function(n){
+  if(!_mr||n<1||n>_mr.total)return;
+  _mr.cur=n;
+  _mrRender();
+};
 
 window._mrNav=function(dir){
   if(!_mr)return;
+  if(dir>0&&_mr.cur===_mr.total){_mrAddHole();return;}
   _mr.cur=Math.max(1,Math.min(_mr.total,_mr.cur+dir));
   if(!_mr.holes[_mr.cur])_mr.holes[_mr.cur]={par:null,hcp:null,shots:[]};
   _mrRender();
