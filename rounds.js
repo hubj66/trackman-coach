@@ -15,10 +15,16 @@ window.normaliseRoundClub = function(raw) {
 
 function parseMissDir(val) {
   if (!val) return null;
-  const v = val.trim().toLowerCase();
+  const v = val.trim().toLowerCase().replace(/\s+/g, '-');
   if (v === 'l' || v === 'left') return 'left';
   if (v === 'r' || v === 'right') return 'right';
-  if (v === 's' || v === 'straight' || v === 'centre' || v === 'center') return 'straight';
+  if (v === 's' || v === 'c' || v === 'straight' || v === 'centre' || v === 'center') return 'straight';
+  if (v === '+' || v === 'long' || v === 'lg') return 'long';
+  if (v === '-' || v === 'short' || v === 'sh') return 'short';
+  if (v === 'l+' || v === 'left-long' || v === 'll') return 'left-long';
+  if (v === 'l-' || v === 'left-short' || v === 'ls') return 'left-short';
+  if (v === 'r+' || v === 'right-long' || v === 'rl') return 'right-long';
+  if (v === 'r-' || v === 'right-short' || v === 'rs') return 'right-short';
   return null;
 }
 
@@ -31,14 +37,25 @@ function parseRoundDist(val) {
 
 const PENALTY_RE = /penalty|out on the|stroke and distance|\bOB\b/i;
 
-// GolfPad uses M/D/YYYY format.
+// Supports M/D/YYYY (GolfPad default) and DD.MM.YYYY (European export).
 function parseDateToISO(raw) {
   if (!raw) return null;
-  const parts = raw.trim().split('/');
-  if (parts.length !== 3) return null;
-  const [m, d, yr] = parts.map(Number);
-  if (isNaN(m) || isNaN(d) || isNaN(yr)) return null;
-  return `${yr}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const s = raw.trim();
+  if (s.includes('/')) {
+    const parts = s.split('/');
+    if (parts.length !== 3) return null;
+    const [m, d, yr] = parts.map(Number);
+    if (isNaN(m) || isNaN(d) || isNaN(yr)) return null;
+    return `${yr}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  if (s.includes('.')) {
+    const parts = s.split('.');
+    if (parts.length !== 3) return null;
+    const [d, m, yr] = parts.map(Number);
+    if (isNaN(d) || isNaN(m) || isNaN(yr)) return null;
+    return `${yr}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  return null;
 }
 
 /**
