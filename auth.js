@@ -556,7 +556,13 @@ function renderBagCards(){
     const expanded=_bagExpandedKeys.has(row.club_key);
     const ocShots=_bagOnCourseGrouped[row.club_key]||[];
     const ocDists=ocShots.map(s=>s.distance_m).filter(x=>x!=null&&x>0);
-    const ocAvgDist=ocDists.length>=3?Math.round(ocDists.reduce((a,b)=>a+b,0)/ocDists.length):null;
+    const WEDGE_PUTTER_KEYS=new Set(['pw','sw','aw','lw','58','putter']);
+    const canFilterMishits=avgC!=null&&!WEDGE_PUTTER_KEYS.has(row.club_key?.toLowerCase());
+    const mishitThreshold=canFilterMishits?avgC*0.6:null;
+    const ocCleanDists=mishitThreshold!=null?ocDists.filter(d=>d>=mishitThreshold):ocDists;
+    const ocMishitCount=mishitThreshold!=null?ocDists.length-ocCleanDists.length:null;
+    const ocAvgDist=ocCleanDists.length>=2?Math.round(ocCleanDists.reduce((a,b)=>a+b,0)/ocCleanDists.length):(ocDists.length>=3?Math.round(ocDists.reduce((a,b)=>a+b,0)/ocDists.length):null);
+    const ocMishitRate=(ocMishitCount!=null&&ocDists.length>=3)?Math.round(ocMishitCount/ocDists.length*100):null;
     const ocGap=ocAvgDist!=null&&avgC!=null?ocAvgDist-Math.round(avgC):null;
     const ocDirShots=ocShots.filter(s=>s.miss_direction);
     const ocLeft=ocDirShots.filter(s=>s.miss_direction?.includes('left')).length;
@@ -586,6 +592,7 @@ ${expanded?`<div class="bag-card-body">
       ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
       ${(carryMin!=null&&carryMax!=null&&carryMin!==carryMax)?`<div class="bag-stat-row"><span>Typical range</span><strong>${carryMin}–${carryMax}m</strong></div>`:''}
       ${ocAvgDist!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>On course avg</span><strong>${ocAvgDist}m${ocGap!=null&&Math.abs(ocGap)>=5?` <span class="bag-oc-gap">(${ocGap>0?'+':''}${Math.round(ocGap)}m vs range)</span>`:''}</strong></div>`:''}
+      ${ocMishitRate!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>Mishit rate</span><strong>${ocMishitRate}% (${ocMishitCount}/${ocDists.length})</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Direction</div>
       <div class="bag-stat-row"><span>Avg side</span><strong>${avgSide!=null?fmt(avgSide)+'m':'–'}</strong></div>
