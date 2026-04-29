@@ -1399,12 +1399,11 @@ async function confirmRoundImport(){
 }
 
 // ── Manual round entry ────────────────────────────────────────────────────
-const MANUAL_CLUBS=[
-  {v:'driver',l:'Driver'},{v:'3w',l:'3 wood'},{v:'5w',l:'5 wood'},{v:'7w',l:'7 wood'},
-  {v:'hybrid',l:'Hybrid'},{v:'2i',l:'2 iron'},{v:'3',l:'3 iron'},{v:'4',l:'4 iron'},
-  {v:'5',l:'5 iron'},{v:'6',l:'6 iron'},{v:'7',l:'7 iron'},{v:'8',l:'8 iron'},
-  {v:'9',l:'9 iron'},{v:'pw',l:'PW'},{v:'aw',l:'AW'},{v:'sw',l:'SW'},
-  {v:'lw',l:'LW'},{v:'58',l:'58°'},{v:'putter',l:'Putter'},
+const MANUAL_CLUBS_GROUPS=[
+  {g:'Woods',  c:[{v:'driver',l:'Driver'},{v:'3w',l:'3 wood'},{v:'5w',l:'5 wood'},{v:'7w',l:'7 wood'},{v:'hybrid',l:'Hybrid'}]},
+  {g:'Irons',  c:[{v:'2i',l:'2i'},{v:'3',l:'3i'},{v:'4',l:'4i'},{v:'5',l:'5i'},{v:'6',l:'6i'},{v:'7',l:'7i'},{v:'8',l:'8i'},{v:'9',l:'9i'}]},
+  {g:'Wedges', c:[{v:'pw',l:'PW'},{v:'aw',l:'AW'},{v:'sw',l:'SW'},{v:'lw',l:'LW'},{v:'58',l:'58°'}]},
+  {g:'Putter', c:[{v:'putter',l:'Putter'}]},
 ];
 const MANUAL_LIES=['','Tee','Fairway','Semi-rough','Rough','Bunker','Sand','Fringe','Green','Recovery','OB','Other'];
 const MANUAL_MISS=[
@@ -1417,9 +1416,10 @@ const MANUAL_MISS=[
 let _mr=null; // manual round state
 
 function _mrClubSel(shotIdx){
-  return`<select style="flex:1;min-width:80px;" onchange="_mrShotField(${_mr.cur},${shotIdx},'club',this.value)">
-    <option value="">Club</option>
-    ${MANUAL_CLUBS.map(c=>`<option value="${c.v}"${(_mr.holes[_mr.cur]?.shots[shotIdx]?.club===c.v)?' selected':''}>${escapeHtml(c.l)}</option>`).join('')}
+  const cur=_mr.holes[_mr.cur]?.shots[shotIdx]?.club||'';
+  return`<select style="flex:1;min-width:90px;" onchange="_mrShotField(${_mr.cur},${shotIdx},'club',this.value)">
+    <option value="">Club…</option>
+    ${MANUAL_CLUBS_GROUPS.map(g=>`<optgroup label="${g.g}">${g.c.map(c=>`<option value="${c.v}"${cur===c.v?' selected':''}>${escapeHtml(c.l)}</option>`).join('')}</optgroup>`).join('')}
   </select>`;
 }
 function _mrLieSel(shotIdx){
@@ -1442,6 +1442,7 @@ window._mrHoleField=function(holeNum,field,val){
   if(!_mr)return;
   if(!_mr.holes[holeNum])_mr.holes[holeNum]={par:null,hcp:null,shots:[]};
   _mr.holes[holeNum][field]=val===''?null:Number(val);
+  if(field==='par')_mrRender(); // re-render so toggle button highlights update
 };
 window._mrAddShot=function(){
   if(!_mr)return;
@@ -1471,69 +1472,71 @@ function _mrRender(){
   if(!el||!_mr)return;
   const h=_mr.holes[_mr.cur]||{par:null,hcp:null,shots:[]};
   const shots=h.shots||[];
-  const isLast=_mr.cur===_mr.total;
-  // Dot progress: filled = has shots, current = highlighted ring
+  // Dot progress: filled = has shots, current = accent ring
   const dots=Array.from({length:_mr.total},(_,i)=>{
     const n=i+1;
     const filled=(_mr.holes[n]?.shots||[]).length>0;
-    const cur=n===_mr.cur;
-    return`<span onclick="_mrGoTo(${n})" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 2px;cursor:pointer;
-      background:${cur?'var(--accent)':(filled?'var(--text2)':'var(--border)')};
-      box-shadow:${cur?'0 0 0 2px var(--surface),0 0 0 3px var(--accent)':'none'};
-      transition:background 0.15s;"></span>`;
+    const isCur=n===_mr.cur;
+    const bg=isCur?'var(--accent)':(filled?'var(--text2)':'var(--border2)');
+    const shadow=isCur?'0 0 0 2px var(--surface2),0 0 0 3.5px var(--accent)':'none';
+    return`<span onclick="_mrGoTo(${n})" style="display:inline-block;width:${isCur?9:7}px;height:${isCur?9:7}px;border-radius:50%;margin:0 3px;cursor:pointer;background:${bg};box-shadow:${shadow};transition:all .15s;vertical-align:middle;"></span>`;
   }).join('');
-  el.innerHTML=`<div id="mr-hole-card" class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;touch-action:pan-y;">
-    <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:6px;">${_mr.roundDate} · ${escapeHtml(_mr.courseName)}</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <button onclick="_mr.cur>1&&_mrNav(-1)" style="background:none;border:none;font-size:22px;padding:4px 10px;color:${_mr.cur>1?'var(--text)':'var(--border)'};cursor:${_mr.cur>1?'pointer':'default'};">‹</button>
-      <div style="text-align:center;">
-        <div style="font-weight:700;font-size:18px;line-height:1.1;">Hole ${_mr.cur}</div>
-        <div style="font-size:11px;color:var(--text3);">of ${_mr.total}</div>
+  el.innerHTML=`<div id="mr-hole-card" class="mr-card" style="touch-action:pan-y;">
+    <div class="mr-context">${_mr.roundDate} · ${escapeHtml(_mr.courseName)}</div>
+    <div class="mr-nav">
+      <button class="mr-nav-btn${_mr.cur<=1?' dim':''}" onclick="_mrNav(-1)">‹</button>
+      <div class="mr-hole-label">
+        <div class="mr-hole-num">Hole ${_mr.cur}</div>
+        <div class="mr-hole-sub">of ${_mr.total}</div>
       </div>
-      <button onclick="_mrNav(1)" style="background:none;border:none;font-size:22px;padding:4px 10px;color:var(--text);cursor:pointer;" title="${isLast?'Add hole':'Next'}">›</button>
+      <button class="mr-nav-btn" onclick="_mrNav(1)" title="${_mr.cur===_mr.total?'Add hole':'Next hole'}">›</button>
     </div>
-    <div style="text-align:center;margin-bottom:12px;line-height:1;">${dots}</div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <div style="flex:1;">
-        <label style="font-size:11px;color:var(--text3);">Par</label>
-        <select style="width:100%;" onchange="_mrHoleField(${_mr.cur},'par',this.value)">
-          <option value="">—</option>
-          <option value="3"${h.par===3?' selected':''}>3</option>
-          <option value="4"${h.par===4?' selected':''}>4</option>
-          <option value="5"${h.par===5?' selected':''}>5</option>
-        </select>
+    <div class="mr-dots">${dots}</div>
+    <div class="mr-body">
+      <div class="mr-meta">
+        <div class="mr-meta-field">
+          <div class="mr-field-label">Par</div>
+          <div class="mr-par-toggle">
+            <button class="${!h.par?'on':''}" onclick="_mrHoleField(${_mr.cur},'par','')">—</button>
+            <button class="${h.par===3?'on':''}" onclick="_mrHoleField(${_mr.cur},'par','3')">3</button>
+            <button class="${h.par===4?'on':''}" onclick="_mrHoleField(${_mr.cur},'par','4')">4</button>
+            <button class="${h.par===5?'on':''}" onclick="_mrHoleField(${_mr.cur},'par','5')">5</button>
+          </div>
+        </div>
+        <div class="mr-meta-field" style="max-width:90px;">
+          <div class="mr-field-label">Stroke index</div>
+          <input type="number" min="1" max="18" placeholder="—" value="${h.hcp??''}"
+            style="width:100%;box-sizing:border-box;"
+            onchange="_mrHoleField(${_mr.cur},'hcp',this.value)">
+        </div>
       </div>
-      <div style="flex:1;">
-        <label style="font-size:11px;color:var(--text3);">Stroke index</label>
-        <input type="number" min="1" max="18" placeholder="—" value="${h.hcp??''}"
-          style="width:100%;box-sizing:border-box;"
-          onchange="_mrHoleField(${_mr.cur},'hcp',this.value)">
-      </div>
+      <div class="mr-shots-label">Shots</div>
+      ${shots.length===0?`<div class="mr-empty-shots">No shots yet — tap + Add shot</div>`:''}
+      ${shots.map((s,i)=>`<div class="mr-shot-card">
+        <div class="mr-shot-header">
+          <span class="mr-shot-num">SHOT ${i+1}</span>
+          <button class="mr-shot-del" onclick="_mrRemoveShot(${i})">✕ Remove</button>
+        </div>
+        <div class="mr-shot-row">
+          ${_mrClubSel(i)}
+          <input type="number" placeholder="Dist (m)" min="1" max="400" value="${s.distance_m??''}"
+            style="flex:1;min-width:70px;" onchange="_mrDistField(${_mr.cur},${i},this.value)">
+        </div>
+        <div class="mr-shot-row">
+          ${_mrLieSel(i)}
+          ${_mrMissSel(i)}
+        </div>
+        <div class="mr-shot-row">
+          <input type="text" placeholder="Comment (optional)" value="${escapeHtml(s.comment||'')}"
+            style="flex:1;" onchange="_mrCommentField(${_mr.cur},${i},this.value)">
+        </div>
+      </div>`).join('')}
     </div>
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Shots</div>
-    ${shots.length===0?`<div style="color:var(--text3);font-size:12px;margin-bottom:8px;">No shots yet — add the first shot below.</div>`:''}
-    ${shots.map((s,i)=>`<div style="border:0.5px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600;">Shot ${i+1}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
-        ${_mrClubSel(i)}
-        <input type="number" placeholder="Dist (m)" min="1" max="400" value="${s.distance_m??''}"
-          style="flex:1;min-width:70px;" onchange="_mrDistField(${_mr.cur},${i},this.value)">
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
-        ${_mrLieSel(i)}
-        ${_mrMissSel(i)}
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="text" placeholder="Comment (optional)" value="${escapeHtml(s.comment||'')}"
-          style="flex:1;" onchange="_mrCommentField(${_mr.cur},${i},this.value)">
-        <button style="background:none;color:var(--red);border:0.5px solid var(--red);padding:4px 8px;font-size:11px;border-radius:6px;" onclick="_mrRemoveShot(${i})">✕</button>
-      </div>
-    </div>`).join('')}
-    <div class="form-actions" style="flex-wrap:wrap;gap:8px;margin-top:4px;">
-      <button onclick="_mrAddShot()" style="background:var(--surface2);color:var(--text);">+ Add shot</button>
+    <div class="mr-actions">
+      <button class="mr-add-btn" onclick="_mrAddShot()">+ Add shot</button>
       <div style="flex:1;"></div>
-      ${_mr.editRoundId?`<button onclick="_mrCancelEdit()" style="background:none;color:var(--text3);border:0.5px solid var(--border);">Cancel</button>`:''}
-      <button onclick="_mrFinish()" style="background:var(--accent);color:#fff;">${_mr.editRoundId?'Save':'Done &amp; import'}</button>
+      ${_mr.editRoundId?`<button class="mr-cancel-btn" onclick="_mrCancelEdit()">Cancel</button>`:''}
+      <button class="mr-save-btn" onclick="_mrFinish()">${_mr.editRoundId?'Save':'Import'}</button>
     </div>
   </div>`;
   _mrAttachSwipe();
