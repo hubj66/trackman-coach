@@ -819,7 +819,7 @@ async function loadProgressSection(){
       sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       sb.from('putting_sessions').select('distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       // Rounds (graceful: tables may not exist yet)
-      sb.from('rounds').select('id,round_date,total_strokes,total_putts').eq('user_id',_currentUserId).gte('round_date',thirty).order('round_date',{ascending:false}),
+      sb.from('rounds').select('id,round_date,total_strokes,total_putts,holes_played,total_par').eq('user_id',_currentUserId).gte('round_date',thirty).order('round_date',{ascending:false}),
       sb.from('round_shots').select('round_id,hole,par,shot_number,lie,miss_direction').eq('user_id',_currentUserId).gte('created_at',thirty+'T00:00:00').limit(1000),
     ]);
     // ── Current period ──
@@ -968,10 +968,12 @@ async function loadProgressSection(){
     }else if(!recentRounds.length){
       roundsHtml='<div class="progress-group-label">On-course</div><div class="progress-empty">Log a round to see on-course progress.</div>';
     }else{
-      const rWithScore=recentRounds.filter(r=>r.total_strokes);
-      const avgScore=rWithScore.length?Math.round(rWithScore.reduce((s,r)=>s+r.total_strokes,0)/rWithScore.length):null;
-      const rWithPutts=recentRounds.filter(r=>r.total_putts);
-      const avgPuttsRound=rWithPutts.length?fmt(rWithPutts.reduce((s,r)=>s+r.total_putts,0)/rWithPutts.length,1):null;
+      const rWithScore=recentRounds.filter(r=>r.total_strokes&&r.holes_played);
+      const avgScorePerHole=rWithScore.length?rWithScore.reduce((s,r)=>s+r.total_strokes/r.holes_played,0)/rWithScore.length:null;
+      const rWithRel=recentRounds.filter(r=>r.total_strokes&&r.total_par&&r.holes_played);
+      const avgRelPerHole=rWithRel.length?rWithRel.reduce((s,r)=>s+(r.total_strokes-r.total_par)/r.holes_played,0)/rWithRel.length:null;
+      const rWithPutts=recentRounds.filter(r=>r.total_putts&&r.holes_played);
+      const avgPuttsPerHole=rWithPutts.length?fmt(rWithPutts.reduce((s,r)=>s+r.total_putts/r.holes_played,0)/rWithPutts.length,1):null;
       const dirShots=roundShotsDir.filter(s=>s.miss_direction);
       const ocLeft=dirShots.filter(s=>s.miss_direction?.includes('left')).length;
       const ocRight=dirShots.filter(s=>s.miss_direction?.includes('right')).length;
@@ -1027,8 +1029,9 @@ async function loadProgressSection(){
       roundsHtml=`<div class="progress-group-label">On-course — last 30 days</div>
       <div class="progress-card">
         ${row('Rounds played',recentRounds.length+(recentRounds.length===1?' round':' rounds'),null)}
-        ${avgScore!=null?row('Avg score',avgScore+' strokes',null):''}
-        ${avgPuttsRound!=null?row('Avg putts per round',avgPuttsRound,null):''}
+        ${avgScorePerHole!=null?row('Avg score / hole',avgScorePerHole.toFixed(1)+' strokes',null):''}
+        ${avgRelPerHole!=null?row('Avg vs par / hole',(avgRelPerHole>=0?'+':'')+avgRelPerHole.toFixed(1),null):''}
+        ${avgPuttsPerHole!=null?row('Avg putts / hole',avgPuttsPerHole,null):''}
         ${parRows}
         ${ocMissNote!=null?row('On-course miss',ocMissNote,null):''}
         ${ocDistNote!=null?row('Distance tendency',ocDistNote,null):''}
@@ -1220,29 +1223,52 @@ async function loadRoundsSummary(){
       return;
     }
     const last=rounds[0];
-    const rWithPutts=rounds.filter(r=>r.total_putts);
-    const avgPutts=rWithPutts.length?Math.round(rWithPutts.reduce((s,r)=>s+r.total_putts,0)/rWithPutts.length):null;
+    // Normalise to per-hole so 9h/18h/6h rounds are comparable
+    function normScore(r){
+      if(!r.total_strokes||!r.holes_played)return null;
+      return r.total_strokes/r.holes_played;
+    }
+    function normPutts(r){
+      if(!r.total_putts||!r.holes_played)return null;
+      return r.total_putts/r.holes_played;
+    }
+    function relPar(r){
+      if(!r.total_strokes||!r.total_par||!r.holes_played)return null;
+      return(r.total_strokes-r.total_par)/r.holes_played;
+    }
+    const rNorm=rounds.filter(r=>normScore(r)!=null);
+    const avgScorePerHole=rNorm.length?rNorm.reduce((s,r)=>s+normScore(r),0)/rNorm.length:null;
+    const rPutts=rounds.filter(r=>normPutts(r)!=null);
+    const avgPuttsPerHole=rPutts.length?rPutts.reduce((s,r)=>s+normPutts(r),0)/rPutts.length:null;
+    const lastNorm=normScore(last);
+    const lastRel=relPar(last);
+    const lastLabel=last.holes_played?`${last.total_strokes??'–'} / ${last.holes_played}h`:(last.total_strokes??'–');
     if(summaryEl)summaryEl.innerHTML=`<div class="round-kpi-band">
       <div class="round-kpi-item"><div class="round-kpi-val">${rounds.length}</div><div class="round-kpi-lbl">Rounds</div></div>
-      <div class="round-kpi-item"><div class="round-kpi-val">${last.total_strokes??'–'}</div><div class="round-kpi-lbl">Last score</div></div>
-      <div class="round-kpi-item"><div class="round-kpi-val">${avgPutts??'–'}</div><div class="round-kpi-lbl">Avg putts</div></div>
-      <div class="round-kpi-item"><div class="round-kpi-val">${last.round_date}</div><div class="round-kpi-lbl">Last round</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${lastLabel}</div><div class="round-kpi-lbl">Last score</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${avgScorePerHole!=null?avgScorePerHole.toFixed(1):'–'}</div><div class="round-kpi-lbl">Avg / hole</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${avgPuttsPerHole!=null?avgPuttsPerHole.toFixed(1):'–'}</div><div class="round-kpi-lbl">Putts / hole</div></div>
     </div>`;
-    if(listEl)listEl.innerHTML=rounds.slice(0,5).map(r=>`
-      <div class="round-row" id="round-row-${escapeHtml(r.id)}">
+    if(listEl)listEl.innerHTML=rounds.slice(0,5).map(r=>{
+      const rph=normScore(r);
+      const rel=relPar(r);
+      const relStr=rel!=null?(rel>=0?`+${rel.toFixed(1)}`:`${rel.toFixed(1)}`)+'/h':'';
+      const scoreLabel=r.holes_played?`${r.total_strokes??'–'}/${r.holes_played}h`:(r.total_strokes??'–');
+      return`<div class="round-row" id="round-row-${escapeHtml(r.id)}">
         <div class="round-row-head" onclick="toggleRoundRow('${escapeHtml(r.id)}')">
           <div class="round-row-info">
             <span class="round-date">${escapeHtml(r.round_date)}</span>
             <span class="round-course">${escapeHtml(r.course_name)}</span>
           </div>
           <div class="round-row-kpis">
-            ${r.total_strokes?`<span class="round-score">${r.total_strokes}</span>`:''}
-            ${r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:''}
+            ${r.total_strokes?`<span class="round-score">${scoreLabel}</span>`:''}
+            ${relStr?`<span class="round-putts">${relStr}</span>`:(r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:'')}
           </div>
           <span class="round-arrow">›</span>
         </div>
         <div class="round-row-body" id="round-body-${escapeHtml(r.id)}" style="display:none;"></div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }catch(e){
     const m='<div class="stats-empty-small">Run the latest migration to enable round tracking.</div>';
     if(summaryEl)summaryEl.innerHTML=m;

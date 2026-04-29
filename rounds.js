@@ -133,6 +133,8 @@ window.importRound = async function(parsedData) {
     course_name: parsedData.courseName,
     total_strokes: summary.totalStrokes,
     total_putts: summary.totalPutts,
+    holes_played: summary.holesPlayed,
+    total_par: summary.totalPar,
   }).select('id').single();
 
   if (roundErr) return { ok: false, error: roundErr };
@@ -168,7 +170,7 @@ window.loadRounds = async function(limit = 10) {
   const userId = sd?.session?.user?.id;
   if (!userId) return [];
   const { data, error } = await sb.from('rounds')
-    .select('id,round_date,course_name,tees,total_strokes,total_putts,notes')
+    .select('id,round_date,course_name,tees,total_strokes,total_putts,holes_played,total_par,notes')
     .eq('user_id', userId)
     .order('round_date', { ascending: false })
     .limit(limit);
@@ -215,13 +217,14 @@ window.computeRoundSummary = function(shots) {
   });
   const holes = Object.keys(byHole).map(Number).sort((a, b) => a - b);
 
-  let totalStrokes = 0, totalPutts = 0, girCount = 0, fwHitCount = 0;
+  let totalStrokes = 0, totalPutts = 0, totalPar = 0, girCount = 0, fwHitCount = 0;
   const strokesByHole = [];
 
   holes.forEach(h => {
     const hs = byHole[h];
     const par = hs[0]?.par ?? null;
     totalStrokes += hs.length;
+    if (par) totalPar += par;
     const puttShots = hs.filter(s => s.club?.toLowerCase() === 'putter');
     totalPutts += puttShots.length;
     strokesByHole.push({ hole: h, par, strokes: hs.length, putts: puttShots.length });
@@ -265,6 +268,7 @@ window.computeRoundSummary = function(shots) {
   return {
     totalStrokes,
     totalPutts,
+    totalPar: totalPar || null,
     holesPlayed: holes.length,
     girCount,
     fwHitCount,
