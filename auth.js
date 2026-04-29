@@ -1371,6 +1371,214 @@ async function confirmRoundImport(){
   await loadRoundsSummary();
 }
 
+// ── Manual round entry ────────────────────────────────────────────────────
+const MANUAL_CLUBS=[
+  {v:'driver',l:'Driver'},{v:'3w',l:'3 wood'},{v:'5w',l:'5 wood'},{v:'7w',l:'7 wood'},
+  {v:'hybrid',l:'Hybrid'},{v:'2i',l:'2 iron'},{v:'3',l:'3 iron'},{v:'4',l:'4 iron'},
+  {v:'5',l:'5 iron'},{v:'6',l:'6 iron'},{v:'7',l:'7 iron'},{v:'8',l:'8 iron'},
+  {v:'9',l:'9 iron'},{v:'pw',l:'PW'},{v:'aw',l:'AW'},{v:'sw',l:'SW'},
+  {v:'lw',l:'LW'},{v:'58',l:'58°'},{v:'putter',l:'Putter'},
+];
+const MANUAL_LIES=['','Tee','Fairway','Semi-rough','Rough','Bunker','Sand','Fringe','Green','Recovery','OB','Other'];
+const MANUAL_MISS=[
+  {v:'',l:'—'},{v:'left',l:'Left'},{v:'right',l:'Right'},{v:'straight',l:'Straight'},
+  {v:'short',l:'Short'},{v:'long',l:'Long'},
+  {v:'left-short',l:'Left + Short'},{v:'left-long',l:'Left + Long'},
+  {v:'right-short',l:'Right + Short'},{v:'right-long',l:'Right + Long'},
+];
+
+let _mr=null; // manual round state
+
+function _mrClubSel(shotIdx){
+  return`<select style="flex:1;min-width:80px;" onchange="_mrShotField(${_mr.cur},${shotIdx},'club',this.value)">
+    <option value="">Club</option>
+    ${MANUAL_CLUBS.map(c=>`<option value="${c.v}"${(_mr.holes[_mr.cur]?.shots[shotIdx]?.club===c.v)?' selected':''}>${escapeHtml(c.l)}</option>`).join('')}
+  </select>`;
+}
+function _mrLieSel(shotIdx){
+  return`<select style="flex:1;min-width:80px;" onchange="_mrShotField(${_mr.cur},${shotIdx},'lie',this.value)">
+    ${MANUAL_LIES.map(l=>`<option value="${l}"${(_mr.holes[_mr.cur]?.shots[shotIdx]?.lie===l)?' selected':''}>${l||'Lie'}</option>`).join('')}
+  </select>`;
+}
+function _mrMissSel(shotIdx){
+  return`<select style="flex:1;min-width:80px;" onchange="_mrShotField(${_mr.cur},${shotIdx},'miss_direction',this.value)">
+    ${MANUAL_MISS.map(m=>`<option value="${m.v}"${(_mr.holes[_mr.cur]?.shots[shotIdx]?.miss_direction===m.v)?' selected':''}>${escapeHtml(m.l)}</option>`).join('')}
+  </select>`;
+}
+
+window._mrShotField=function(holeNum,shotIdx,field,val){
+  if(!_mr||!_mr.holes[holeNum])return;
+  if(!_mr.holes[holeNum].shots[shotIdx])_mr.holes[holeNum].shots[shotIdx]={};
+  _mr.holes[holeNum].shots[shotIdx][field]=val;
+};
+window._mrHoleField=function(holeNum,field,val){
+  if(!_mr)return;
+  if(!_mr.holes[holeNum])_mr.holes[holeNum]={par:null,hcp:null,shots:[]};
+  _mr.holes[holeNum][field]=val===''?null:Number(val);
+};
+window._mrAddShot=function(){
+  if(!_mr)return;
+  if(!_mr.holes[_mr.cur])_mr.holes[_mr.cur]={par:null,hcp:null,shots:[]};
+  _mr.holes[_mr.cur].shots.push({club:'',distance_m:null,lie:'',miss_direction:'',comment:''});
+  _mrRender();
+};
+window._mrRemoveShot=function(idx){
+  if(!_mr||!_mr.holes[_mr.cur])return;
+  _mr.holes[_mr.cur].shots.splice(idx,1);
+  _mrRender();
+};
+window._mrDistField=function(holeNum,shotIdx,val){
+  if(!_mr||!_mr.holes[holeNum])return;
+  if(!_mr.holes[holeNum].shots[shotIdx])_mr.holes[holeNum].shots[shotIdx]={};
+  const n=parseFloat(val);
+  _mr.holes[holeNum].shots[shotIdx].distance_m=(isNaN(n)||n<=0||n>400)?null:n;
+};
+window._mrCommentField=function(holeNum,shotIdx,val){
+  if(!_mr||!_mr.holes[holeNum])return;
+  if(!_mr.holes[holeNum].shots[shotIdx])_mr.holes[holeNum].shots[shotIdx]={};
+  _mr.holes[holeNum].shots[shotIdx].comment=val||null;
+};
+
+function _mrRender(){
+  const el=document.getElementById('manual-round-hole-form');
+  if(!el||!_mr)return;
+  const h=_mr.holes[_mr.cur]||{par:null,hcp:null,shots:[]};
+  const shots=h.shots||[];
+  const isLast=_mr.cur===_mr.total;
+  el.innerHTML=`<div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font-weight:600;font-size:15px;">Hole ${_mr.cur} <span style="font-weight:400;color:var(--text3);font-size:13px;">of ${_mr.total}</span></span>
+      <span style="font-size:12px;color:var(--text3);">${_mr.roundDate} · ${escapeHtml(_mr.courseName)}</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="flex:1;">
+        <label style="font-size:11px;color:var(--text3);">Par</label>
+        <select style="width:100%;" onchange="_mrHoleField(${_mr.cur},'par',this.value)">
+          <option value="">—</option>
+          <option value="3"${h.par===3?' selected':''}>3</option>
+          <option value="4"${h.par===4?' selected':''}>4</option>
+          <option value="5"${h.par===5?' selected':''}>5</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:11px;color:var(--text3);">Stroke index</label>
+        <input type="number" min="1" max="18" placeholder="HCP" value="${h.hcp??''}"
+          style="width:100%;box-sizing:border-box;"
+          onchange="_mrHoleField(${_mr.cur},'hcp',this.value)">
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Shots</div>
+    ${shots.length===0?`<div style="color:var(--text3);font-size:12px;margin-bottom:8px;">No shots yet. Add the first shot below.</div>`:''}
+    ${shots.map((s,i)=>`<div style="border:0.5px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600;">Shot ${i+1}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+        ${_mrClubSel(i)}
+        <input type="number" placeholder="Dist (m)" min="1" max="400" value="${s.distance_m??''}"
+          style="flex:1;min-width:70px;" onchange="_mrDistField(${_mr.cur},${i},this.value)">
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+        ${_mrLieSel(i)}
+        ${_mrMissSel(i)}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="text" placeholder="Comment (optional)" value="${escapeHtml(s.comment||'')}"
+          style="flex:1;" onchange="_mrCommentField(${_mr.cur},${i},this.value)">
+        <button style="background:none;color:var(--red);border:0.5px solid var(--red);padding:4px 8px;font-size:11px;border-radius:6px;" onclick="_mrRemoveShot(${i})">✕</button>
+      </div>
+    </div>`).join('')}
+    <div class="form-actions" style="flex-wrap:wrap;gap:8px;">
+      <button onclick="_mrAddShot()" style="background:var(--surface2);color:var(--text);">+ Add shot</button>
+      ${_mr.cur>1?`<button onclick="_mrNav(-1)" style="background:var(--surface2);color:var(--text);">← Prev</button>`:''}
+      ${!isLast?`<button onclick="_mrNav(1)">Next hole →</button>`:`<button onclick="_mrFinish()">Finish &amp; import</button>`}
+    </div>
+  </div>`;
+}
+
+window._mrNav=function(dir){
+  if(!_mr)return;
+  // Save current hole shots from DOM before navigating (select/input values already wired via onchange)
+  _mr.cur=Math.max(1,Math.min(_mr.total,_mr.cur+dir));
+  if(!_mr.holes[_mr.cur])_mr.holes[_mr.cur]={par:null,hcp:null,shots:[]};
+  _mrRender();
+};
+
+window._mrFinish=async function(){
+  if(!_mr)return;
+  const msgEl=document.getElementById('manual-round-msg');
+  // Build shots array
+  const shots=[];
+  for(let h=1;h<=_mr.total;h++){
+    const hd=_mr.holes[h];
+    if(!hd||!hd.shots.length)continue;
+    hd.shots.forEach((s,i)=>{
+      shots.push({
+        hole:h,par:hd.par,hcp:hd.hcp,shot_number:i+1,
+        club:s.club||null,distance_m:s.distance_m??null,
+        lie:s.lie||null,comment:s.comment||null,
+        miss_direction:s.miss_direction||null,
+        is_penalty:s.comment?/penalty|out on the|stroke and distance|\bOB\b/i.test(s.comment):false,
+      });
+    });
+  }
+  if(!shots.length){
+    if(msgEl){msgEl.textContent='No shots entered yet.';msgEl.style.color='var(--red)';}
+    return;
+  }
+  const parsedData={roundDate:_mr.roundDate,courseName:_mr.courseName,holes:[],shots};
+  const summary=window.computeRoundSummary(shots);
+  const result=await window.importRound(parsedData);
+  const formEl=document.getElementById('manual-round-hole-form');
+  if(!result.ok){
+    if(msgEl){msgEl.textContent='Error: '+(result.error?.message||'Unknown error');msgEl.style.color='var(--red)';}
+    return;
+  }
+  _mr=null;
+  if(formEl)formEl.style.display='none';
+  document.getElementById('manual-round-setup').style.display='';
+  // Show summary card
+  const parLines=[3,4,5].filter(p=>summary.byPar[p]).map(p=>{
+    const b=summary.byPar[p];const s=b.avgRelPar>=0?`+${b.avgRelPar.toFixed(1)}`:`${b.avgRelPar.toFixed(1)}`;
+    return`<span>Par ${p}: <strong>${s}</strong> (${b.count}h)</span>`;
+  }).join(' &nbsp;');
+  const udParts=[];
+  if(summary.roughUD.att>0)udParts.push(`Rough ${summary.roughUD.made}/${summary.roughUD.att}`);
+  if(summary.bunkerUD.att>0)udParts.push(`Bunker ${summary.bunkerUD.made}/${summary.bunkerUD.att}`);
+  if(msgEl){
+    msgEl.style.color='';
+    msgEl.innerHTML=`<div style="background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.8;">
+      <div style="color:var(--green);font-weight:600;margin-bottom:4px;">✓ Round saved</div>
+      <div style="color:var(--text2);font-size:12px;">${escapeHtml(parsedData.courseName)} · ${escapeHtml(parsedData.roundDate)}</div>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">
+        <span>Score: <strong>${summary.totalStrokes}</strong></span>
+        <span>Putts: <strong>${summary.totalPutts}</strong></span>
+        <span>GIR: <strong>${summary.girCount}/${summary.holesPlayed}</strong></span>
+      </div>
+      ${parLines?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;color:var(--text2);">${parLines}</div>`:''}
+      ${udParts.length?`<div style="margin-top:4px;color:var(--text2);font-size:12px;">Up-and-down — ${udParts.join(' · ')}</div>`:''}
+    </div>`;
+  }
+  await loadRoundsSummary();
+};
+
+window.startManualRound=function(){
+  const dateEl=document.getElementById('manual-round-date');
+  const courseEl=document.getElementById('manual-round-course');
+  const holesEl=document.getElementById('manual-round-holes');
+  const msgEl=document.getElementById('manual-round-msg');
+  const roundDate=dateEl?.value||'';
+  const courseName=(courseEl?.value||'').trim();
+  const total=parseInt(holesEl?.value||'18',10);
+  if(!roundDate){if(msgEl){msgEl.textContent='Please enter a date.';msgEl.style.color='var(--red)';}return;}
+  if(!courseName){if(msgEl){msgEl.textContent='Please enter a course name.';msgEl.style.color='var(--red)';}return;}
+  if(msgEl)msgEl.textContent='';
+  _mr={roundDate,courseName,total,cur:1,holes:{}};
+  for(let h=1;h<=total;h++)_mr.holes[h]={par:null,hcp:null,shots:[]};
+  document.getElementById('manual-round-setup').style.display='none';
+  const formEl=document.getElementById('manual-round-hole-form');
+  if(formEl)formEl.style.display='';
+  _mrRender();
+};
+
 // ── Exports ───────────────────────────────────────────────────────────────
 window.loadOneState=loadOneState;window.deleteOneState=deleteOneState;
 window.loadStatsPage=loadStatsPage;

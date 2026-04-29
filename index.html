@@ -452,6 +452,34 @@
                 <div id="rounds-import-msg" class="alias-msg"></div>
               </div>
             </div>
+            <div class="log-sub-head" id="sub-head-rounds-manual" onclick="toggleLogForm('rounds-manual')">
+              <span class="log-sub-label">+ Enter round manually</span>
+              <span class="log-sub-arrow">›</span>
+            </div>
+            <div class="log-sub-body" id="sub-body-rounds-manual">
+              <div id="manual-round-setup" class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
+                <div class="form-row">
+                  <label>Date</label>
+                  <input type="date" id="manual-round-date" style="flex:1;">
+                </div>
+                <div class="form-row">
+                  <label>Course</label>
+                  <input type="text" id="manual-round-course" placeholder="Course name" style="flex:1;">
+                </div>
+                <div class="form-row">
+                  <label>Holes</label>
+                  <select id="manual-round-holes" style="flex:1;">
+                    <option value="18">18</option>
+                    <option value="9">9</option>
+                  </select>
+                </div>
+                <div class="form-actions">
+                  <button onclick="startManualRound()">Start entering holes</button>
+                </div>
+              </div>
+              <div id="manual-round-hole-form" style="display:none;"></div>
+              <div id="manual-round-msg" class="alias-msg" style="padding:0 12px 8px;"></div>
+            </div>
             <div id="stats-rounds-list"></div>
           </div>
         </div>
