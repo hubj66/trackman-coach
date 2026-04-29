@@ -556,7 +556,13 @@ function renderBagCards(){
     const expanded=_bagExpandedKeys.has(row.club_key);
     const ocShots=_bagOnCourseGrouped[row.club_key]||[];
     const ocDists=ocShots.map(s=>s.distance_m).filter(x=>x!=null&&x>0);
-    const ocAvgDist=ocDists.length>=3?Math.round(ocDists.reduce((a,b)=>a+b,0)/ocDists.length):null;
+    const WEDGE_PUTTER_KEYS=new Set(['pw','sw','aw','lw','58','putter']);
+    const canFilterMishits=avgC!=null&&!WEDGE_PUTTER_KEYS.has(row.club_key?.toLowerCase());
+    const mishitThreshold=canFilterMishits?avgC*0.6:null;
+    const ocCleanDists=mishitThreshold!=null?ocDists.filter(d=>d>=mishitThreshold):ocDists;
+    const ocMishitCount=mishitThreshold!=null?ocDists.length-ocCleanDists.length:null;
+    const ocAvgDist=ocCleanDists.length>=2?Math.round(ocCleanDists.reduce((a,b)=>a+b,0)/ocCleanDists.length):(ocDists.length>=3?Math.round(ocDists.reduce((a,b)=>a+b,0)/ocDists.length):null);
+    const ocMishitRate=(ocMishitCount!=null&&ocDists.length>=3)?Math.round(ocMishitCount/ocDists.length*100):null;
     const ocGap=ocAvgDist!=null&&avgC!=null?ocAvgDist-Math.round(avgC):null;
     const ocDirShots=ocShots.filter(s=>s.miss_direction);
     const ocLeft=ocDirShots.filter(s=>s.miss_direction?.includes('left')).length;
@@ -586,6 +592,7 @@ ${expanded?`<div class="bag-card-body">
       ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
       ${(carryMin!=null&&carryMax!=null&&carryMin!==carryMax)?`<div class="bag-stat-row"><span>Typical range</span><strong>${carryMin}–${carryMax}m</strong></div>`:''}
       ${ocAvgDist!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>On course avg</span><strong>${ocAvgDist}m${ocGap!=null&&Math.abs(ocGap)>=5?` <span class="bag-oc-gap">(${ocGap>0?'+':''}${Math.round(ocGap)}m vs range)</span>`:''}</strong></div>`:''}
+      ${ocMishitRate!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>Mishit rate</span><strong>${ocMishitRate}% (${ocMishitCount}/${ocDists.length})</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Direction</div>
       <div class="bag-stat-row"><span>Avg side</span><strong>${avgSide!=null?fmt(avgSide)+'m':'–'}</strong></div>
@@ -813,7 +820,7 @@ async function loadProgressSection(){
       sb.from('putting_sessions').select('distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       // Rounds (graceful: tables may not exist yet)
       sb.from('rounds').select('id,round_date,total_strokes,total_putts').eq('user_id',_currentUserId).gte('round_date',thirty).order('round_date',{ascending:false}),
-      sb.from('round_shots').select('miss_direction').eq('user_id',_currentUserId).gte('created_at',thirty+'T00:00:00').limit(500),
+      sb.from('round_shots').select('round_id,hole,par,shot_number,lie,miss_direction').eq('user_id',_currentUserId).gte('created_at',thirty+'T00:00:00').limit(1000),
     ]);
     // ── Current period ──
     const tmShots=(tmRes.data||[]).filter(s=>s.is_full_shot!==false&&s.exclude_from_progress!==true);
@@ -988,13 +995,44 @@ async function loadProgressSection(){
         if(sp>=60)ocDistNote=`Tend to come up short (${Math.round(sp)}%)`;
         else if(lp>=60)ocDistNote=`Tend to overshoot (${Math.round(lp)}%)`;
       }
+      // Par 3/4/5 breakdown from shot-level data
+      const holeGroups={};
+      roundShotsDir.forEach(s=>{
+        if(!s.round_id||!s.hole)return;
+        const k=`${s.round_id}:${s.hole}`;
+        if(!holeGroups[k])holeGroups[k]={par:s.par,shots:[],total:0};
+        holeGroups[k].total++;
+        holeGroups[k].shots.push(s);
+      });
+      const parAgg={};
+      const roughUD2={att:0,made:0},bunkerUD2={att:0,made:0};
+      Object.values(holeGroups).forEach(({par,shots,total})=>{
+        if(par){
+          if(!parAgg[par])parAgg[par]={count:0,totalRel:0};
+          parAgg[par].count++;parAgg[par].totalRel+=total-par;
+        }
+        const sorted=[...shots].sort((a,b)=>a.shot_number-b.shot_number);
+        const lastRough=sorted.filter(s=>s.shot_number>1&&(s.lie||'').toLowerCase().includes('rough')).pop();
+        const lastBunker=sorted.filter(s=>s.shot_number>1&&((s.lie||'').toLowerCase().includes('bunker')||(s.lie||'').toLowerCase().includes('sand'))).pop();
+        if(lastRough){roughUD2.att++;if(total-lastRough.shot_number<=1)roughUD2.made++;}
+        if(lastBunker){bunkerUD2.att++;if(total-lastBunker.shot_number<=1)bunkerUD2.made++;}
+      });
+      const parRows=[3,4,5].filter(p=>parAgg[p]?.count>=2).map(p=>{
+        const g=parAgg[p];const rel=g.totalRel/g.count;
+        return row(`Par ${p} avg`,`${rel>=0?'+':''}${rel.toFixed(1)} (${g.count} holes)`,null);
+      }).join('');
+      const udParts=[];
+      if(roughUD2.att>=3)udParts.push(`Rough: ${roughUD2.made}/${roughUD2.att} (${Math.round(roughUD2.made/roughUD2.att*100)}%)`);
+      if(bunkerUD2.att>=3)udParts.push(`Bunker: ${bunkerUD2.made}/${bunkerUD2.att} (${Math.round(bunkerUD2.made/bunkerUD2.att*100)}%)`);
       roundsHtml=`<div class="progress-group-label">On-course — last 30 days</div>
       <div class="progress-card">
         ${row('Rounds played',recentRounds.length+(recentRounds.length===1?' round':' rounds'),null)}
         ${avgScore!=null?row('Avg score',avgScore+' strokes',null):''}
         ${avgPuttsRound!=null?row('Avg putts per round',avgPuttsRound,null):''}
+        ${parRows}
         ${ocMissNote!=null?row('On-course miss',ocMissNote,null):''}
         ${ocDistNote!=null?row('Distance tendency',ocDistNote,null):''}
+        ${udParts.length?row('Up-and-down',udParts.join(' · '),null):''}
       </div>`;
     }
 
@@ -1295,18 +1333,41 @@ async function confirmRoundImport(){
   const msgEl=document.getElementById('rounds-import-msg');
   const impBtn=document.getElementById('rounds-import-btn');
   if(impBtn)impBtn.disabled=true;
+  const summary=window.computeRoundSummary(_pendingRoundImport.shots);
+  const {roundDate,courseName}=_pendingRoundImport;
   const result=await window.importRound(_pendingRoundImport);
   if(impBtn)impBtn.disabled=false;
   if(!result.ok){
     if(msgEl){msgEl.textContent='Error: '+(result.error?.message||'Unknown error');msgEl.style.color='var(--red)';}
     return;
   }
-  if(msgEl){msgEl.textContent='Round imported!';msgEl.style.color='var(--green)';}
   _pendingRoundImport=null;
   const ta=document.getElementById('rounds-import-tsv');if(ta)ta.value='';
   const preEl=document.getElementById('rounds-import-preview');if(preEl)preEl.innerHTML='';
   if(impBtn)impBtn.style.display='none';
-  setTimeout(()=>{if(msgEl)msgEl.textContent='';},3000);
+  // Build post-import summary card
+  const parLines=[3,4,5].filter(p=>summary.byPar[p]).map(p=>{
+    const b=summary.byPar[p];const s=b.avgRelPar>=0?`+${b.avgRelPar.toFixed(1)}`:`${b.avgRelPar.toFixed(1)}`;
+    return`<span>Par ${p}: <strong>${s}</strong> avg (${b.count}h)</span>`;
+  }).join(' &nbsp;');
+  const udParts=[];
+  if(summary.roughUD.att>0)udParts.push(`Rough ${summary.roughUD.made}/${summary.roughUD.att}`);
+  if(summary.bunkerUD.att>0)udParts.push(`Bunker ${summary.bunkerUD.made}/${summary.bunkerUD.att}`);
+  if(msgEl){
+    msgEl.style.color='';
+    msgEl.innerHTML=`<div style="background:var(--surface2);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13px;line-height:1.8;">
+      <div style="color:var(--green);font-weight:600;margin-bottom:4px;">✓ Round imported</div>
+      <div style="color:var(--text2);font-size:12px;">${escapeHtml(courseName)} · ${escapeHtml(roundDate)}</div>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">
+        <span>Score: <strong>${summary.totalStrokes}</strong></span>
+        <span>Putts: <strong>${summary.totalPutts}</strong></span>
+        <span>GIR: <strong>${summary.girCount}/${summary.holesPlayed}</strong></span>
+        ${summary.fwHitCount?`<span>FW: <strong>${summary.fwHitCount}</strong></span>`:''}
+      </div>
+      ${parLines?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;color:var(--text2);">${parLines}</div>`:''}
+      ${udParts.length?`<div style="margin-top:4px;color:var(--text2);font-size:12px;">Up-and-down — ${udParts.join(' · ')}</div>`:''}
+    </div>`;
+  }
   await loadRoundsSummary();
 }
 

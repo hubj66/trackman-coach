@@ -32,7 +32,8 @@ function parseRoundDist(val) {
   if (!val && val !== 0) return null;
   const s = String(val).replace(',', '.').trim();
   const n = parseFloat(s);
-  return isNaN(n) ? null : n;
+  if (isNaN(n) || n > 400) return null;
+  return n;
 }
 
 const PENALTY_RE = /penalty|out on the|stroke and distance|\bOB\b/i;
@@ -118,6 +119,11 @@ window.importRound = async function(parsedData) {
   const { data: sd, error: se } = await sb.auth.getSession();
   if (se || !sd?.session?.user) return { ok: false, error: { message: 'Not logged in' } };
   const userId = sd.session.user.id;
+
+  const { data: dup } = await sb.from('rounds').select('id')
+    .eq('user_id', userId).eq('round_date', parsedData.roundDate).eq('course_name', parsedData.courseName)
+    .limit(1).maybeSingle();
+  if (dup) return { ok: false, duplicate: true, error: { message: `A round at ${parsedData.courseName} on ${parsedData.roundDate} is already imported.` } };
 
   const summary = window.computeRoundSummary(parsedData.shots);
 
@@ -231,6 +237,31 @@ window.computeRoundSummary = function(shots) {
     }
   });
 
+  // Par 3/4/5 breakdown
+  const parGroups = {};
+  strokesByHole.forEach(h => {
+    if (!h.par) return;
+    if (!parGroups[h.par]) parGroups[h.par] = { count: 0, totalRelPar: 0 };
+    parGroups[h.par].count++;
+    parGroups[h.par].totalRelPar += h.strokes - h.par;
+  });
+  const byPar = {};
+  Object.entries(parGroups).forEach(([par, g]) => {
+    byPar[Number(par)] = { count: g.count, avgRelPar: g.totalRelPar / g.count };
+  });
+
+  // Up-and-down from rough/bunker: last recovery shot per hole, did they hole out in ≤1 more shot?
+  const roughUD = { att: 0, made: 0 };
+  const bunkerUD = { att: 0, made: 0 };
+  holes.forEach(h => {
+    const hs = byHole[h];
+    const total = hs.length;
+    const lastRough = [...hs].filter(s => s.shot_number > 1 && (s.lie || '').toLowerCase().includes('rough')).pop();
+    const lastBunker = [...hs].filter(s => s.shot_number > 1 && ((s.lie || '').toLowerCase().includes('bunker') || (s.lie || '').toLowerCase().includes('sand'))).pop();
+    if (lastRough) { roughUD.att++; if (total - lastRough.shot_number <= 1) roughUD.made++; }
+    if (lastBunker) { bunkerUD.att++; if (total - lastBunker.shot_number <= 1) bunkerUD.made++; }
+  });
+
   return {
     totalStrokes,
     totalPutts,
@@ -239,5 +270,8 @@ window.computeRoundSummary = function(shots) {
     fwHitCount,
     avgPuttsPerHole: holes.length ? totalPutts / holes.length : 0,
     strokesByHole,
+    byPar,
+    roughUD,
+    bunkerUD,
   };
 };
