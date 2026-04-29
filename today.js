@@ -497,22 +497,23 @@ function _renderFocusTechnicalCard(stats, focusLabel) {
 
 function _renderFocusIssueCard(issue, focusLabel) {
   return `
-    <div class="today-focus-card today-focus-card-issue" style="margin:10px 14px 0;">
-      <div class="today-focus-card-label">Main issue — ${escapeHtml(focusLabel)}</div>
-      <div class="today-issue-simple" style="margin:6px 0 3px;">${escapeHtml(issue.simple)}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">${escapeHtml(issue.support)}</div>
-      ${issue.deeper ? `<div style="font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5;">${escapeHtml(issue.deeper)}</div>` : ''}
+    <div class="today-hero-card">
+      <div class="today-hero-tag">Main issue — ${escapeHtml(focusLabel)}</div>
+      <div class="today-hero-title">${escapeHtml(issue.simple)}</div>
+      <div class="today-hero-subtitle">${escapeHtml(issue.support)}</div>
+      ${issue.deeper ? `<div style="font-size:12px;color:var(--text2);margin-top:8px;line-height:1.5;">${escapeHtml(issue.deeper)}</div>` : ''}
     </div>`;
 }
 
 function _renderFocusNoIssueCard(focusLabel, n) {
   const lowData = n < 10;
   return `
-    <div class="today-focus-card today-health-neutral" style="margin:10px 14px 0;">
-      <div class="today-focus-card-label">No strong issue detected — ${escapeHtml(focusLabel)}</div>
-      <div style="font-size:13px;color:var(--text2);margin-top:5px;">
+    <div class="today-hero-card hero-green">
+      <div class="today-hero-tag">No strong issue — ${escapeHtml(focusLabel)}</div>
+      <div class="today-hero-title">${lowData ? 'Not enough data yet' : 'Looking solid'}</div>
+      <div class="today-hero-subtitle">
         ${lowData
-          ? `Only ${n} shots — not enough for a confident pattern yet. Add more shots for a reliable diagnosis.`
+          ? `${n} shot${n===1?'':'s'} recorded. Add at least 10 recent ${escapeHtml(focusLabel)} shots for a reliable diagnosis.`
           : `Numbers look reasonable. Train consistency or choose Overall for your biggest current problem.`}
       </div>
     </div>`;
@@ -1131,29 +1132,35 @@ function _renderHealthTiles(tiles) {
 
 function _renderMainIssueCard(issue) {
   const confCls = issue.conf < 0.4 ? 'hint' : issue.conf < 0.7 ? 'likely' : 'confirmed';
+  const urgency = issue.priority === 1 ? 'hero-red' : '';
   const detailId = `issue-detail-${issue.key.replace(/[^a-z0-9]/g,'_')}`;
   return `
-    <div class="today-issue-card">
-      <div class="today-issue-meta">
-        <div class="today-issue-tag">Main issue</div>
-        ${issue.confLabel ? `<div class="today-issue-conf today-issue-conf-${confCls}">${issue.confLabel}${issue.n ? ' · '+issue.n+' shots' : ''}</div>` : ''}
+    <div class="today-hero-card ${urgency}">
+      <div class="today-hero-tag">
+        Main issue
+        ${issue.confLabel ? `<span class="today-hero-badge">${issue.confLabel}</span>` : ''}
+        ${issue.n ? `<span style="color:var(--text3);font-size:9px;">${issue.n} shots</span>` : ''}
       </div>
-      <div class="today-issue-title">${escapeHtml(issue.simple)}</div>
-      <div class="today-issue-support">${escapeHtml(issue.support)}</div>
-      <div class="today-issue-action-row">
-        ${issue.deeper ? `<button class="today-issue-detail-btn" onclick="toggleIssueDetail('${detailId}', this)">Why this? ▾</button>` : ''}
+      <div class="today-hero-title">${escapeHtml(issue.simple)}</div>
+      <div class="today-hero-subtitle">${escapeHtml(issue.support)}</div>
+      ${issue.deeper ? `<div class="today-hero-stats">
+        <div class="today-hero-stat">
+          <div class="today-hero-stat-lbl">Evidence</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:3px;max-width:240px;line-height:1.5;">${escapeHtml(issue.deeper)}</div>
+        </div>
+      </div>` : ''}
+      <div class="today-issue-action-row" style="margin-top:12px;">
         <button class="today-issue-stats-btn" onclick="toggleTodayLayer('stats')">View stats →</button>
       </div>
-      ${issue.deeper ? `<div class="today-issue-detail" id="${detailId}">${escapeHtml(issue.deeper)}</div>` : ''}
     </div>`;
 }
 
 function _renderNoIssueCard() {
   return `
-    <div class="today-issue-card today-issue-good">
-      <div class="today-issue-tag">Looking good</div>
-      <div class="today-issue-title">No strong issue detected from recent shots</div>
-      <div class="today-issue-support">Keep logging to build your baseline</div>
+    <div class="today-hero-card hero-green">
+      <div class="today-hero-tag">Looking good</div>
+      <div class="today-hero-title">No strong issue detected</div>
+      <div class="today-hero-subtitle">Keep logging to build your baseline and track improvements.</div>
     </div>`;
 }
 

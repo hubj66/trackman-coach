@@ -516,8 +516,7 @@ button:active{background:var(--surface4)}
 .map-date-pill{font-size:11px;font-family:var(--mono);padding:3px 9px;border-radius:12px;border:0.5px solid rgba(255,255,255,0.13);background:rgba(255,255,255,0.04);color:var(--text3);cursor:pointer;transition:all .15s;line-height:1.4}
 .map-date-pill.on{background:var(--pill-color,var(--green));border-color:transparent;color:#0e1012;font-weight:600}
 .map-date-all.on{background:var(--surface3);border-color:var(--border2);color:var(--text)}
-.map-chart-block{}
-.map-chart-title{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--text3)}
+.map-chart-block{}.map-chart-title{}
 
 /* ══ TODAY SCREEN ═══════════════════════════════════════════════════════════ */
 .today-content-wrap{padding:12px 14px calc(24px + var(--safe-bottom))}
@@ -672,6 +671,48 @@ body.light-theme .today-login-btn{color:#fff}
 .today-fixed-icon{font-size:20px;flex-shrink:0}
 .today-fixed-label{font-family:var(--mono);font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
 .today-fixed-text{font-size:13px;color:var(--text2);line-height:1.4}
+
+/* ══ TODAY HERO ISSUE CARD ══════════════════════════════════════════════════ */
+.today-hero-card{background:var(--surface);border:0.5px solid var(--border);border-radius:16px;padding:18px 16px;margin-bottom:10px;position:relative;overflow:hidden}
+.today-hero-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--amber)}
+.today-hero-card.hero-red::before{background:var(--red)}
+.today-hero-card.hero-green::before{background:var(--green)}
+.today-hero-tag{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.10em;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.today-hero-card.hero-red .today-hero-tag{color:var(--red)}
+.today-hero-card.hero-green .today-hero-tag{color:var(--green)}
+.today-hero-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:9px;background:var(--amber-dim);color:var(--amber);font-weight:700}
+.today-hero-card.hero-red .today-hero-badge{background:var(--red-dim);color:var(--red)}
+.today-hero-card.hero-green .today-hero-badge{background:var(--green-dim);color:var(--green)}
+.today-hero-title{font-family:var(--cond);font-size:26px;font-weight:700;color:var(--text);line-height:1.15;letter-spacing:.01em;margin-bottom:6px}
+.today-hero-subtitle{font-size:13px;color:var(--text2);line-height:1.5}
+.today-hero-stats{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap}
+.today-hero-stat{display:flex;flex-direction:column;gap:2px}
+.today-hero-stat-val{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--text)}
+.today-hero-stat-lbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+
+/* ══ ANALYSIS MAP CHART IMPROVEMENTS ═══════════════════════════════════════ */
+.map-chart-block{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.map-chart-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);padding:10px 12px 6px}
+.map-chart-block canvas{display:block;width:100%!important;border-radius:0}
+
+/* ══ ROUND SUMMARY HERO ═════════════════════════════════════════════════════ */
+.round-import-card{background:var(--surface);border:0.5px solid rgba(0,214,143,.25);border-radius:12px;padding:14px 16px;margin-top:10px}
+.round-import-card-score{font-family:var(--cond);font-size:40px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px}
+.round-import-card-detail{font-size:12px;color:var(--text2);font-family:var(--mono);margin-bottom:10px}
+.round-import-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.round-import-stat{background:var(--surface2);border-radius:9px;padding:8px 10px;text-align:center}
+.round-import-stat-val{font-family:var(--cond);font-size:18px;font-weight:700;color:var(--text);line-height:1}
+.round-import-stat-lbl{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em}
+
+/* ══ MR SHOT CARD IMPROVEMENTS ══════════════════════════════════════════════ */
+.mr-shot-card{border:0.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;background:var(--surface)}
+.mr-shot-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mr-shot-num{font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);background:var(--surface2);border-radius:6px;padding:3px 8px}
+.mr-shot-del{background:none;border:none;color:var(--text3);font-size:12px;padding:3px 6px;cursor:pointer;border-radius:6px;transition:color .12s}
+.mr-shot-del:active{color:var(--red)}
+.mr-dist-label{font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.mr-dist-num{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--text)}
+.mr-dist-unit{font-size:11px;color:var(--text3)}
 
 /* Light theme overrides for today */
 /* ── Coach summary card (Feature 3) ─────────────────────────────────────── */
@@ -1142,13 +1183,14 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
 .round-kpi-lbl{font-size:11px;color:var(--text3);margin-top:2px}
 .round-row{border-bottom:0.5px solid var(--border)}
 .round-row:last-child{border-bottom:none}
-.round-row-head{display:flex;align-items:center;gap:8px;padding:11px 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.round-row-head{display:flex;align-items:center;gap:10px;padding:12px 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .round-row-head.open .round-arrow{transform:rotate(90deg)}
-.round-row-info{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
-.round-date{font-size:12px;color:var(--text3);font-family:var(--mono)}
-.round-course{font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.round-row-kpis{display:flex;gap:6px;align-items:center;flex-shrink:0}
-.round-score{font-family:var(--cond);font-size:17px;font-weight:700;color:var(--text)}
+.round-row-info{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.round-date{font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:.02em}
+.round-course{font-size:13px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.round-row-kpis{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.round-score{font-family:var(--cond);font-size:22px;font-weight:700;color:var(--text);line-height:1}
+.round-score-over{color:var(--red)}.round-score-even{color:var(--green)}.round-score-under{color:var(--green)}
 .round-putts{font-size:12px;color:var(--text3);background:var(--surface2);border-radius:6px;padding:2px 6px}
 .round-arrow{font-size:16px;color:var(--text3);transition:transform .2s;flex-shrink:0}
 .round-row-body{padding-bottom:8px}

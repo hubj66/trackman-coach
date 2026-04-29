@@ -1250,10 +1250,12 @@ async function loadRoundsSummary(){
       <div class="round-kpi-item"><div class="round-kpi-val">${avgPuttsPerHole!=null?avgPuttsPerHole.toFixed(1):'–'}</div><div class="round-kpi-lbl">Putts / hole</div></div>
     </div>`;
     if(listEl)listEl.innerHTML=rounds.slice(0,5).map(r=>{
-      const rph=normScore(r);
       const rel=relPar(r);
-      const relStr=rel!=null?(rel>=0?`+${rel.toFixed(1)}`:`${rel.toFixed(1)}`)+'/h':'';
+      const relPerHole=rel!=null?(rel>=0?`+${rel.toFixed(1)}`:`${rel.toFixed(1)}`)+'/h':'';
+      const totalRel=r.total_strokes&&r.total_par?r.total_strokes-r.total_par:null;
+      const totalRelStr=totalRel!=null?(totalRel===0?'E':totalRel>0?`+${totalRel}`:`${totalRel}`):'';
       const scoreLabel=r.holes_played?`${r.total_strokes??'–'}/${r.holes_played}h`:(r.total_strokes??'–');
+      const scoreColorClass=totalRel!=null?(totalRel>0?'round-score-over':totalRel<0?'round-score-under':'round-score-even'):'';
       return`<div class="round-row" id="round-row-${escapeHtml(r.id)}">
         <div class="round-row-head" onclick="toggleRoundRow('${escapeHtml(r.id)}')">
           <div class="round-row-info">
@@ -1261,8 +1263,8 @@ async function loadRoundsSummary(){
             <span class="round-course">${escapeHtml(r.course_name)}</span>
           </div>
           <div class="round-row-kpis">
-            ${r.total_strokes?`<span class="round-score">${scoreLabel}</span>`:''}
-            ${relStr?`<span class="round-putts">${relStr}</span>`:(r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:'')}
+            ${r.total_strokes?`<span class="round-score ${scoreColorClass}">${r.total_strokes}${totalRelStr?` <span style="font-size:13px;opacity:.75">${totalRelStr}</span>`:''}</span>`:''}
+            ${r.holes_played?`<span class="round-putts">${r.holes_played}h${relPerHole?' · '+relPerHole:''}</span>`:(r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:'')}
           </div>
           <span class="round-arrow">›</span>
         </div>
@@ -1382,17 +1384,20 @@ async function confirmRoundImport(){
   if(summary.bunkerUD.att>0)udParts.push(`Bunker ${summary.bunkerUD.made}/${summary.bunkerUD.att}`);
   if(msgEl){
     msgEl.style.color='';
-    msgEl.innerHTML=`<div style="background:var(--surface2);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13px;line-height:1.8;">
-      <div style="color:var(--green);font-weight:600;margin-bottom:4px;">✓ Round imported</div>
-      <div style="color:var(--text2);font-size:12px;">${escapeHtml(courseName)} · ${escapeHtml(roundDate)}</div>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">
-        <span>Score: <strong>${summary.totalStrokes}</strong></span>
-        <span>Putts: <strong>${summary.totalPutts}</strong></span>
-        <span>GIR: <strong>${summary.girCount}/${summary.holesPlayed}</strong></span>
-        ${summary.fwHitCount?`<span>FW: <strong>${summary.fwHitCount}</strong></span>`:''}
+    const relPar=summary.totalPar?(summary.totalStrokes-summary.totalPar):null;
+    const relStr=relPar!=null?(relPar===0?'E':relPar>0?`+${relPar}`:`${relPar}`):'';
+    const girPct=summary.holesPlayed?Math.round(summary.girCount/summary.holesPlayed*100):0;
+    msgEl.innerHTML=`<div class="round-import-card">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">✓ Round imported</div>
+      <div class="round-import-card-score">${summary.totalStrokes}${relStr?`<span style="font-size:22px;margin-left:8px;color:${relPar>0?'var(--amber)':relPar<0?'var(--green)':'var(--text2)'}">${relStr}</span>`:''}</div>
+      <div class="round-import-card-detail">${escapeHtml(courseName)} · ${escapeHtml(roundDate)} · ${summary.holesPlayed}h</div>
+      <div class="round-import-card-stats">
+        <div class="round-import-stat"><div class="round-import-stat-val">${summary.totalPutts||'–'}</div><div class="round-import-stat-lbl">Putts</div></div>
+        <div class="round-import-stat"><div class="round-import-stat-val">${summary.girCount}/${summary.holesPlayed}</div><div class="round-import-stat-lbl">GIR</div></div>
+        <div class="round-import-stat"><div class="round-import-stat-val">${summary.avgPuttsPerHole?summary.avgPuttsPerHole.toFixed(1):'–'}</div><div class="round-import-stat-lbl">Putts/H</div></div>
       </div>
-      ${parLines?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;color:var(--text2);">${parLines}</div>`:''}
-      ${udParts.length?`<div style="margin-top:4px;color:var(--text2);font-size:12px;">Up-and-down — ${udParts.join(' · ')}</div>`:''}
+      ${parLines?`<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text2);">${parLines}</div>`:''}
+      ${udParts.length?`<div style="margin-top:6px;font-size:12px;color:var(--text2);font-family:var(--mono);">U&D: ${udParts.join(' · ')}</div>`:''}
     </div>`;
   }
   await loadRoundsSummary();
