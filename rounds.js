@@ -133,6 +133,8 @@ window.importRound = async function(parsedData) {
     course_name: parsedData.courseName,
     total_strokes: summary.totalStrokes,
     total_putts: summary.totalPutts,
+    holes_played: summary.holesPlayed,
+    total_par: summary.totalPar,
   }).select('id').single();
 
   if (roundErr) return { ok: false, error: roundErr };
@@ -161,14 +163,62 @@ window.importRound = async function(parsedData) {
   return { ok: true, roundId };
 };
 
-/** Load recent rounds for the current user. */
+/**
+ * Update an existing round: replace metadata and all shots.
+ * Returns { ok, roundId, error }
+ */
+window.updateRound = async function(roundId, parsedData, summary) {
+  const sb = window.supabaseClient;
+  const { data: sd, error: se } = await sb.auth.getSession();
+  if (se || !sd?.session?.user) return { ok: false, error: { message: 'Not logged in' } };
+  const userId = sd.session.user.id;
+
+  const { error: updErr } = await sb.from('rounds').update({
+    round_date: parsedData.roundDate,
+    course_name: parsedData.courseName,
+    total_strokes: summary.totalStrokes,
+    total_putts: summary.totalPutts,
+    holes_played: summary.holesPlayed,
+    total_par: summary.totalPar,
+  }).eq('id', roundId).eq('user_id', userId);
+  if (updErr) return { ok: false, error: updErr };
+
+  const { error: delErr } = await sb.from('round_shots').delete().eq('round_id', roundId).eq('user_id', userId);
+  if (delErr) return { ok: false, error: delErr };
+
+  const shotRows = parsedData.shots.map(s => ({
+    round_id: roundId, user_id: userId,
+    hole: s.hole, par: s.par, hcp: s.hcp, shot_number: s.shot_number,
+    club: s.club, distance_m: s.distance_m, lie: s.lie,
+    comment: s.comment, is_penalty: s.is_penalty, miss_direction: s.miss_direction,
+  }));
+  for (let i = 0; i < shotRows.length; i += 100) {
+    const { error: shotErr } = await sb.from('round_shots').insert(shotRows.slice(i, i + 100));
+    if (shotErr) return { ok: false, error: shotErr };
+  }
+  return { ok: true, roundId };
+};
+
+/** Load a single round by id (must belong to current user). */
+window.loadRound = async function(roundId) {
+  const sb = window.supabaseClient;
+  const { data: sd } = await sb.auth.getSession();
+  const userId = sd?.session?.user?.id;
+  if (!userId) return null;
+  const { data, error } = await sb.from('rounds')
+    .select('id,round_date,course_name,holes_played,total_strokes,total_putts,total_par')
+    .eq('id', roundId).eq('user_id', userId).maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
 window.loadRounds = async function(limit = 10) {
   const sb = window.supabaseClient;
   const { data: sd } = await sb.auth.getSession();
   const userId = sd?.session?.user?.id;
   if (!userId) return [];
   const { data, error } = await sb.from('rounds')
-    .select('id,round_date,course_name,tees,total_strokes,total_putts,notes')
+    .select('id,round_date,course_name,tees,total_strokes,total_putts,holes_played,total_par,notes')
     .eq('user_id', userId)
     .order('round_date', { ascending: false })
     .limit(limit);
@@ -215,13 +265,14 @@ window.computeRoundSummary = function(shots) {
   });
   const holes = Object.keys(byHole).map(Number).sort((a, b) => a - b);
 
-  let totalStrokes = 0, totalPutts = 0, girCount = 0, fwHitCount = 0;
+  let totalStrokes = 0, totalPutts = 0, totalPar = 0, girCount = 0, fwHitCount = 0;
   const strokesByHole = [];
 
   holes.forEach(h => {
     const hs = byHole[h];
     const par = hs[0]?.par ?? null;
     totalStrokes += hs.length;
+    if (par) totalPar += par;
     const puttShots = hs.filter(s => s.club?.toLowerCase() === 'putter');
     totalPutts += puttShots.length;
     strokesByHole.push({ hole: h, par, strokes: hs.length, putts: puttShots.length });
@@ -265,6 +316,7 @@ window.computeRoundSummary = function(shots) {
   return {
     totalStrokes,
     totalPutts,
+    totalPar: totalPar || null,
     holesPlayed: holes.length,
     girCount,
     fwHitCount,

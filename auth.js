@@ -819,7 +819,7 @@ async function loadProgressSection(){
       sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       sb.from('putting_sessions').select('distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       // Rounds (graceful: tables may not exist yet)
-      sb.from('rounds').select('id,round_date,total_strokes,total_putts').eq('user_id',_currentUserId).gte('round_date',thirty).order('round_date',{ascending:false}),
+      sb.from('rounds').select('id,round_date,total_strokes,total_putts,holes_played,total_par').eq('user_id',_currentUserId).gte('round_date',thirty).order('round_date',{ascending:false}),
       sb.from('round_shots').select('round_id,hole,par,shot_number,lie,miss_direction').eq('user_id',_currentUserId).gte('created_at',thirty+'T00:00:00').limit(1000),
     ]);
     // ── Current period ──
@@ -968,10 +968,12 @@ async function loadProgressSection(){
     }else if(!recentRounds.length){
       roundsHtml='<div class="progress-group-label">On-course</div><div class="progress-empty">Log a round to see on-course progress.</div>';
     }else{
-      const rWithScore=recentRounds.filter(r=>r.total_strokes);
-      const avgScore=rWithScore.length?Math.round(rWithScore.reduce((s,r)=>s+r.total_strokes,0)/rWithScore.length):null;
-      const rWithPutts=recentRounds.filter(r=>r.total_putts);
-      const avgPuttsRound=rWithPutts.length?fmt(rWithPutts.reduce((s,r)=>s+r.total_putts,0)/rWithPutts.length,1):null;
+      const rWithScore=recentRounds.filter(r=>r.total_strokes&&r.holes_played);
+      const avgScorePerHole=rWithScore.length?rWithScore.reduce((s,r)=>s+r.total_strokes/r.holes_played,0)/rWithScore.length:null;
+      const rWithRel=recentRounds.filter(r=>r.total_strokes&&r.total_par&&r.holes_played);
+      const avgRelPerHole=rWithRel.length?rWithRel.reduce((s,r)=>s+(r.total_strokes-r.total_par)/r.holes_played,0)/rWithRel.length:null;
+      const rWithPutts=recentRounds.filter(r=>r.total_putts&&r.holes_played);
+      const avgPuttsPerHole=rWithPutts.length?fmt(rWithPutts.reduce((s,r)=>s+r.total_putts/r.holes_played,0)/rWithPutts.length,1):null;
       const dirShots=roundShotsDir.filter(s=>s.miss_direction);
       const ocLeft=dirShots.filter(s=>s.miss_direction?.includes('left')).length;
       const ocRight=dirShots.filter(s=>s.miss_direction?.includes('right')).length;
@@ -1027,8 +1029,9 @@ async function loadProgressSection(){
       roundsHtml=`<div class="progress-group-label">On-course — last 30 days</div>
       <div class="progress-card">
         ${row('Rounds played',recentRounds.length+(recentRounds.length===1?' round':' rounds'),null)}
-        ${avgScore!=null?row('Avg score',avgScore+' strokes',null):''}
-        ${avgPuttsRound!=null?row('Avg putts per round',avgPuttsRound,null):''}
+        ${avgScorePerHole!=null?row('Avg score / hole',avgScorePerHole.toFixed(1)+' strokes',null):''}
+        ${avgRelPerHole!=null?row('Avg vs par / hole',(avgRelPerHole>=0?'+':'')+avgRelPerHole.toFixed(1),null):''}
+        ${avgPuttsPerHole!=null?row('Avg putts / hole',avgPuttsPerHole,null):''}
         ${parRows}
         ${ocMissNote!=null?row('On-course miss',ocMissNote,null):''}
         ${ocDistNote!=null?row('Distance tendency',ocDistNote,null):''}
@@ -1220,29 +1223,52 @@ async function loadRoundsSummary(){
       return;
     }
     const last=rounds[0];
-    const rWithPutts=rounds.filter(r=>r.total_putts);
-    const avgPutts=rWithPutts.length?Math.round(rWithPutts.reduce((s,r)=>s+r.total_putts,0)/rWithPutts.length):null;
+    // Normalise to per-hole so 9h/18h/6h rounds are comparable
+    function normScore(r){
+      if(!r.total_strokes||!r.holes_played)return null;
+      return r.total_strokes/r.holes_played;
+    }
+    function normPutts(r){
+      if(!r.total_putts||!r.holes_played)return null;
+      return r.total_putts/r.holes_played;
+    }
+    function relPar(r){
+      if(!r.total_strokes||!r.total_par||!r.holes_played)return null;
+      return(r.total_strokes-r.total_par)/r.holes_played;
+    }
+    const rNorm=rounds.filter(r=>normScore(r)!=null);
+    const avgScorePerHole=rNorm.length?rNorm.reduce((s,r)=>s+normScore(r),0)/rNorm.length:null;
+    const rPutts=rounds.filter(r=>normPutts(r)!=null);
+    const avgPuttsPerHole=rPutts.length?rPutts.reduce((s,r)=>s+normPutts(r),0)/rPutts.length:null;
+    const lastNorm=normScore(last);
+    const lastRel=relPar(last);
+    const lastLabel=last.holes_played?`${last.total_strokes??'–'} / ${last.holes_played}h`:(last.total_strokes??'–');
     if(summaryEl)summaryEl.innerHTML=`<div class="round-kpi-band">
       <div class="round-kpi-item"><div class="round-kpi-val">${rounds.length}</div><div class="round-kpi-lbl">Rounds</div></div>
-      <div class="round-kpi-item"><div class="round-kpi-val">${last.total_strokes??'–'}</div><div class="round-kpi-lbl">Last score</div></div>
-      <div class="round-kpi-item"><div class="round-kpi-val">${avgPutts??'–'}</div><div class="round-kpi-lbl">Avg putts</div></div>
-      <div class="round-kpi-item"><div class="round-kpi-val">${last.round_date}</div><div class="round-kpi-lbl">Last round</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${lastLabel}</div><div class="round-kpi-lbl">Last score</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${avgScorePerHole!=null?avgScorePerHole.toFixed(1):'–'}</div><div class="round-kpi-lbl">Avg / hole</div></div>
+      <div class="round-kpi-item"><div class="round-kpi-val">${avgPuttsPerHole!=null?avgPuttsPerHole.toFixed(1):'–'}</div><div class="round-kpi-lbl">Putts / hole</div></div>
     </div>`;
-    if(listEl)listEl.innerHTML=rounds.slice(0,5).map(r=>`
-      <div class="round-row" id="round-row-${escapeHtml(r.id)}">
+    if(listEl)listEl.innerHTML=rounds.slice(0,5).map(r=>{
+      const rph=normScore(r);
+      const rel=relPar(r);
+      const relStr=rel!=null?(rel>=0?`+${rel.toFixed(1)}`:`${rel.toFixed(1)}`)+'/h':'';
+      const scoreLabel=r.holes_played?`${r.total_strokes??'–'}/${r.holes_played}h`:(r.total_strokes??'–');
+      return`<div class="round-row" id="round-row-${escapeHtml(r.id)}">
         <div class="round-row-head" onclick="toggleRoundRow('${escapeHtml(r.id)}')">
           <div class="round-row-info">
             <span class="round-date">${escapeHtml(r.round_date)}</span>
             <span class="round-course">${escapeHtml(r.course_name)}</span>
           </div>
           <div class="round-row-kpis">
-            ${r.total_strokes?`<span class="round-score">${r.total_strokes}</span>`:''}
-            ${r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:''}
+            ${r.total_strokes?`<span class="round-score">${scoreLabel}</span>`:''}
+            ${relStr?`<span class="round-putts">${relStr}</span>`:(r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:'')}
           </div>
           <span class="round-arrow">›</span>
         </div>
         <div class="round-row-body" id="round-body-${escapeHtml(r.id)}" style="display:none;"></div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }catch(e){
     const m='<div class="stats-empty-small">Run the latest migration to enable round tracking.</div>';
     if(summaryEl)summaryEl.innerHTML=m;
@@ -1290,6 +1316,7 @@ function _renderRoundBody(shots,summary,roundId){
     <tbody>${rows}${totRow}</tbody>
   </table></div>
   <div class="round-body-actions">
+    <button class="round-edit-btn" onclick="editRoundById('${escapeHtml(roundId)}')">Edit round</button>
     <button class="round-delete-btn" onclick="deleteRoundById('${escapeHtml(roundId)}')">Delete round</button>
   </div>`;
 }
@@ -1440,7 +1467,7 @@ window._mrCommentField=function(holeNum,shotIdx,val){
 };
 
 function _mrRender(){
-  const el=document.getElementById('manual-round-hole-form');
+  const el=document.getElementById(_mr?.containerElId||'manual-round-hole-form');
   if(!el||!_mr)return;
   const h=_mr.holes[_mr.cur]||{par:null,hcp:null,shots:[]};
   const shots=h.shots||[];
@@ -1489,22 +1516,50 @@ function _mrRender(){
     <div class="form-actions" style="flex-wrap:wrap;gap:8px;">
       <button onclick="_mrAddShot()" style="background:var(--surface2);color:var(--text);">+ Add shot</button>
       ${_mr.cur>1?`<button onclick="_mrNav(-1)" style="background:var(--surface2);color:var(--text);">← Prev</button>`:''}
-      ${!isLast?`<button onclick="_mrNav(1)">Next hole →</button>`:`<button onclick="_mrFinish()">Finish &amp; import</button>`}
+      ${!isLast?`<button onclick="_mrNav(1)">Next hole →</button>`:''}
+      ${isLast?`<button onclick="_mrAddHole()" style="background:var(--surface2);color:var(--text);">+ Add hole</button>`:''}
+      ${isLast?`<button onclick="_mrFinish()">${_mr.editRoundId?'Save changes':'Finish &amp; import'}</button>`:''}
+      ${_mr.editRoundId?`<button onclick="_mrCancelEdit()" style="background:none;color:var(--text3);border:0.5px solid var(--border);">Cancel</button>`:''}
     </div>
   </div>`;
 }
 
 window._mrNav=function(dir){
   if(!_mr)return;
-  // Save current hole shots from DOM before navigating (select/input values already wired via onchange)
   _mr.cur=Math.max(1,Math.min(_mr.total,_mr.cur+dir));
   if(!_mr.holes[_mr.cur])_mr.holes[_mr.cur]={par:null,hcp:null,shots:[]};
   _mrRender();
 };
 
+window._mrAddHole=function(){
+  if(!_mr)return;
+  _mr.total++;
+  _mr.cur=_mr.total;
+  _mr.holes[_mr.cur]={par:null,hcp:null,shots:[]};
+  _mrRender();
+};
+
+window._mrCancelEdit=async function(){
+  if(!_mr?.editRoundId)return;
+  const roundId=_mr.editRoundId;
+  _mr=null;
+  const body=document.getElementById('round-body-'+roundId);
+  if(!body)return;
+  body.innerHTML='<div class="round-body-loading">Loading…</div>';
+  try{
+    const shots=await window.loadRoundShots(roundId);
+    const summary=window.computeRoundSummary(shots);
+    body.innerHTML=_renderRoundBody(shots,summary,roundId);
+  }catch(e){
+    body.innerHTML='<div class="stats-error">Failed to reload round.</div>';
+  }
+};
+
 window._mrFinish=async function(){
   if(!_mr)return;
-  const msgEl=document.getElementById('manual-round-msg');
+  const msgEl=_mr.editRoundId
+    ?document.getElementById('round-body-'+_mr.editRoundId)
+    :document.getElementById('manual-round-msg');
   // Build shots array
   const shots=[];
   for(let h=1;h<=_mr.total;h++){
@@ -1526,13 +1581,32 @@ window._mrFinish=async function(){
   }
   const parsedData={roundDate:_mr.roundDate,courseName:_mr.courseName,holes:[],shots};
   const summary=window.computeRoundSummary(shots);
-  const result=await window.importRound(parsedData);
-  const formEl=document.getElementById('manual-round-hole-form');
+  const isEdit=!!_mr.editRoundId;
+  const editRoundId=_mr.editRoundId;
+  const containerElId=_mr.containerElId;
+  const result=isEdit
+    ?await window.updateRound(editRoundId,parsedData,summary)
+    :await window.importRound(parsedData);
   if(!result.ok){
     if(msgEl){msgEl.textContent='Error: '+(result.error?.message||'Unknown error');msgEl.style.color='var(--red)';}
     return;
   }
   _mr=null;
+  if(isEdit){
+    // Reload the round body in-place
+    const body=document.getElementById(containerElId);
+    if(body){
+      body.innerHTML='<div class="round-body-loading">Loading…</div>';
+      try{
+        const updatedShots=await window.loadRoundShots(editRoundId);
+        const updatedSummary=window.computeRoundSummary(updatedShots);
+        body.innerHTML=_renderRoundBody(updatedShots,updatedSummary,editRoundId);
+      }catch(e){body.innerHTML='<div class="stats-error">Saved, but failed to reload.</div>';}
+    }
+    await loadRoundsSummary();
+    return;
+  }
+  const formEl=document.getElementById('manual-round-hole-form');
   if(formEl)formEl.style.display='none';
   document.getElementById('manual-round-setup').style.display='';
   // Show summary card
@@ -1560,6 +1634,39 @@ window._mrFinish=async function(){
   await loadRoundsSummary();
 };
 
+window.editRoundById=async function(roundId){
+  const body=document.getElementById('round-body-'+roundId);
+  if(!body)return;
+  body.innerHTML='<div class="round-body-loading">Loading shots…</div>';
+  try{
+    const [roundMeta,shots]=await Promise.all([window.loadRound(roundId),window.loadRoundShots(roundId)]);
+    const roundDate=roundMeta?.round_date||'';
+    const courseName=roundMeta?.course_name||'';
+    if(!shots.length){body.innerHTML='<div class="stats-error">No shots found to edit.</div>';return;}
+    // Build _mr state from existing shots
+    const holesMap={};
+    shots.forEach(s=>{
+      if(!holesMap[s.hole])holesMap[s.hole]={par:s.par??null,hcp:s.hcp??null,shots:[]};
+      holesMap[s.hole].shots.push({
+        club:s.club||'',distance_m:s.distance_m??null,
+        lie:s.lie||'',miss_direction:s.miss_direction||'',comment:s.comment||'',
+      });
+    });
+    // Sort shots within each hole by shot_number
+    Object.values(holesMap).forEach(h=>h.shots.sort((a,b)=>(a.shot_number||0)-(b.shot_number||0)));
+    const holeNums=Object.keys(holesMap).map(Number);
+    const total=Math.max(...holeNums);
+    // Fill missing holes
+    for(let h=1;h<=total;h++){if(!holesMap[h])holesMap[h]={par:null,hcp:null,shots:[]};}
+    _mr={roundDate,courseName,total,cur:1,holes:holesMap,
+         containerElId:'round-body-'+roundId,editRoundId:roundId};
+    body.style.display='block';
+    _mrRender();
+  }catch(e){
+    body.innerHTML='<div class="stats-error">Failed to load shots for editing.</div>';
+  }
+};
+
 window.startManualRound=function(){
   const dateEl=document.getElementById('manual-round-date');
   const courseEl=document.getElementById('manual-round-course');
@@ -1571,7 +1678,7 @@ window.startManualRound=function(){
   if(!roundDate){if(msgEl){msgEl.textContent='Please enter a date.';msgEl.style.color='var(--red)';}return;}
   if(!courseName){if(msgEl){msgEl.textContent='Please enter a course name.';msgEl.style.color='var(--red)';}return;}
   if(msgEl)msgEl.textContent='';
-  _mr={roundDate,courseName,total,cur:1,holes:{}};
+  _mr={roundDate,courseName,total,cur:1,holes:{},containerElId:'manual-round-hole-form',editRoundId:null};
   for(let h=1;h<=total;h++)_mr.holes[h]={par:null,hcp:null,shots:[]};
   document.getElementById('manual-round-setup').style.display='none';
   const formEl=document.getElementById('manual-round-hole-form');

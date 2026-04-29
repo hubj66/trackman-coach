@@ -181,6 +181,8 @@ CREATE TABLE IF NOT EXISTS rounds (
   tees          text,
   total_strokes integer,
   total_putts   integer,
+  holes_played  integer,
+  total_par     integer,
   notes         text,
   created_at    timestamptz DEFAULT now()
 );
@@ -215,6 +217,10 @@ CREATE POLICY "own_rounds" ON rounds
 CREATE POLICY "own_round_shots" ON round_shots
   USING  (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
+
+-- Add holes_played and total_par to existing rounds tables (safe to re-run)
+ALTER TABLE rounds ADD COLUMN IF NOT EXISTS holes_played integer;
+ALTER TABLE rounds ADD COLUMN IF NOT EXISTS total_par    integer;
 
 CREATE INDEX IF NOT EXISTS idx_rounds_user_date     ON rounds      (user_id, round_date DESC);
 CREATE INDEX IF NOT EXISTS idx_round_shots_round    ON round_shots (round_id);
