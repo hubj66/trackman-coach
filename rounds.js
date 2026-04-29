@@ -15,10 +15,16 @@ window.normaliseRoundClub = function(raw) {
 
 function parseMissDir(val) {
   if (!val) return null;
-  const v = val.trim().toLowerCase();
+  const v = val.trim().toLowerCase().replace(/\s+/g, '-');
   if (v === 'l' || v === 'left') return 'left';
   if (v === 'r' || v === 'right') return 'right';
-  if (v === 's' || v === 'straight' || v === 'centre' || v === 'center') return 'straight';
+  if (v === 's' || v === 'c' || v === 'straight' || v === 'centre' || v === 'center') return 'straight';
+  if (v === '+' || v === 'long' || v === 'lg') return 'long';
+  if (v === '-' || v === 'short' || v === 'sh') return 'short';
+  if (v === 'l+' || v === 'left-long' || v === 'll') return 'left-long';
+  if (v === 'l-' || v === 'left-short' || v === 'ls') return 'left-short';
+  if (v === 'r+' || v === 'right-long' || v === 'rl') return 'right-long';
+  if (v === 'r-' || v === 'right-short' || v === 'rs') return 'right-short';
   return null;
 }
 

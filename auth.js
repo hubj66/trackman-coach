@@ -559,9 +559,13 @@ function renderBagCards(){
     const ocAvgDist=ocDists.length>=3?Math.round(ocDists.reduce((a,b)=>a+b,0)/ocDists.length):null;
     const ocGap=ocAvgDist!=null&&avgC!=null?ocAvgDist-Math.round(avgC):null;
     const ocDirShots=ocShots.filter(s=>s.miss_direction);
-    const ocLeft=ocDirShots.filter(s=>s.miss_direction==='left').length;
-    const ocRight=ocDirShots.filter(s=>s.miss_direction==='right').length;
+    const ocLeft=ocDirShots.filter(s=>s.miss_direction?.includes('left')).length;
+    const ocRight=ocDirShots.filter(s=>s.miss_direction?.includes('right')).length;
     const ocMissDir=ocDirShots.length>=3?(ocLeft>ocRight?'Left':ocRight>ocLeft?'Right':'Straight'):null;
+    const ocDistTagged=ocShots.filter(s=>s.miss_direction&&(s.miss_direction.includes('short')||s.miss_direction.includes('long')));
+    const ocShortCount=ocDistTagged.filter(s=>s.miss_direction.includes('short')).length;
+    const ocLongCount=ocDistTagged.filter(s=>s.miss_direction.includes('long')).length;
+    const ocDistTend=ocDistTagged.length>=3?(ocShortCount/ocDistTagged.length>=0.6?'Short':ocLongCount/ocDistTagged.length>=0.6?'Long':'On target'):null;
     const missChip=miss==='Straight'?'chip-ok':(miss==='–'?'chip-neutral':'chip-warn');
     const k=escapeHtml(row.club_key||'');
     return`<div class="bag-card${row.is_active?'':' bag-card-inactive'}${expanded?' bag-card-open':''}">
@@ -588,6 +592,7 @@ ${expanded?`<div class="bag-card-body">
       <div class="bag-stat-row"><span>Main miss</span><strong>${miss}</strong></div>
       <div class="bag-stat-row"><span>Playable</span><strong>${playable}</strong></div>
       ${ocMissDir!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>On-course miss</span><strong>${ocMissDir}</strong></div>`:''}
+      ${ocDistTend!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>On-course distance</span><strong>${ocDistTend}</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Contact</div>
       <div class="bag-stat-row"><span>Smash</span><strong>${avgSmash?fmt(avgSmash,2):'–'}</strong></div>
@@ -961,8 +966,8 @@ async function loadProgressSection(){
       const rWithPutts=recentRounds.filter(r=>r.total_putts);
       const avgPuttsRound=rWithPutts.length?fmt(rWithPutts.reduce((s,r)=>s+r.total_putts,0)/rWithPutts.length,1):null;
       const dirShots=roundShotsDir.filter(s=>s.miss_direction);
-      const ocLeft=dirShots.filter(s=>s.miss_direction==='left').length;
-      const ocRight=dirShots.filter(s=>s.miss_direction==='right').length;
+      const ocLeft=dirShots.filter(s=>s.miss_direction?.includes('left')).length;
+      const ocRight=dirShots.filter(s=>s.miss_direction?.includes('right')).length;
       const ocTotal=dirShots.length;
       let ocMissNote=null;
       if(ocTotal>=5){
@@ -974,12 +979,22 @@ async function loadProgressSection(){
           ocMissNote=`Miss ${ocDir} on course${match?' — matches TrackMan pattern':tmDir?' — opposite to TrackMan':''}`;
         }else{ocMissNote='No clear miss pattern';}
       }
+      const distTagged=roundShotsDir.filter(s=>s.miss_direction&&(s.miss_direction.includes('short')||s.miss_direction.includes('long')));
+      const ocShortPct=distTagged.filter(s=>s.miss_direction.includes('short')).length;
+      const ocLongPct=distTagged.filter(s=>s.miss_direction.includes('long')).length;
+      let ocDistNote=null;
+      if(distTagged.length>=5){
+        const sp=ocShortPct/distTagged.length*100,lp=ocLongPct/distTagged.length*100;
+        if(sp>=60)ocDistNote=`Tend to come up short (${Math.round(sp)}%)`;
+        else if(lp>=60)ocDistNote=`Tend to overshoot (${Math.round(lp)}%)`;
+      }
       roundsHtml=`<div class="progress-group-label">On-course — last 30 days</div>
       <div class="progress-card">
         ${row('Rounds played',recentRounds.length+(recentRounds.length===1?' round':' rounds'),null)}
         ${avgScore!=null?row('Avg score',avgScore+' strokes',null):''}
         ${avgPuttsRound!=null?row('Avg putts per round',avgPuttsRound,null):''}
         ${ocMissNote!=null?row('On-course miss',ocMissNote,null):''}
+        ${ocDistNote!=null?row('Distance tendency',ocDistNote,null):''}
       </div>`;
     }
 
