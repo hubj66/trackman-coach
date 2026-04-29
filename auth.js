@@ -1316,6 +1316,7 @@ function _renderRoundBody(shots,summary,roundId){
     <tbody>${rows}${totRow}</tbody>
   </table></div>
   <div class="round-body-actions">
+    <button class="round-edit-btn" onclick="editRoundById('${escapeHtml(roundId)}')">Edit round</button>
     <button class="round-delete-btn" onclick="deleteRoundById('${escapeHtml(roundId)}')">Delete round</button>
   </div>`;
 }
@@ -1466,7 +1467,7 @@ window._mrCommentField=function(holeNum,shotIdx,val){
 };
 
 function _mrRender(){
-  const el=document.getElementById('manual-round-hole-form');
+  const el=document.getElementById(_mr?.containerElId||'manual-round-hole-form');
   if(!el||!_mr)return;
   const h=_mr.holes[_mr.cur]||{par:null,hcp:null,shots:[]};
   const shots=h.shots||[];
@@ -1515,22 +1516,50 @@ function _mrRender(){
     <div class="form-actions" style="flex-wrap:wrap;gap:8px;">
       <button onclick="_mrAddShot()" style="background:var(--surface2);color:var(--text);">+ Add shot</button>
       ${_mr.cur>1?`<button onclick="_mrNav(-1)" style="background:var(--surface2);color:var(--text);">← Prev</button>`:''}
-      ${!isLast?`<button onclick="_mrNav(1)">Next hole →</button>`:`<button onclick="_mrFinish()">Finish &amp; import</button>`}
+      ${!isLast?`<button onclick="_mrNav(1)">Next hole →</button>`:''}
+      ${isLast?`<button onclick="_mrAddHole()" style="background:var(--surface2);color:var(--text);">+ Add hole</button>`:''}
+      ${isLast?`<button onclick="_mrFinish()">${_mr.editRoundId?'Save changes':'Finish &amp; import'}</button>`:''}
+      ${_mr.editRoundId?`<button onclick="_mrCancelEdit()" style="background:none;color:var(--text3);border:0.5px solid var(--border);">Cancel</button>`:''}
     </div>
   </div>`;
 }
 
 window._mrNav=function(dir){
   if(!_mr)return;
-  // Save current hole shots from DOM before navigating (select/input values already wired via onchange)
   _mr.cur=Math.max(1,Math.min(_mr.total,_mr.cur+dir));
   if(!_mr.holes[_mr.cur])_mr.holes[_mr.cur]={par:null,hcp:null,shots:[]};
   _mrRender();
 };
 
+window._mrAddHole=function(){
+  if(!_mr)return;
+  _mr.total++;
+  _mr.cur=_mr.total;
+  _mr.holes[_mr.cur]={par:null,hcp:null,shots:[]};
+  _mrRender();
+};
+
+window._mrCancelEdit=async function(){
+  if(!_mr?.editRoundId)return;
+  const roundId=_mr.editRoundId;
+  _mr=null;
+  const body=document.getElementById('round-body-'+roundId);
+  if(!body)return;
+  body.innerHTML='<div class="round-body-loading">Loading…</div>';
+  try{
+    const shots=await window.loadRoundShots(roundId);
+    const summary=window.computeRoundSummary(shots);
+    body.innerHTML=_renderRoundBody(shots,summary,roundId);
+  }catch(e){
+    body.innerHTML='<div class="stats-error">Failed to reload round.</div>';
+  }
+};
+
 window._mrFinish=async function(){
   if(!_mr)return;
-  const msgEl=document.getElementById('manual-round-msg');
+  const msgEl=_mr.editRoundId
+    ?document.getElementById('round-body-'+_mr.editRoundId)
+    :document.getElementById('manual-round-msg');
   // Build shots array
   const shots=[];
   for(let h=1;h<=_mr.total;h++){
@@ -1552,13 +1581,32 @@ window._mrFinish=async function(){
   }
   const parsedData={roundDate:_mr.roundDate,courseName:_mr.courseName,holes:[],shots};
   const summary=window.computeRoundSummary(shots);
-  const result=await window.importRound(parsedData);
-  const formEl=document.getElementById('manual-round-hole-form');
+  const isEdit=!!_mr.editRoundId;
+  const editRoundId=_mr.editRoundId;
+  const containerElId=_mr.containerElId;
+  const result=isEdit
+    ?await window.updateRound(editRoundId,parsedData,summary)
+    :await window.importRound(parsedData);
   if(!result.ok){
     if(msgEl){msgEl.textContent='Error: '+(result.error?.message||'Unknown error');msgEl.style.color='var(--red)';}
     return;
   }
   _mr=null;
+  if(isEdit){
+    // Reload the round body in-place
+    const body=document.getElementById(containerElId);
+    if(body){
+      body.innerHTML='<div class="round-body-loading">Loading…</div>';
+      try{
+        const updatedShots=await window.loadRoundShots(editRoundId);
+        const updatedSummary=window.computeRoundSummary(updatedShots);
+        body.innerHTML=_renderRoundBody(updatedShots,updatedSummary,editRoundId);
+      }catch(e){body.innerHTML='<div class="stats-error">Saved, but failed to reload.</div>';}
+    }
+    await loadRoundsSummary();
+    return;
+  }
+  const formEl=document.getElementById('manual-round-hole-form');
   if(formEl)formEl.style.display='none';
   document.getElementById('manual-round-setup').style.display='';
   // Show summary card
@@ -1586,6 +1634,39 @@ window._mrFinish=async function(){
   await loadRoundsSummary();
 };
 
+window.editRoundById=async function(roundId){
+  const body=document.getElementById('round-body-'+roundId);
+  if(!body)return;
+  body.innerHTML='<div class="round-body-loading">Loading shots…</div>';
+  try{
+    const [roundMeta,shots]=await Promise.all([window.loadRound(roundId),window.loadRoundShots(roundId)]);
+    const roundDate=roundMeta?.round_date||'';
+    const courseName=roundMeta?.course_name||'';
+    if(!shots.length){body.innerHTML='<div class="stats-error">No shots found to edit.</div>';return;}
+    // Build _mr state from existing shots
+    const holesMap={};
+    shots.forEach(s=>{
+      if(!holesMap[s.hole])holesMap[s.hole]={par:s.par??null,hcp:s.hcp??null,shots:[]};
+      holesMap[s.hole].shots.push({
+        club:s.club||'',distance_m:s.distance_m??null,
+        lie:s.lie||'',miss_direction:s.miss_direction||'',comment:s.comment||'',
+      });
+    });
+    // Sort shots within each hole by shot_number
+    Object.values(holesMap).forEach(h=>h.shots.sort((a,b)=>(a.shot_number||0)-(b.shot_number||0)));
+    const holeNums=Object.keys(holesMap).map(Number);
+    const total=Math.max(...holeNums);
+    // Fill missing holes
+    for(let h=1;h<=total;h++){if(!holesMap[h])holesMap[h]={par:null,hcp:null,shots:[]};}
+    _mr={roundDate,courseName,total,cur:1,holes:holesMap,
+         containerElId:'round-body-'+roundId,editRoundId:roundId};
+    body.style.display='block';
+    _mrRender();
+  }catch(e){
+    body.innerHTML='<div class="stats-error">Failed to load shots for editing.</div>';
+  }
+};
+
 window.startManualRound=function(){
   const dateEl=document.getElementById('manual-round-date');
   const courseEl=document.getElementById('manual-round-course');
@@ -1597,7 +1678,7 @@ window.startManualRound=function(){
   if(!roundDate){if(msgEl){msgEl.textContent='Please enter a date.';msgEl.style.color='var(--red)';}return;}
   if(!courseName){if(msgEl){msgEl.textContent='Please enter a course name.';msgEl.style.color='var(--red)';}return;}
   if(msgEl)msgEl.textContent='';
-  _mr={roundDate,courseName,total,cur:1,holes:{}};
+  _mr={roundDate,courseName,total,cur:1,holes:{},containerElId:'manual-round-hole-form',editRoundId:null};
   for(let h=1;h<=total;h++)_mr.holes[h]={par:null,hcp:null,shots:[]};
   document.getElementById('manual-round-setup').style.display='none';
   const formEl=document.getElementById('manual-round-hole-form');
