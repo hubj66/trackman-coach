@@ -1415,6 +1415,37 @@ const MANUAL_MISS=[
 
 let _mr=null; // manual round state
 
+function _mrDistMax(club){
+  if(club==='driver')return 320;
+  if(['3w','5w','7w'].includes(club))return 280;
+  if(club==='hybrid')return 240;
+  if(['2i','3'].includes(club))return 220;
+  if(['4','5','6'].includes(club))return 200;
+  if(['7','8','9'].includes(club))return 180;
+  if(['pw','aw'].includes(club))return 150;
+  if(['sw','lw','58'].includes(club))return 120;
+  if(club==='putter')return 25;
+  return 300;
+}
+
+window._mrDistSliderInput=function(holeNum,shotIdx,val,max){
+  const n=parseInt(val,10);
+  if(!_mr?.holes[holeNum]?.shots[shotIdx])return;
+  _mr.holes[holeNum].shots[shotIdx].distance_m=n>0?n:null;
+  const numEl=document.getElementById(`mr-dn-${shotIdx}`);
+  if(numEl)numEl.value=n>0?n:'';
+  const sl=document.getElementById(`mr-ds-${shotIdx}`);
+  if(sl)sl.style.setProperty('--track-pct',Math.round(n/max*100)+'%');
+};
+
+window._mrDistNumInput=function(holeNum,shotIdx,val,max){
+  const n=parseInt(val,10);
+  if(!_mr?.holes[holeNum]?.shots[shotIdx])return;
+  _mr.holes[holeNum].shots[shotIdx].distance_m=(!isNaN(n)&&n>0&&n<=400)?n:null;
+  const sl=document.getElementById(`mr-ds-${shotIdx}`);
+  if(sl){sl.value=Math.min(max,n||0);sl.style.setProperty('--track-pct',Math.round(Math.min(max,n||0)/max*100)+'%');}
+};
+
 function _mrClubSel(shotIdx){
   const cur=_mr.holes[_mr.cur]?.shots[shotIdx]?.club||'';
   return`<select style="flex:1;min-width:90px;" onchange="_mrShotField(${_mr.cur},${shotIdx},'club',this.value)">
@@ -1437,6 +1468,7 @@ window._mrShotField=function(holeNum,shotIdx,field,val){
   if(!_mr||!_mr.holes[holeNum])return;
   if(!_mr.holes[holeNum].shots[shotIdx])_mr.holes[holeNum].shots[shotIdx]={};
   _mr.holes[holeNum].shots[shotIdx][field]=val;
+  if(field==='club')_mrRender(); // update slider max when club changes
 };
 window._mrHoleField=function(holeNum,field,val){
   if(!_mr)return;
@@ -1512,15 +1544,29 @@ function _mrRender(){
       </div>
       <div class="mr-shots-label">Shots</div>
       ${shots.length===0?`<div class="mr-empty-shots">No shots yet — tap + Add shot</div>`:''}
-      ${shots.map((s,i)=>`<div class="mr-shot-card">
+      ${shots.map((s,i)=>{
+        const dmax=_mrDistMax(s.club||'');
+        const dval=s.distance_m??0;
+        const dpct=Math.round(Math.min(dmax,dval)/dmax*100);
+        return`<div class="mr-shot-card">
         <div class="mr-shot-header">
           <span class="mr-shot-num">SHOT ${i+1}</span>
           <button class="mr-shot-del" onclick="_mrRemoveShot(${i})">✕ Remove</button>
         </div>
-        <div class="mr-shot-row">
-          ${_mrClubSel(i)}
-          <input type="number" placeholder="Dist (m)" min="1" max="400" value="${s.distance_m??''}"
-            style="flex:1;min-width:70px;" onchange="_mrDistField(${_mr.cur},${i},this.value)">
+        <div class="mr-shot-row">${_mrClubSel(i)}</div>
+        <div style="margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">
+            <span style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;">Distance</span>
+            <div style="display:flex;align-items:baseline;gap:3px;">
+              <input type="number" id="mr-dn-${i}" min="0" max="400" value="${dval||''}" placeholder="—"
+                style="width:52px;text-align:right;font-family:var(--cond);font-size:18px;font-weight:700;border:none;background:transparent;padding:0;color:var(--text);"
+                oninput="_mrDistNumInput(${_mr.cur},${i},this.value,${dmax})">
+              <span style="font-size:12px;color:var(--text3);">m</span>
+            </div>
+          </div>
+          <input type="range" id="mr-ds-${i}" min="0" max="${dmax}" value="${dval||0}"
+            style="--track-pct:${dpct}%;--track-color:var(--accent);width:100%;margin:0;"
+            oninput="_mrDistSliderInput(${_mr.cur},${i},this.value,${dmax})">
         </div>
         <div class="mr-shot-row">
           ${_mrLieSel(i)}
@@ -1530,7 +1576,7 @@ function _mrRender(){
           <input type="text" placeholder="Comment (optional)" value="${escapeHtml(s.comment||'')}"
             style="flex:1;" onchange="_mrCommentField(${_mr.cur},${i},this.value)">
         </div>
-      </div>`).join('')}
+      </div>`;}).join('')}
     </div>
     <div class="mr-actions">
       <button class="mr-add-btn" onclick="_mrAddShot()">+ Add shot</button>
