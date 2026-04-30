@@ -1250,10 +1250,12 @@ async function loadRoundsSummary(){
       <div class="round-kpi-item"><div class="round-kpi-val">${avgPuttsPerHole!=null?avgPuttsPerHole.toFixed(1):'–'}</div><div class="round-kpi-lbl">Putts / hole</div></div>
     </div>`;
     if(listEl)listEl.innerHTML=rounds.slice(0,5).map(r=>{
-      const rph=normScore(r);
       const rel=relPar(r);
-      const relStr=rel!=null?(rel>=0?`+${rel.toFixed(1)}`:`${rel.toFixed(1)}`)+'/h':'';
+      const relPerHole=rel!=null?(rel>=0?`+${rel.toFixed(1)}`:`${rel.toFixed(1)}`)+'/h':'';
+      const totalRel=r.total_strokes&&r.total_par?r.total_strokes-r.total_par:null;
+      const totalRelStr=totalRel!=null?(totalRel===0?'E':totalRel>0?`+${totalRel}`:`${totalRel}`):'';
       const scoreLabel=r.holes_played?`${r.total_strokes??'–'}/${r.holes_played}h`:(r.total_strokes??'–');
+      const scoreColorClass=totalRel!=null?(totalRel>0?'round-score-over':totalRel<0?'round-score-under':'round-score-even'):'';
       return`<div class="round-row" id="round-row-${escapeHtml(r.id)}">
         <div class="round-row-head" onclick="toggleRoundRow('${escapeHtml(r.id)}')">
           <div class="round-row-info">
@@ -1261,8 +1263,8 @@ async function loadRoundsSummary(){
             <span class="round-course">${escapeHtml(r.course_name)}</span>
           </div>
           <div class="round-row-kpis">
-            ${r.total_strokes?`<span class="round-score">${scoreLabel}</span>`:''}
-            ${relStr?`<span class="round-putts">${relStr}</span>`:(r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:'')}
+            ${r.total_strokes?`<span class="round-score ${scoreColorClass}">${r.total_strokes}${totalRelStr?` <span style="font-size:13px;opacity:.75">${totalRelStr}</span>`:''}</span>`:''}
+            ${r.holes_played?`<span class="round-putts">${r.holes_played}h${relPerHole?' · '+relPerHole:''}</span>`:(r.total_putts?`<span class="round-putts">${r.total_putts}p</span>`:'')}
           </div>
           <span class="round-arrow">›</span>
         </div>
@@ -1382,17 +1384,20 @@ async function confirmRoundImport(){
   if(summary.bunkerUD.att>0)udParts.push(`Bunker ${summary.bunkerUD.made}/${summary.bunkerUD.att}`);
   if(msgEl){
     msgEl.style.color='';
-    msgEl.innerHTML=`<div style="background:var(--surface2);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13px;line-height:1.8;">
-      <div style="color:var(--green);font-weight:600;margin-bottom:4px;">✓ Round imported</div>
-      <div style="color:var(--text2);font-size:12px;">${escapeHtml(courseName)} · ${escapeHtml(roundDate)}</div>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">
-        <span>Score: <strong>${summary.totalStrokes}</strong></span>
-        <span>Putts: <strong>${summary.totalPutts}</strong></span>
-        <span>GIR: <strong>${summary.girCount}/${summary.holesPlayed}</strong></span>
-        ${summary.fwHitCount?`<span>FW: <strong>${summary.fwHitCount}</strong></span>`:''}
+    const relPar=summary.totalPar?(summary.totalStrokes-summary.totalPar):null;
+    const relStr=relPar!=null?(relPar===0?'E':relPar>0?`+${relPar}`:`${relPar}`):'';
+    const girPct=summary.holesPlayed?Math.round(summary.girCount/summary.holesPlayed*100):0;
+    msgEl.innerHTML=`<div class="round-import-card">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">✓ Round imported</div>
+      <div class="round-import-card-score">${summary.totalStrokes}${relStr?`<span style="font-size:22px;margin-left:8px;color:${relPar>0?'var(--amber)':relPar<0?'var(--green)':'var(--text2)'}">${relStr}</span>`:''}</div>
+      <div class="round-import-card-detail">${escapeHtml(courseName)} · ${escapeHtml(roundDate)} · ${summary.holesPlayed}h</div>
+      <div class="round-import-card-stats">
+        <div class="round-import-stat"><div class="round-import-stat-val">${summary.totalPutts||'–'}</div><div class="round-import-stat-lbl">Putts</div></div>
+        <div class="round-import-stat"><div class="round-import-stat-val">${summary.girCount}/${summary.holesPlayed}</div><div class="round-import-stat-lbl">GIR</div></div>
+        <div class="round-import-stat"><div class="round-import-stat-val">${summary.avgPuttsPerHole?summary.avgPuttsPerHole.toFixed(1):'–'}</div><div class="round-import-stat-lbl">Putts/H</div></div>
       </div>
-      ${parLines?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;color:var(--text2);">${parLines}</div>`:''}
-      ${udParts.length?`<div style="margin-top:4px;color:var(--text2);font-size:12px;">Up-and-down — ${udParts.join(' · ')}</div>`:''}
+      ${parLines?`<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text2);">${parLines}</div>`:''}
+      ${udParts.length?`<div style="margin-top:6px;font-size:12px;color:var(--text2);font-family:var(--mono);">U&D: ${udParts.join(' · ')}</div>`:''}
     </div>`;
   }
   await loadRoundsSummary();
@@ -1414,6 +1419,37 @@ const MANUAL_MISS=[
 ];
 
 let _mr=null; // manual round state
+
+function _mrDistMax(club){
+  if(club==='driver')return 320;
+  if(['3w','5w','7w'].includes(club))return 280;
+  if(club==='hybrid')return 240;
+  if(['2i','3'].includes(club))return 220;
+  if(['4','5','6'].includes(club))return 200;
+  if(['7','8','9'].includes(club))return 180;
+  if(['pw','aw'].includes(club))return 150;
+  if(['sw','lw','58'].includes(club))return 120;
+  if(club==='putter')return 25;
+  return 300;
+}
+
+window._mrDistSliderInput=function(holeNum,shotIdx,val,max){
+  const n=parseInt(val,10);
+  if(!_mr?.holes[holeNum]?.shots[shotIdx])return;
+  _mr.holes[holeNum].shots[shotIdx].distance_m=n>0?n:null;
+  const numEl=document.getElementById(`mr-dn-${shotIdx}`);
+  if(numEl)numEl.value=n>0?n:'';
+  const sl=document.getElementById(`mr-ds-${shotIdx}`);
+  if(sl)sl.style.setProperty('--track-pct',Math.round(n/max*100)+'%');
+};
+
+window._mrDistNumInput=function(holeNum,shotIdx,val,max){
+  const n=parseInt(val,10);
+  if(!_mr?.holes[holeNum]?.shots[shotIdx])return;
+  _mr.holes[holeNum].shots[shotIdx].distance_m=(!isNaN(n)&&n>0&&n<=400)?n:null;
+  const sl=document.getElementById(`mr-ds-${shotIdx}`);
+  if(sl){sl.value=Math.min(max,n||0);sl.style.setProperty('--track-pct',Math.round(Math.min(max,n||0)/max*100)+'%');}
+};
 
 function _mrClubSel(shotIdx){
   const cur=_mr.holes[_mr.cur]?.shots[shotIdx]?.club||'';
@@ -1437,6 +1473,7 @@ window._mrShotField=function(holeNum,shotIdx,field,val){
   if(!_mr||!_mr.holes[holeNum])return;
   if(!_mr.holes[holeNum].shots[shotIdx])_mr.holes[holeNum].shots[shotIdx]={};
   _mr.holes[holeNum].shots[shotIdx][field]=val;
+  if(field==='club')_mrRender(); // update slider max when club changes
 };
 window._mrHoleField=function(holeNum,field,val){
   if(!_mr)return;
@@ -1512,15 +1549,29 @@ function _mrRender(){
       </div>
       <div class="mr-shots-label">Shots</div>
       ${shots.length===0?`<div class="mr-empty-shots">No shots yet — tap + Add shot</div>`:''}
-      ${shots.map((s,i)=>`<div class="mr-shot-card">
+      ${shots.map((s,i)=>{
+        const dmax=_mrDistMax(s.club||'');
+        const dval=s.distance_m??0;
+        const dpct=Math.round(Math.min(dmax,dval)/dmax*100);
+        return`<div class="mr-shot-card">
         <div class="mr-shot-header">
           <span class="mr-shot-num">SHOT ${i+1}</span>
           <button class="mr-shot-del" onclick="_mrRemoveShot(${i})">✕ Remove</button>
         </div>
-        <div class="mr-shot-row">
-          ${_mrClubSel(i)}
-          <input type="number" placeholder="Dist (m)" min="1" max="400" value="${s.distance_m??''}"
-            style="flex:1;min-width:70px;" onchange="_mrDistField(${_mr.cur},${i},this.value)">
+        <div class="mr-shot-row">${_mrClubSel(i)}</div>
+        <div style="margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">
+            <span style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;">Distance</span>
+            <div style="display:flex;align-items:baseline;gap:3px;">
+              <input type="number" id="mr-dn-${i}" min="0" max="400" value="${dval||''}" placeholder="—"
+                style="width:52px;text-align:right;font-family:var(--cond);font-size:18px;font-weight:700;border:none;background:transparent;padding:0;color:var(--text);"
+                oninput="_mrDistNumInput(${_mr.cur},${i},this.value,${dmax})">
+              <span style="font-size:12px;color:var(--text3);">m</span>
+            </div>
+          </div>
+          <input type="range" id="mr-ds-${i}" min="0" max="${dmax}" value="${dval||0}"
+            style="--track-pct:${dpct}%;--track-color:var(--accent);width:100%;margin:0;"
+            oninput="_mrDistSliderInput(${_mr.cur},${i},this.value,${dmax})">
         </div>
         <div class="mr-shot-row">
           ${_mrLieSel(i)}
@@ -1530,7 +1581,7 @@ function _mrRender(){
           <input type="text" placeholder="Comment (optional)" value="${escapeHtml(s.comment||'')}"
             style="flex:1;" onchange="_mrCommentField(${_mr.cur},${i},this.value)">
         </div>
-      </div>`).join('')}
+      </div>`;}).join('')}
     </div>
     <div class="mr-actions">
       <button class="mr-add-btn" onclick="_mrAddShot()">+ Add shot</button>

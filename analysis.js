@@ -1007,164 +1007,233 @@ function _redrawMaps() {
   drawSideViewMap(active, colorMap);
 }
 
+// ── Covariance ellipse in canvas-pixel space ───────────────────────────────
+function _covEllipse(xs, ys, stdScale) {
+  const n = xs.length;
+  if (n < 3) return null;
+  const mx = xs.reduce((a,b)=>a+b,0)/n;
+  const my = ys.reduce((a,b)=>a+b,0)/n;
+  const cxx = xs.reduce((s,x)=>s+(x-mx)**2,0)/(n-1);
+  const cyy = ys.reduce((s,y)=>s+(y-my)**2,0)/(n-1);
+  const cxy = xs.reduce((s,x,i)=>s+(x-mx)*(ys[i]-my),0)/(n-1);
+  const disc = Math.sqrt(Math.max(0,(cxx-cyy)**2+4*cxy**2));
+  const l1 = Math.sqrt(Math.max(0,(cxx+cyy+disc)/2)) * stdScale;
+  const l2 = Math.sqrt(Math.max(0,(cxx+cyy-disc)/2)) * stdScale;
+  const angle = 0.5 * Math.atan2(2*cxy, cxx-cyy);
+  return { cx:mx, cy:my, rx:Math.max(l1,l2,4), ry:Math.max(Math.min(l1,l2),2), angle };
+}
+
 function drawTopViewMap(shots, colorMap) {
   const canvas = document.getElementById('top-view-canvas');
   if (!canvas) return;
   const dpr = Math.min(window.devicePixelRatio||2, 3);
-  const w = canvas.parentElement?.clientWidth || 340, h = 320;
+  const light = document.body.classList.contains('light-theme');
+  const w = canvas.parentElement?.clientWidth || 340, h = 300;
   canvas.width = w*dpr; canvas.height = h*dpr;
   canvas.style.width = w+'px'; canvas.style.height = h+'px';
   const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
   const cv = _cv();
 
-  const valid = shots.filter(s => s.carry != null && s.side != null);
-
-  // Always draw background even with no data
-  ctx.fillStyle = cv.rough1;
+  // ── Clean background ──────────────────────────────────────────────────────
+  ctx.fillStyle = light ? '#f2f0ec' : '#0d1215';
   ctx.fillRect(0, 0, w, h);
 
+  const valid = shots.filter(s => s.carry != null && s.side != null);
   if (!valid.length) {
     ctx.fillStyle=cv.dim; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
-    ctx.fillText('No lateral (side) data for this club', w/2, h/2); return;
+    ctx.fillText('No lateral data for this club', w/2, h/2); return;
   }
 
   const carries = valid.map(s=>s.carry), sides = valid.map(s=>s.side);
   const avgCarry = statAvg(carries);
-  const sdCarry = Math.max(statStdDev(carries)||5, 5);
-  const maxAbsSide = Math.max(...sides.map(Math.abs), 8);
+  const sdCarry  = Math.max(statStdDev(carries)||5, 5);
+  const maxAbsSide = Math.max(...sides.map(Math.abs), 10);
 
-  const pad = {t:22, r:14, b:28, l:46};
+  const pad = {t:20, r:12, b:30, l:46};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
 
-  const sideRange = Math.max(maxAbsSide * 1.35, 12);
-  const carryRange = Math.max(sdCarry * 4.5, 20);
-  const carryMin = avgCarry - carryRange * 0.45;
-  const carryMax = carryMin + carryRange;
+  const sideRange  = Math.max(maxAbsSide * 1.45, 14);
+  const carryRange = Math.max(sdCarry * 5.2, 22);
+  const carryMin   = Math.max(0, avgCarry - carryRange * 0.42);
+  const carryMax   = carryMin + carryRange;
 
-  const px = sv  => pad.l + cw * (sv + sideRange) / (sideRange * 2);
-  const py = cvv => pad.t + ch - ch * (cvv - carryMin) / (carryMax - carryMin);
-  const mPerPxX = (sideRange*2)/cw, mPerPxY = carryRange/ch;
+  const mapX = sv  => pad.l + cw * (sv + sideRange) / (sideRange * 2);
+  const mapY = cvv => pad.t + ch - ch * (cvv - carryMin) / (carryMax - carryMin);
 
-  // ── 1. Rough background (striped) ─────────────────────────────────────
-  const roughH = 18;
-  for (let i = 0; i * roughH < h; i++) {
-    ctx.fillStyle = i%2===0 ? cv.rough1 : cv.rough2;
-    ctx.fillRect(0, i*roughH, w, roughH);
-  }
-
-  // ── 2. Fairway corridor (25 m wide, centred) ──────────────────────────
-  const fairwayM = 25;
-  const fwL = Math.max(pad.l,   px(-fairwayM/2));
-  const fwR = Math.min(pad.l+cw, px( fairwayM/2));
-  const fwW = fwR - fwL;
-  if (fwW > 8) {
-    const fwH = 22;
-    for (let i = 0; i * fwH < h; i++) {
-      ctx.fillStyle = i%2===0 ? cv.fw1 : cv.fw2;
-      ctx.fillRect(fwL, i*fwH, fwW, fwH);
-    }
-    // Soft edges
-    const fadeW = Math.min(10, fwW * 0.12);
-    const gradL = ctx.createLinearGradient(fwL, 0, fwL+fadeW, 0);
-    gradL.addColorStop(0, cv.fwEdge); gradL.addColorStop(1, 'transparent');
-    ctx.fillStyle = gradL; ctx.fillRect(fwL, 0, fadeW, h);
-    const gradR = ctx.createLinearGradient(fwR, 0, fwR-fadeW, 0);
-    gradR.addColorStop(0, cv.fwEdge); gradR.addColorStop(1, 'transparent');
-    ctx.fillStyle = gradR; ctx.fillRect(fwR-fadeW, 0, fadeW, h);
-  }
-
-  // ── 3. Target green area ───────────────────────────────────────────────
-  const cx0 = px(0), cy0 = py(avgCarry);
-  const greenRx = Math.max(6/mPerPxX, 12), greenRy = Math.max(6/mPerPxY, 9);
-
-  // Glow halo
-  const halo = ctx.createRadialGradient(cx0, cy0, 0, cx0, cy0, greenRx*2.2);
-  halo.addColorStop(0, 'rgba(40,190,80,0.22)');
-  halo.addColorStop(1, 'rgba(40,190,80,0)');
-  ctx.fillStyle = halo;
-  ctx.beginPath(); ctx.ellipse(cx0, cy0, greenRx*2.2, greenRy*2.2, 0, 0, Math.PI*2); ctx.fill();
-
-  // Green circle
-  ctx.fillStyle = cv.greenFill;
-  ctx.strokeStyle = cv.greenStr; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.ellipse(cx0, cy0, greenRx, greenRy, 0, 0, Math.PI*2);
-  ctx.fill(); ctx.stroke();
-
-  // Flag pole + flag
-  const poleTop = cy0 - greenRy * 0.85;
-  ctx.strokeStyle=cv.flagPole; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.moveTo(cx0, cy0-2); ctx.lineTo(cx0, poleTop-10); ctx.stroke();
-  ctx.fillStyle='rgba(220,50,50,0.92)';
-  ctx.beginPath();
-  ctx.moveTo(cx0, poleTop-10);
-  ctx.lineTo(cx0+10, poleTop-6);
-  ctx.lineTo(cx0, poleTop-2);
-  ctx.closePath(); ctx.fill();
-
-  // ── 4. Carry grid labels ──────────────────────────────────────────────
-  ctx.font = "9px 'DM Mono',monospace";
+  // ── Concentric distance arcs from tee (below chart) ───────────────────────
+  // Tee is at carry=0 in metric space; in canvas coords it is below the chart.
+  const pyPerM = ch / carryRange;
+  const oy = pad.t + ch + carryMin * pyPerM; // canvas Y of the tee (below visible area)
+  const originX = mapX(0);
   const carryStep = Math.ceil(carryRange/4/5)*5;
   const cFirst = Math.ceil(carryMin/carryStep)*carryStep;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t, cw, ch); ctx.clip();
+  for (let c=cFirst; c<=carryMax+carryStep; c+=carryStep) {
+    const arcR = c * pyPerM; // distance from tee in px
+    ctx.beginPath();
+    ctx.arc(originX, oy, arcR, 0, Math.PI*2);
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.055)' : 'rgba(255,255,255,0.038)';
+    ctx.lineWidth = 0.8; ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Fairway corridor (subtle green tint) ──────────────────────────────────
+  const fwL = mapX(-14), fwR = mapX(14);
+  if (fwR - fwL > 6) {
+    const g = ctx.createLinearGradient(fwL, 0, fwR, 0);
+    g.addColorStop(0, 'transparent');
+    g.addColorStop(0.18, light ? 'rgba(60,110,50,0.09)' : 'rgba(0,214,143,0.05)');
+    g.addColorStop(0.5,  light ? 'rgba(60,110,50,0.14)' : 'rgba(0,214,143,0.08)');
+    g.addColorStop(0.82, light ? 'rgba(60,110,50,0.09)' : 'rgba(0,214,143,0.05)');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.fillRect(fwL, pad.t, fwR-fwL, ch);
+  }
+
+  // ── Grid: carry lines (horizontal) ────────────────────────────────────────
+  ctx.font = "9px 'DM Mono',monospace";
   for (let c=cFirst; c<=carryMax; c+=carryStep) {
-    const y = py(c);
-    ctx.strokeStyle=cv.grid; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+cw, y); ctx.stroke();
+    const y = mapY(c);
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.fillStyle=cv.dim; ctx.textAlign='right';
     ctx.fillText(Math.round(c)+'m', pad.l-4, y+3);
   }
 
-  // ── 5. Centre / target line ───────────────────────────────────────────
-  ctx.strokeStyle=cv.center; ctx.lineWidth=1; ctx.setLineDash([4,5]);
-  ctx.beginPath(); ctx.moveTo(px(0), pad.t); ctx.lineTo(px(0), pad.t+ch); ctx.stroke();
+  // ── Grid: side lines (vertical) ───────────────────────────────────────────
+  const sideStep = Math.ceil(sideRange/3/5)*5;
+  for (let s=-Math.floor(sideRange/sideStep)*sideStep; s<=sideRange; s+=sideStep) {
+    if (s===0) continue;
+    const x = mapX(s);
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.03)';
+    ctx.lineWidth=1; ctx.setLineDash([2,5]);
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ch); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // ── Centre target line ────────────────────────────────────────────────────
+  ctx.strokeStyle = light ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.10)';
+  ctx.lineWidth=1.2; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.moveTo(mapX(0),pad.t); ctx.lineTo(mapX(0),pad.t+ch); ctx.stroke();
   ctx.setLineDash([]);
 
-  // ── 6. Target dot (pin position) ─────────────────────────────────────
-  ctx.fillStyle='rgba(0,214,143,0.85)';
-  ctx.beginPath(); ctx.arc(cx0, cy0, 4.5, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle='rgba(0,214,143,0.35)'; ctx.lineWidth=2; ctx.beginPath();
-  ctx.arc(cx0, cy0, 7, 0, Math.PI*2); ctx.stroke();
+  // ── Per-session dispersion ellipses ───────────────────────────────────────
+  const byDate = {};
+  valid.forEach(s => {
+    const date = (s.shot_time||s.created_at)?.slice(0,10)||'?';
+    if (!byDate[date]) byDate[date] = {xs:[], ys:[]};
+    byDate[date].xs.push(mapX(s.side));
+    byDate[date].ys.push(mapY(s.carry));
+  });
 
-  // ── 7. Shot dots ──────────────────────────────────────────────────────
+  // Draw ellipses back-to-front (largest first)
+  const ellipses = [];
+  Object.entries(byDate).forEach(([date, {xs, ys}]) => {
+    const col = colorMap[date] || '#8a9099';
+    const ell = _covEllipse(xs, ys, 1.6);
+    if (ell) ellipses.push({...ell, col, n:xs.length});
+  });
+  ellipses.sort((a,b)=>b.rx*b.ry - a.rx*a.ry);
+
+  ellipses.forEach(({cx, cy, rx, ry, angle, col}) => {
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(angle);
+    ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI*2);
+    ctx.fillStyle = col; ctx.globalAlpha = 0.09; ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.70;
+    ctx.stroke();
+    ctx.restore(); ctx.globalAlpha = 1;
+  });
+
+  // ── Shot dots ─────────────────────────────────────────────────────────────
   valid.forEach(s => {
     const date = (s.shot_time||s.created_at)?.slice(0,10)||'';
     const col = colorMap[date]||'#8a9099';
-    const x = px(s.side), y = py(s.carry);
-    if (x<pad.l-4||x>pad.l+cw+4||y<pad.t-4||y>pad.t+ch+4) return;
-    ctx.fillStyle=col; ctx.globalAlpha=0.82;
+    const x = mapX(s.side), y = mapY(s.carry);
+    if (x<pad.l-6||x>pad.l+cw+6||y<pad.t-6||y>pad.t+ch+6) return;
+    // Glow
+    ctx.fillStyle = col; ctx.globalAlpha = 0.15;
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI*2); ctx.fill();
+    // Fill
+    ctx.globalAlpha = 0.88;
     ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha=0.35; ctx.strokeStyle=col; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI*2); ctx.stroke();
+    // Specular
+    ctx.fillStyle = 'rgba(255,255,255,0.40)'; ctx.globalAlpha = 0.40;
+    ctx.beginPath(); ctx.arc(x-1.2, y-1.2, 1.6, 0, Math.PI*2); ctx.fill();
   });
-  ctx.globalAlpha=1;
+  ctx.globalAlpha = 1;
 
-  // ── 8. Axis labels ────────────────────────────────────────────────────
-  ctx.fillStyle=cv.dim; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign='center';
-  ctx.fillText('← L', pad.l+cw*0.12, pad.t+ch+18);
-  ctx.fillText('0',   pad.l+cw*0.5,  pad.t+ch+18);
-  ctx.fillText('R →', pad.l+cw*0.88, pad.t+ch+18);
+  // ── Average target ring ───────────────────────────────────────────────────
+  const cx0 = mapX(0), cy0 = mapY(avgCarry);
+  const ac = light ? '#007a45' : '#00d68f';
+  // Halo
+  const halo = ctx.createRadialGradient(cx0, cy0, 0, cx0, cy0, 16);
+  halo.addColorStop(0, light ? 'rgba(0,122,69,0.22)' : 'rgba(0,214,143,0.22)');
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx0, cy0, 16, 0, Math.PI*2); ctx.fill();
+  // Outer ring
+  ctx.strokeStyle = ac; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.45;
+  ctx.beginPath(); ctx.arc(cx0, cy0, 9, 0, Math.PI*2); ctx.stroke();
+  // Inner dot
+  ctx.fillStyle = ac; ctx.globalAlpha = 0.92;
+  ctx.beginPath(); ctx.arc(cx0, cy0, 4.5, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // ── Axis labels ───────────────────────────────────────────────────────────
+  ctx.fillStyle=cv.dim; ctx.font="9px 'DM Mono',monospace";
+  ctx.textAlign='left';  ctx.fillText('← L', pad.l+2,           pad.t+ch+19);
+  ctx.textAlign='center'; ctx.fillText('0m',   mapX(0),           pad.t+ch+19);
+  ctx.textAlign='right'; ctx.fillText('R →', pad.l+cw,           pad.t+ch+19);
 }
 
 function drawSideViewMap(shots, colorMap) {
   const canvas = document.getElementById('side-view-canvas');
   if (!canvas) return;
   const dpr = Math.min(window.devicePixelRatio||2, 3);
-  const w = canvas.parentElement?.clientWidth || 340, h = 165;
+  const light = document.body.classList.contains('light-theme');
+  const w = canvas.parentElement?.clientWidth || 340, h = 185;
   canvas.width = w*dpr; canvas.height = h*dpr;
   canvas.style.width = w+'px'; canvas.style.height = h+'px';
   const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
   const cv = _cv();
 
-  // Sky gradient + ground strip background
-  const groundY = h - 28;
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
-  skyGrad.addColorStop(0, cv.skyTop); skyGrad.addColorStop(1, cv.skyBot);
-  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, w, groundY);
-  ctx.fillStyle = cv.groundStrip; ctx.fillRect(0, groundY, w, h - groundY);
-
   const valid = shots.filter(s => s.carry != null);
+
+  // ── Background: sky + rough + green ground ────────────────────────────────
+  const groundH = 22;   // green band at bottom
+  const roughH  = 14;   // gray rough above green
+  const groundY = h - groundH;
+  const roughY  = groundY - roughH;
+
+  // Sky
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, roughY);
+  skyGrad.addColorStop(0, light ? 'rgba(190,215,240,0.30)' : 'rgba(12,22,40,0.80)');
+  skyGrad.addColorStop(1, light ? 'rgba(190,215,240,0)'    : 'rgba(12,22,40,0)');
+  ctx.fillStyle = light ? '#f0eeea' : '#0d1215';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, w, roughY);
+
+  // Rough strip
+  ctx.fillStyle = light ? 'rgba(165,190,145,0.55)' : 'rgba(22,40,14,0.60)';
+  ctx.fillRect(0, roughY, w, roughH);
+
+  // Green ground band
+  ctx.fillStyle = light ? 'rgba(80,155,55,0.55)' : 'rgba(25,65,18,0.80)';
+  ctx.fillRect(0, groundY, w, groundH);
+  // Green/rough edge line
+  ctx.strokeStyle = light ? 'rgba(55,120,35,0.50)' : 'rgba(50,140,30,0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(w, groundY); ctx.stroke();
+
   if (!valid.length) {
     ctx.fillStyle=cv.dim; ctx.font="13px 'Barlow',sans-serif"; ctx.textAlign='center';
-    ctx.fillText('No carry data', w/2, h/2); return;
+    ctx.fillText('No carry data', w/2, roughY/2); return;
   }
 
   const carries = valid.map(s=>s.carry);
@@ -1173,77 +1242,96 @@ function drawSideViewMap(shots, colorMap) {
 
   const avgCarry = statAvg(carries);
   const avgTotal = statAvg(totals);
-  const avgApex  = heights.length ? statAvg(heights) : avgCarry * 0.13;
-  const maxTotal = Math.max(...totals) * 1.06;
-  const maxHeight = (heights.length ? Math.max(...heights) : avgApex * 1.4) * 1.15;
+  const avgApex  = heights.length ? statAvg(heights) : avgCarry * 0.14;
+  const maxTotal = Math.max(...totals) * 1.08;
+  const maxHeight= (heights.length ? Math.max(...heights) : avgApex*1.4) * 1.18;
 
-  const pad = {t:22, r:16, b:28, l:12};
+  const pad = {t:20, r:14, b:groundH+roughH+4, l:10};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
 
-  const px = d  => pad.l + (d/maxTotal)*cw;
-  const py = ht => pad.t + ch - (ht/maxHeight)*ch;
+  const mapX = d  => pad.l + (d/maxTotal)*cw;
+  const mapY = ht => pad.t + ch - (ht/maxHeight)*ch;
+  const groundPY = mapY(0);
 
-  // Ground line
-  ctx.strokeStyle=cv.ground; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(pad.l,py(0)); ctx.lineTo(pad.l+cw,py(0)); ctx.stroke();
-
-  // Distance grid
-  ctx.font="9px 'DM Mono',monospace"; ctx.fillStyle=cv.dim;
+  // ── Distance grid ─────────────────────────────────────────────────────────
+  ctx.font="9px 'DM Mono',monospace";
   const distStep = Math.ceil(maxTotal/4/5)*5;
   for (let d=distStep; d<=maxTotal; d+=distStep) {
-    const x=px(d);
-    ctx.strokeStyle=cv.grid; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,py(0)); ctx.stroke();
-    ctx.fillStyle=cv.dim; ctx.textAlign='center'; ctx.fillText(Math.round(d)+'m', x, py(0)+17);
+    const x=mapX(d);
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.04)';
+    ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,groundPY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=cv.dim; ctx.textAlign='center';
+    ctx.fillText(Math.round(d)+'m', x, groundPY+roughH+10);
   }
 
-  // Draw each shot arc (faint)
+  // ── Individual shot arcs ───────────────────────────────────────────────────
   valid.forEach(s => {
     const date=(s.shot_time||s.created_at)?.slice(0,10)||'';
     const col=colorMap[date]||'#8a9099';
     const carry=s.carry, total=s.total||carry;
     const apex=s.max_height||avgApex;
+    const cpX=mapX(carry*0.42);
+    const cpY=Math.max(pad.t+2, mapY(apex*1.8));
 
-    // Quadratic bezier: control point gives exact peak at t=0.5
-    // cpY = pad.t + ch*(1 - 2*apex/maxHeight); cpX = px(carry*0.40)
-    const cpX=px(carry*0.40);
-    const cpY=Math.max(2, pad.t + ch*(1 - 2*apex/maxHeight));
-
-    ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.globalAlpha=0.42;
-    ctx.beginPath(); ctx.moveTo(px(0),py(0));
-    ctx.quadraticCurveTo(cpX, cpY, px(carry), py(0));
+    ctx.strokeStyle=col; ctx.lineWidth=1.2; ctx.globalAlpha=0.38; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(mapX(0), groundPY);
+    ctx.quadraticCurveTo(cpX, cpY, mapX(carry), groundPY);
     ctx.stroke();
 
-    // Roll
     if (total > carry+0.5) {
-      ctx.globalAlpha=0.28; ctx.setLineDash([2,3]);
-      ctx.beginPath(); ctx.moveTo(px(carry),py(0)); ctx.lineTo(px(total),py(0)); ctx.stroke();
+      ctx.globalAlpha=0.22; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(mapX(carry),groundPY); ctx.lineTo(mapX(total),groundPY); ctx.stroke();
       ctx.setLineDash([]);
     }
-    ctx.globalAlpha=1;
+    ctx.globalAlpha=1; ctx.lineCap='butt';
   });
 
-  // Average arc (bold green)
-  const avgCpX=px(avgCarry*0.40);
-  const avgCpY=Math.max(2, pad.t + ch*(1 - 2*avgApex/maxHeight));
-  ctx.strokeStyle='#00d68f'; ctx.lineWidth=2.5; ctx.globalAlpha=0.9;
-  ctx.beginPath(); ctx.moveTo(px(0),py(0));
-  ctx.quadraticCurveTo(avgCpX, avgCpY, px(avgCarry), py(0));
+  // ── Average arc — highlighted ─────────────────────────────────────────────
+  const avgCpX=mapX(avgCarry*0.42);
+  const avgCpY=Math.max(pad.t+2, mapY(avgApex*1.8));
+  const ac = light ? '#007a45' : '#00d68f';
+
+  // Glow
+  ctx.strokeStyle=ac; ctx.lineWidth=6; ctx.globalAlpha=0.09; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(mapX(0),groundPY);
+  ctx.quadraticCurveTo(avgCpX, avgCpY, mapX(avgCarry), groundPY);
+  ctx.stroke();
+  // Main
+  ctx.lineWidth=2.8; ctx.globalAlpha=0.92;
+  ctx.beginPath(); ctx.moveTo(mapX(0),groundPY);
+  ctx.quadraticCurveTo(avgCpX, avgCpY, mapX(avgCarry), groundPY);
   ctx.stroke();
 
   if (avgTotal > avgCarry+0.5) {
-    ctx.globalAlpha=0.55; ctx.setLineDash([3,4]);
-    ctx.beginPath(); ctx.moveTo(px(avgCarry),py(0)); ctx.lineTo(px(avgTotal),py(0)); ctx.stroke();
+    ctx.globalAlpha=0.55; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(mapX(avgCarry),groundPY); ctx.lineTo(mapX(avgTotal),groundPY); ctx.stroke();
     ctx.setLineDash([]);
   }
+  ctx.globalAlpha=1; ctx.lineCap='butt';
+
+  // Landing dot
+  ctx.fillStyle=ac; ctx.globalAlpha=0.9;
+  ctx.beginPath(); ctx.arc(mapX(avgCarry), groundPY, 4, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha=1;
 
-  // Label
-  ctx.fillStyle=cv.dim; ctx.font="10px 'Barlow',sans-serif"; ctx.textAlign='left';
-  let lbl = `Avg carry ${f(avgCarry)}m`;
-  if (avgTotal > avgCarry+0.5) lbl += `  · roll ${f(avgTotal-avgCarry)}m`;
-  if (heights.length) lbl += `  · apex ${f(avgApex)}m`;
-  ctx.fillText(lbl, pad.l+2, pad.t-6);
+  // ── Apex label + stat line ────────────────────────────────────────────────
+  ctx.fillStyle=cv.dim; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign='left';
+  let lbl = `avg carry ${f(avgCarry)}m`;
+  if (avgTotal > avgCarry+0.5) lbl += `  roll ${f(avgTotal-avgCarry)}m`;
+  if (heights.length) lbl += `  apex ${f(avgApex)}m`;
+  ctx.fillText(lbl, pad.l+2, pad.t-5);
+  // Apex dot on average arc
+  if (heights.length) {
+    const apexX=avgCpX, apexY=Math.max(pad.t+4, mapY(avgApex));
+    ctx.strokeStyle=ac; ctx.lineWidth=1; ctx.globalAlpha=0.4; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(apexX, apexY); ctx.lineTo(apexX, groundPY); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+    ctx.fillStyle=ac; ctx.globalAlpha=0.7;
+    ctx.beginPath(); ctx.arc(apexX, apexY, 3, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+  }
 }
 
 // ── Alias Manager ──────────────────────────────────────────────────────────
