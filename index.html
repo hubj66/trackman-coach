@@ -236,7 +236,7 @@
 
       <!-- At a glance strip -->
       <div id="stats-glance" class="stats-glance-strip"></div>
-<div class="acc open" id="acc-stats-trackman">
+<div class="acc" id="acc-stats-trackman">
   <div class="acc-head" onclick="toggleAccById('acc-stats-trackman')">
     <div class="acc-icon">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -247,21 +247,23 @@
     </div>
     <div class="acc-title">TrackMan</div>
     <div class="acc-subtitle">Overview & recent sessions</div>
+    <button class="acc-info-btn" onclick="event.stopPropagation();showToast('TrackMan session overview: avg carry, face angle, smash factor and per-club breakdown')" aria-label="About">ⓘ</button>
     <div class="acc-arrow">›</div>
   </div>
-  <div class="acc-body" style="max-height:4000px;opacity:1;">
+  <div class="acc-body">
     <div class="stats-section-pad">
       <div id="stats-trackman-summary"></div>
     </div>
   </div>
 </div>
-<div class="acc open" id="acc-stats-chipping">
+<div class="acc" id="acc-stats-chipping">
         <div class="acc-head" onclick="toggleAccById('acc-stats-chipping')">
           <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg></div>
           <div class="acc-title">Chipping</div><div class="acc-subtitle">Stats, trend &amp; log</div>
+          <button class="acc-info-btn" onclick="event.stopPropagation();showToast('Chipping practice: proximity stats (inside 1m / 2m), trend and session log')" aria-label="About">ⓘ</button>
           <div class="acc-arrow">›</div>
         </div>
-        <div class="acc-body" style="max-height:4000px;opacity:1;">
+        <div class="acc-body">
           <div class="stats-section-pad">
             <div id="stats-chipping-summary"></div>
             <div id="chipping-chart-wrap" style="margin-top:12px;display:none;">
@@ -302,13 +304,14 @@
         </div>
       </div>
 
-      <div class="acc open" id="acc-stats-putting">
+      <div class="acc" id="acc-stats-putting">
         <div class="acc-head" onclick="toggleAccById('acc-stats-putting')">
           <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg></div>
           <div class="acc-title">Putting</div><div class="acc-subtitle">Stats, trend &amp; log</div>
+          <button class="acc-info-btn" onclick="event.stopPropagation();showToast('Putting practice: make rates by distance, trend and session log')" aria-label="About">ⓘ</button>
           <div class="acc-arrow">›</div>
         </div>
-        <div class="acc-body" style="max-height:4000px;opacity:1;">
+        <div class="acc-body">
           <div class="stats-section-pad">
             <div id="stats-putting-summary"></div>
             <div id="putting-chart-wrap" style="margin-top:12px;display:none;">
@@ -349,6 +352,7 @@
             </svg>
           </div>
           <div class="acc-title">Range</div><div class="acc-subtitle">Full-swing practice logs</div>
+          <button class="acc-info-btn" onclick="event.stopPropagation();showToast('Full-swing range sessions: club, focus area, balls hit and quality rating')" aria-label="About">ⓘ</button>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body">
@@ -389,6 +393,7 @@
             </svg>
           </div>
           <div class="acc-title">Course notes</div><div class="acc-subtitle">Round notes &amp; on-course observations</div>
+          <button class="acc-info-btn" onclick="event.stopPropagation();showToast('On-course notes: round observations, key misses and mental game cues')" aria-label="About">ⓘ</button>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body">
@@ -426,6 +431,7 @@
           </div>
           <div class="acc-title">Rounds</div>
           <div class="acc-subtitle">On-course shot data</div>
+          <button class="acc-info-btn" onclick="event.stopPropagation();showToast('Scored rounds imported from GolfPad: hole-by-hole strokes, putts and GIR stats')" aria-label="About">ⓘ</button>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body">
