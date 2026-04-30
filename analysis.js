@@ -1253,15 +1253,19 @@ function drawSideViewMap(shots, colorMap) {
     ctx.fillText('No carry data', w/2, roughY/2); return;
   }
 
-  const carries = valid.map(s=>s.carry);
-  const totals  = valid.map(s=>s.total||s.carry);
-  const heights = valid.map(s=>s.max_height).filter(Boolean);
+  const carries  = valid.map(s=>s.carry);
+  const totals   = valid.map(s=>s.total||s.carry);
+  const heights  = valid.map(s=>s.max_height).filter(Boolean);
+  const launches = valid.map(s=>s.launch_angle).filter(x=>x!=null&&x>1);
+  const landings = valid.map(s=>s.landing_angle).filter(x=>x!=null&&x>1);
 
-  const avgCarry = statAvg(carries);
-  const avgTotal = statAvg(totals);
-  const avgApex  = heights.length ? statAvg(heights) : avgCarry * 0.14;
-  const maxTotal = Math.max(...totals) * 1.08;
-  const maxHeight= (heights.length ? Math.max(...heights) : avgApex*1.4) * 1.18;
+  const avgCarry   = statAvg(carries);
+  const avgTotal   = statAvg(totals);
+  const avgApex    = heights.length ? statAvg(heights) : avgCarry * 0.14;
+  const avgLaunch  = launches.length ? statAvg(launches) : 0;
+  const avgLanding = landings.length ? statAvg(landings) : 0;
+  const maxTotal   = Math.max(...totals) * 1.08;
+  const maxHeight  = (heights.length ? Math.max(...heights) : avgApex*1.4) * 1.18;
 
   const pad = {t:20, r:14, b:groundH+roughH+4, l:10};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
@@ -1283,14 +1287,27 @@ function drawSideViewMap(shots, colorMap) {
     ctx.fillText(Math.round(d)+'m', x, groundPY+roughH+10);
   }
 
+  // ── Arc control-point helper ──────────────────────────────────────────────
+  // For a quadratic Bézier with both endpoints at groundPY, the control point
+  // is the intersection of the launch tangent (rising from x0) and the landing
+  // tangent (descending into xc).  Falls back to max_height, then geometry.
+  const _cp = (x0, xc, launchDeg, landingDeg, apexH) => {
+    const la = launchDeg  > 1 ? Math.tan(Math.min(launchDeg,  50) * Math.PI / 180) : 0;
+    const ld = landingDeg > 1 ? Math.tan(Math.min(Math.abs(landingDeg), 75) * Math.PI / 180) : 0;
+    if (la > 0 && ld > 0) {
+      const x1 = (la * x0 + ld * xc) / (la + ld);
+      return { cpX: x1, cpY: Math.max(pad.t+2, groundPY - la * (x1 - x0)) };
+    }
+    const ah = apexH > 0 ? apexH : avgApex;
+    return { cpX: x0 + (xc - x0) * 0.42, cpY: Math.max(pad.t+2, 2 * mapY(ah) - groundPY) };
+  };
+
   // ── Individual shot arcs ───────────────────────────────────────────────────
   valid.forEach(s => {
     const date=(s.shot_time||s.created_at)?.slice(0,10)||'';
     const col=colorMap[date]||'#8a9099';
     const carry=s.carry, total=s.total||carry;
-    const apex=s.max_height||avgApex;
-    const cpX=mapX(carry*0.42);
-    const cpY=Math.max(pad.t+2, mapY(apex*1.8));
+    const {cpX,cpY}=_cp(mapX(0), mapX(carry), s.launch_angle, s.landing_angle, s.max_height);
 
     ctx.strokeStyle=col; ctx.lineWidth=1.2; ctx.globalAlpha=0.38; ctx.lineCap='round';
     ctx.beginPath(); ctx.moveTo(mapX(0), groundPY);
@@ -1306,8 +1323,7 @@ function drawSideViewMap(shots, colorMap) {
   });
 
   // ── Average arc — highlighted ─────────────────────────────────────────────
-  const avgCpX=mapX(avgCarry*0.42);
-  const avgCpY=Math.max(pad.t+2, mapY(avgApex*1.8));
+  const {cpX:avgCpX, cpY:avgCpY} = _cp(mapX(0), mapX(avgCarry), avgLaunch, avgLanding, avgApex);
   const ac = light ? '#007a45' : '#00d68f';
 
   // Glow
@@ -1338,10 +1354,14 @@ function drawSideViewMap(shots, colorMap) {
   let lbl = `avg carry ${f(avgCarry)}m`;
   if (avgTotal > avgCarry+0.5) lbl += `  roll ${f(avgTotal-avgCarry)}m`;
   if (heights.length) lbl += `  apex ${f(avgApex)}m`;
+  if (avgLaunch > 1)  lbl += `  LA ${f(avgLaunch,0)}°`;
   ctx.fillText(lbl, pad.l+2, pad.t-5);
-  // Apex dot on average arc
-  if (heights.length) {
-    const apexX=avgCpX, apexY=Math.max(pad.t+4, mapY(avgApex));
+  // Apex dot: x from Bézier midpoint, y from measured height or Bézier estimate
+  const showApex = heights.length > 0 || (avgLaunch > 1 && avgLanding > 1);
+  if (showApex) {
+    const x0a=mapX(0), xca=mapX(avgCarry);
+    const apexX = 0.25*x0a + 0.5*avgCpX + 0.25*xca;
+    const apexY = Math.max(pad.t+4, heights.length ? mapY(avgApex) : 0.5*(groundPY+avgCpY));
     ctx.strokeStyle=ac; ctx.lineWidth=1; ctx.globalAlpha=0.4; ctx.setLineDash([3,3]);
     ctx.beginPath(); ctx.moveTo(apexX, apexY); ctx.lineTo(apexX, groundPY); ctx.stroke();
     ctx.setLineDash([]); ctx.globalAlpha=1;
