@@ -196,6 +196,10 @@ function renderAnalysis(allShots) {
     );
     drawTopViewMap(activeShotsForMaps, colorMap2);
     drawSideViewMap(activeShotsForMaps, colorMap2);
+    const _distOf = s => (s.shot_type === 'round' && s.total) ? s.total : s.carry;
+    const _distVals = filteredShots.map(_distOf).filter(Boolean);
+    _drawHistogram('dist-histogram', _distVals, { unit:'m', median: statMedian(_distVals), sd: statStdDev(_distVals), title:'distance distribution' });
+    _drawDirHistogram('dir-histogram', filteredShots.map(s=>s.side).filter(x=>x!=null));
     openSessions.forEach(date => {
       const body = document.getElementById(`session-body-${date}`);
       const head = document.getElementById(`session-head-${date}`);
@@ -503,23 +507,27 @@ function renderDirection(shots) {
         </div>
       </div>
     </div>
-    ${stackedBar}`;
+    ${stackedBar}
+    ${sides.length >= 4 ? '<canvas id="dir-histogram" height="82" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-top:12px;"></canvas>' : ''}`;
 }
 
 // ── Distance control ───────────────────────────────────────────────────────
 function renderDistanceControl(shots) {
-  const c = shots.map(s=>s.carry).filter(Boolean);
+  // On-course shots use total distance; TrackMan shots use carry
+  const distOf = s => (s.shot_type === 'round' && s.total) ? s.total : s.carry;
+  const c = shots.map(distOf).filter(Boolean);
   if (!c.length) return '<div class="analysis-empty-small">No carry data</div>';
   const sorted = [...c].sort((a,b)=>a-b);
   const med = statMedian(c), sd = statStdDev(c);
   const p10 = statPercentile(c,10), p90 = statPercentile(c,90);
+  const hasOnCourse = shots.some(s => s.shot_type === 'round' && s.total);
   const row = (l,v) => `<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value">${v}</span></div>`;
   return `
     <div class="dist-summary">
       <div class="dist-main">
         <span class="dist-median">${f(med,0)}m</span>
         <span class="dist-sd ${carrySDColor(sd)}">±${f(sd,1)}m</span>
-        <span class="dist-label">median · std dev</span>
+        <span class="dist-label">median · std dev${hasOnCourse?' · on-course=total':''}</span>
       </div>
     </div>
     <div class="analysis-row-list" style="display:grid;grid-template-columns:1fr 1fr;">
@@ -527,7 +535,8 @@ function renderDistanceControl(shots) {
       ${row('Max', f(sorted[sorted.length-1],0)+'m')}
       ${row('Range', f(sorted[sorted.length-1]-sorted[0],0)+'m')}
       ${row('P10 – P90', f(p10,0)+'–'+f(p90,0)+'m')}
-    </div>`;
+    </div>
+    <canvas id="dist-histogram" height="88" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-top:12px;"></canvas>`;
 }
 
 // ── Progress chart ─────────────────────────────────────────────────────────
@@ -937,7 +946,7 @@ function renderShotMaps(shots, allShots) {
 
   // Init or prune stale dates
   if (analysisMapActiveDates === null || ![...analysisMapActiveDates].some(d => allDates.includes(d))) {
-    analysisMapActiveDates = new Set(allDates);
+    analysisMapActiveDates = new Set(allDates.slice(-4));
   } else {
     [...analysisMapActiveDates].forEach(d => { if (!allDates.includes(d)) analysisMapActiveDates.delete(d); });
   }
@@ -1049,7 +1058,7 @@ function drawTopViewMap(shots, colorMap) {
   const sdCarry  = Math.max(statStdDev(carries)||5, 5);
   const maxAbsSide = Math.max(...sides.map(Math.abs), 10);
 
-  const pad = {t:20, r:12, b:30, l:46};
+  const pad = {t:20, r:12, b:44, l:52};
   const cw = w-pad.l-pad.r, ch = h-pad.t-pad.b;
 
   const sideRange  = Math.max(maxAbsSide * 1.45, 14);
@@ -1074,8 +1083,8 @@ function drawTopViewMap(shots, colorMap) {
     const arcR = c * pyPerM; // distance from tee in px
     ctx.beginPath();
     ctx.arc(originX, oy, arcR, 0, Math.PI*2);
-    ctx.strokeStyle = light ? 'rgba(0,0,0,0.055)' : 'rgba(255,255,255,0.038)';
-    ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.13)' : 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 0.9; ctx.stroke();
   }
   ctx.restore();
 
@@ -1092,16 +1101,15 @@ function drawTopViewMap(shots, colorMap) {
   }
 
   // ── Grid: carry lines (horizontal) ────────────────────────────────────────
-  ctx.font = "9px 'DM Mono',monospace";
   for (let c=cFirst; c<=carryMax; c+=carryStep) {
     const y = mapY(c);
-    ctx.strokeStyle = light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)';
-    ctx.lineWidth=1;
-    ctx.setLineDash([3,4]);
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.18)';
+    ctx.lineWidth=1; ctx.setLineDash([3,4]);
     ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle=cv.dim; ctx.textAlign='right';
-    ctx.fillText(Math.round(c)+'m', pad.l-4, y+3);
+    ctx.fillStyle = light ? 'rgba(0,0,0,0.62)' : 'rgba(255,255,255,0.58)';
+    ctx.font = "10px 'DM Mono',monospace"; ctx.textAlign='right';
+    ctx.fillText(Math.round(c)+'m', pad.l-3, y+3.5);
   }
 
   // ── Grid: side lines (vertical) ───────────────────────────────────────────
@@ -1109,10 +1117,19 @@ function drawTopViewMap(shots, colorMap) {
   for (let s=-Math.floor(sideRange/sideStep)*sideStep; s<=sideRange; s+=sideStep) {
     if (s===0) continue;
     const x = mapX(s);
-    ctx.strokeStyle = light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.03)';
-    ctx.lineWidth=1; ctx.setLineDash([2,5]);
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.12)';
+    ctx.lineWidth=1; ctx.setLineDash([2,4]);
     ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ch); ctx.stroke();
     ctx.setLineDash([]);
+  }
+  // Side distance labels at bottom of grid
+  ctx.font = "9px 'DM Mono',monospace";
+  ctx.fillStyle = light ? 'rgba(0,0,0,0.58)' : 'rgba(255,255,255,0.52)';
+  for (let s=-Math.floor(sideRange/sideStep)*sideStep; s<=sideRange; s+=sideStep) {
+    const x = mapX(s);
+    if (x < pad.l+4 || x > pad.l+cw-4) continue;
+    ctx.textAlign = 'center';
+    ctx.fillText((s===0?'0':(s>0?'+':'')+s)+'m', x, pad.t+ch+20);
   }
 
   // ── Centre target line ────────────────────────────────────────────────────
@@ -1185,11 +1202,11 @@ function drawTopViewMap(shots, colorMap) {
   ctx.beginPath(); ctx.arc(cx0, cy0, 4.5, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 
-  // ── Axis labels ───────────────────────────────────────────────────────────
-  ctx.fillStyle=cv.dim; ctx.font="9px 'DM Mono',monospace";
-  ctx.textAlign='left';  ctx.fillText('← L', pad.l+2,           pad.t+ch+19);
-  ctx.textAlign='center'; ctx.fillText('0m',   mapX(0),           pad.t+ch+19);
-  ctx.textAlign='right'; ctx.fillText('R →', pad.l+cw,           pad.t+ch+19);
+  // ── Edge direction labels ─────────────────────────────────────────────────
+  ctx.font = "9px 'DM Mono',monospace";
+  ctx.fillStyle = light ? 'rgba(0,0,0,0.40)' : 'rgba(255,255,255,0.36)';
+  ctx.textAlign = 'left';  ctx.fillText('← L', pad.l,     pad.t+ch+36);
+  ctx.textAlign = 'right'; ctx.fillText('R →', pad.l+cw,  pad.t+ch+36);
 }
 
 function drawSideViewMap(shots, colorMap) {
@@ -1332,6 +1349,104 @@ function drawSideViewMap(shots, colorMap) {
     ctx.beginPath(); ctx.arc(apexX, apexY, 3, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
   }
+}
+
+// ── Distribution histograms ────────────────────────────────────────────────
+function _drawHistogram(canvasId, values, opts) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !values.length) return;
+  const { unit = 'm', median, sd, title = '' } = opts || {};
+  const dpr = Math.min(window.devicePixelRatio || 2, 3);
+  const light = document.body.classList.contains('light-theme');
+  const w = canvas.parentElement?.clientWidth || 340, h = 88;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  ctx.fillStyle = light ? '#f2f0ec' : '#0d1215'; ctx.fillRect(0, 0, w, h);
+  const pad = { t:20, r:14, b:22, l:12 };
+  const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const range = hi - lo || 1;
+  const nBins = Math.max(6, Math.min(14, Math.round(Math.sqrt(values.length) * 1.6)));
+  const binW = range / nBins;
+  const bins = Array(nBins).fill(0);
+  values.forEach(v => { const idx = Math.min(Math.floor((v - lo) / binW), nBins - 1); bins[idx]++; });
+  const maxCount = Math.max(...bins, 1);
+  const xOf = v => pad.l + cw * (v - lo) / range;
+  const bpx = cw / nBins;
+  if (median != null && sd != null) {
+    const sdL = Math.max(pad.l, xOf(median - sd));
+    const sdR = Math.min(pad.l + cw, xOf(median + sd));
+    ctx.fillStyle = light ? 'rgba(0,120,80,0.11)' : 'rgba(0,214,143,0.09)';
+    ctx.fillRect(sdL, pad.t, sdR - sdL, ch);
+  }
+  const barClr = light ? 'rgba(0,122,69,0.55)' : 'rgba(0,214,143,0.48)';
+  bins.forEach((count, i) => {
+    const barH = ch * count / maxCount;
+    ctx.fillStyle = barClr;
+    ctx.fillRect(pad.l + i * bpx + 1, pad.t + ch - barH, bpx - 2, barH);
+  });
+  if (median != null) {
+    const mx = xOf(median);
+    if (mx >= pad.l && mx <= pad.l + cw) {
+      ctx.strokeStyle = light ? 'rgba(0,122,69,0.90)' : 'rgba(0,214,143,0.90)';
+      ctx.lineWidth = 1.8; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(mx, pad.t); ctx.lineTo(mx, pad.t + ch); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = light ? 'rgba(0,122,69,0.9)' : 'rgba(0,214,143,0.9)';
+      ctx.font = "bold 9px 'DM Mono',monospace"; ctx.textAlign = 'center';
+      ctx.fillText(Math.round(median) + unit, mx, pad.t - 5);
+    }
+  }
+  const lblClr = light ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.38)';
+  ctx.fillStyle = lblClr; ctx.font = "8px 'DM Mono',monospace";
+  ctx.textAlign = 'left';  ctx.fillText(Math.round(lo) + unit, pad.l, h - 4);
+  ctx.textAlign = 'right'; ctx.fillText(Math.round(hi) + unit, pad.l + cw, h - 4);
+  if (title) { ctx.textAlign = 'center'; ctx.fillStyle = light ? 'rgba(0,0,0,0.28)' : 'rgba(255,255,255,0.25)'; ctx.fillText(title, pad.l + cw / 2, h - 4); }
+}
+
+function _drawDirHistogram(canvasId, values) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !values.length) return;
+  const dpr = Math.min(window.devicePixelRatio || 2, 3);
+  const light = document.body.classList.contains('light-theme');
+  const w = canvas.parentElement?.clientWidth || 340, h = 82;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  ctx.fillStyle = light ? '#f2f0ec' : '#0d1215'; ctx.fillRect(0, 0, w, h);
+  const pad = { t:8, r:12, b:22, l:12 };
+  const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+  const maxAbs = Math.max(...values.map(Math.abs), 12) * 1.15;
+  const nBins = 14;
+  const binW = (maxAbs * 2) / nBins;
+  const bins = Array(nBins).fill(0);
+  values.forEach(v => { const idx = Math.min(Math.floor((v + maxAbs) / binW), nBins - 1); bins[idx]++; });
+  const maxCount = Math.max(...bins, 1);
+  const xOf = v => pad.l + cw * (v + maxAbs) / (maxAbs * 2);
+  const bpx = cw / nBins;
+  const corrL = xOf(-5), corrR = xOf(5);
+  ctx.fillStyle = light ? 'rgba(0,120,80,0.09)' : 'rgba(0,214,143,0.07)';
+  ctx.fillRect(Math.max(pad.l, corrL), pad.t, Math.min(corrR, pad.l+cw) - Math.max(pad.l, corrL), ch);
+  bins.forEach((count, i) => {
+    const barH = ch * count / maxCount;
+    const binCentre = -maxAbs + (i + 0.5) * binW;
+    const clr = Math.abs(binCentre) <= 5
+      ? (light ? 'rgba(0,120,60,0.58)' : 'rgba(0,200,110,0.52)')
+      : binCentre < 0 ? (light ? 'rgba(80,100,200,0.55)' : 'rgba(120,150,255,0.52)')
+        : (light ? 'rgba(210,90,50,0.55)' : 'rgba(255,140,80,0.52)');
+    ctx.fillStyle = clr;
+    ctx.fillRect(pad.l + i * bpx + 1, pad.t + ch - barH, bpx - 2, barH);
+  });
+  const cx0 = xOf(0);
+  ctx.strokeStyle = light ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx0, pad.t); ctx.lineTo(cx0, pad.t + ch); ctx.stroke();
+  ctx.font = "8px 'DM Mono',monospace";
+  ctx.fillStyle = light ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.38)';
+  ctx.textAlign = 'left';  ctx.fillText('L', pad.l, h - 4);
+  ctx.textAlign = 'center'; ctx.fillText('0m', cx0, h - 4);
+  ctx.textAlign = 'right'; ctx.fillText('R', pad.l + cw, h - 4);
 }
 
 // ── Alias Manager ──────────────────────────────────────────────────────────

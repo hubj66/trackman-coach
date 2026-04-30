@@ -84,7 +84,6 @@ async function loadStatsPage(){
   }
   _currentUserId=sd.session.user.id;
   await Promise.all([
-    loadTournamentPanel(),
     loadTrackmanSummary(),
     loadChippingSummary(),
     loadPuttingSummary(),
