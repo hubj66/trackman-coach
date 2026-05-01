@@ -1317,7 +1317,7 @@ function drawSideViewMap(shots, colorMap) {
     if (total > carry+0.5) {
       const rollPx = mapX(total) - mapX(carry);
       const ld = (s.landing_angle > 1) ? s.landing_angle : 38;
-      const bounceH = Math.min(Math.max(rollPx * Math.tan(ld * Math.PI / 180) * 0.10, 1.5), ch * 0.10);
+      const bounceH = Math.min(Math.max(rollPx * Math.tan(ld * Math.PI / 180) * 0.40, 3), ch * 0.18);
       ctx.globalAlpha=0.25; ctx.setLineDash([2,3]);
       ctx.beginPath(); ctx.moveTo(mapX(carry), groundPY);
       ctx.quadraticCurveTo(mapX(carry) + rollPx * 0.20, groundPY - bounceH, mapX(total), groundPY);
@@ -1345,7 +1345,7 @@ function drawSideViewMap(shots, colorMap) {
   if (avgTotal > avgCarry+0.5) {
     const rollPx = mapX(avgTotal) - mapX(avgCarry);
     const avgLd = avgLanding > 1 ? avgLanding : 38;
-    const bounceH = Math.min(Math.max(rollPx * Math.tan(avgLd * Math.PI / 180) * 0.10, 1.5), ch * 0.10);
+    const bounceH = Math.min(Math.max(rollPx * Math.tan(avgLd * Math.PI / 180) * 0.40, 3), ch * 0.18);
     ctx.globalAlpha=0.60; ctx.setLineDash([3,4]);
     ctx.beginPath(); ctx.moveTo(mapX(avgCarry), groundPY);
     ctx.quadraticCurveTo(mapX(avgCarry) + rollPx * 0.20, groundPY - bounceH, mapX(avgTotal), groundPY);
