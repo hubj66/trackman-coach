@@ -1315,8 +1315,13 @@ function drawSideViewMap(shots, colorMap) {
     ctx.stroke();
 
     if (total > carry+0.5) {
-      ctx.globalAlpha=0.22; ctx.setLineDash([2,3]);
-      ctx.beginPath(); ctx.moveTo(mapX(carry),groundPY); ctx.lineTo(mapX(total),groundPY); ctx.stroke();
+      const rollPx = mapX(total) - mapX(carry);
+      const ld = (s.landing_angle > 1) ? s.landing_angle : 38;
+      const bounceH = Math.min(Math.max(rollPx * Math.tan(ld * Math.PI / 180) * 0.10, 1.5), ch * 0.10);
+      ctx.globalAlpha=0.25; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(mapX(carry), groundPY);
+      ctx.quadraticCurveTo(mapX(carry) + rollPx * 0.20, groundPY - bounceH, mapX(total), groundPY);
+      ctx.stroke();
       ctx.setLineDash([]);
     }
     ctx.globalAlpha=1; ctx.lineCap='butt';
@@ -1338,8 +1343,13 @@ function drawSideViewMap(shots, colorMap) {
   ctx.stroke();
 
   if (avgTotal > avgCarry+0.5) {
-    ctx.globalAlpha=0.55; ctx.setLineDash([4,4]);
-    ctx.beginPath(); ctx.moveTo(mapX(avgCarry),groundPY); ctx.lineTo(mapX(avgTotal),groundPY); ctx.stroke();
+    const rollPx = mapX(avgTotal) - mapX(avgCarry);
+    const avgLd = avgLanding > 1 ? avgLanding : 38;
+    const bounceH = Math.min(Math.max(rollPx * Math.tan(avgLd * Math.PI / 180) * 0.10, 1.5), ch * 0.10);
+    ctx.globalAlpha=0.60; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(mapX(avgCarry), groundPY);
+    ctx.quadraticCurveTo(mapX(avgCarry) + rollPx * 0.20, groundPY - bounceH, mapX(avgTotal), groundPY);
+    ctx.stroke();
     ctx.setLineDash([]);
   }
   ctx.globalAlpha=1; ctx.lineCap='butt';
