@@ -474,6 +474,12 @@ function _worstWedgeWindow(windows) {
     .sort((a, b) => b.sd - a.sd)[0] || null;
 }
 
+function _wedgeTargetDelta(clubKey, windowLabel, avg) {
+  const target = window.getWedgeTarget?.(clubKey, windowLabel);
+  if (target == null || avg == null) return null;
+  return { target, delta: avg - target };
+}
+
 function _renderWedgeWindowCard(shots, focusLabel, clubKey) {
   const windows = _buildWedgeWindows(shots).filter(w => w.n >= 2);
   if (!windows.length) return '';
@@ -560,17 +566,29 @@ function _detectFocusIssue(focusShots, focusKey) {
 
   // Carry consistency. Wedges are scored by partial-shot window, not blended carry.
   if (isWedges) {
-    const worstWindow = _worstWedgeWindow(_buildWedgeWindows(focusShots));
-    if (worstWindow && worstWindow.sd > 5) {
-      const sev = Math.min(worstWindow.sd / 10, 1);
+    const wedgeWindows = _buildWedgeWindows(focusShots);
+    const worstWindow = _worstWedgeWindow(wedgeWindows);
+    const offTargetWindow = _isWedgeKey(primaryCk) ? wedgeWindows
+      .map(w => ({ ...w, targetInfo: _wedgeTargetDelta(primaryCk, w.label, w.avg) }))
+      .filter(w => w.n >= 4 && w.targetInfo && Math.abs(w.targetInfo.delta) > 3)
+      .sort((a,b) => Math.abs(b.targetInfo.delta) - Math.abs(a.targetInfo.delta))[0] : null;
+    const chosenWindow = offTargetWindow || worstWindow;
+    const targetInfo = chosenWindow ? _wedgeTargetDelta(primaryCk, chosenWindow.label, chosenWindow.avg) : null;
+    if (chosenWindow && (chosenWindow.sd > 5 || targetInfo)) {
+      const spreadSev = chosenWindow.sd != null ? Math.min(chosenWindow.sd / 10, 1) : 0;
+      const targetSev = targetInfo ? Math.min(Math.abs(targetInfo.delta) / 8, 1) : 0;
+      const sev = Math.max(spreadSev, targetSev);
+      const targetText = targetInfo ? ` · target ${f(targetInfo.target,0)}m · ${targetInfo.delta > 0 ? '+' : ''}${f(targetInfo.delta,0)}m` : '';
       candidates.push({
-        key: `wedge_window_${primaryCk}_${worstWindow.label.replace(/[^a-z0-9]/gi,'_')}`,
+        key: `wedge_window_${primaryCk}_${chosenWindow.label.replace(/[^a-z0-9]/gi,'_')}`,
         club: primaryCk, type: 'consistency', score: sev * 0.9,
-        simple: `${worstWindow.label} wedge distance needs tightening`,
-        support: `${worstWindow.n} shots · avg ${f(worstWindow.avg,0)}m · spread ±${f(worstWindow.sd,1)}m`,
-        deeper: 'Your wedge data is separated by partial-shot window. The issue is not that 10m and 30m shots differ. It is whether the same window repeats inside a tight carry band.',
-        drill: `${worstWindow.label} ladder: 12 balls to one carry window, score only shots inside ±3m.`,
-        goal: `${worstWindow.label} carry spread below ±5m`,
+        simple: targetInfo && Math.abs(targetInfo.delta) > 3
+          ? `${chosenWindow.label} wedge is ${targetInfo.delta > 0 ? 'long' : 'short'} vs target`
+          : `${chosenWindow.label} wedge distance needs tightening`,
+        support: `${chosenWindow.n} shots · avg ${f(chosenWindow.avg,0)}m · spread ±${f(chosenWindow.sd,1)}m${targetText}`,
+        deeper: 'Your wedge data is separated by partial-shot window and compared with your target matrix. The issue is either repeatability inside the window or calibration against the intended carry.',
+        drill: `${chosenWindow.label} calibration ladder: 12 balls to ${targetInfo ? `${f(targetInfo.target,0)}m` : 'one carry window'}, score only shots inside ±3m.`,
+        goal: targetInfo ? `${chosenWindow.label} average within ±3m of ${f(targetInfo.target,0)}m` : `${chosenWindow.label} carry spread below ±5m`,
         durationMin: 25,
       });
     }
@@ -855,6 +873,9 @@ async function initTodayTab() {
   if (CA?.loadAliases) {
     await CA.loadAliases();
   }
+  if (typeof window.loadWedgeWindows === 'function') {
+    await window.loadWedgeWindows();
+  }
 
   const [{ data: shots }, { data: chips }, { data: putts }] = await Promise.all([
     window.TCData.fetchTrackmanShots(
@@ -1025,19 +1046,32 @@ function _detectTodayIssues(allShots, puttSessions) {
 
     // Carry consistency
     if (['pw','58','sw'].includes(ck)) {
-      const worstWindow = _worstWedgeWindow(_buildWedgeWindows(clubShots));
-      if (worstWindow && worstWindow.sd > 5) {
-        const sev = Math.min(worstWindow.sd / 10, 1);
+      const wedgeWindows = _buildWedgeWindows(clubShots);
+      const worstWindow = _worstWedgeWindow(wedgeWindows);
+      const offTargetWindow = wedgeWindows
+        .map(w => ({ ...w, targetInfo: _wedgeTargetDelta(ck, w.label, w.avg) }))
+        .filter(w => w.n >= 4 && w.targetInfo && Math.abs(w.targetInfo.delta) > 3)
+        .sort((a,b) => Math.abs(b.targetInfo.delta) - Math.abs(a.targetInfo.delta))[0];
+      const chosenWindow = offTargetWindow || worstWindow;
+      const targetInfo = chosenWindow ? _wedgeTargetDelta(ck, chosenWindow.label, chosenWindow.avg) : null;
+      if (chosenWindow && (chosenWindow.sd > 5 || targetInfo)) {
+        const spreadSev = chosenWindow.sd != null ? Math.min(chosenWindow.sd / 10, 1) : 0;
+        const targetSev = targetInfo ? Math.min(Math.abs(targetInfo.delta) / 8, 1) : 0;
+        const sev = Math.max(spreadSev, targetSev);
+        const targetText = targetInfo ? ` · target ${f(targetInfo.target,0)}m · ${targetInfo.delta > 0 ? '+' : ''}${f(targetInfo.delta,0)}m` : '';
+        const simple = targetInfo && Math.abs(targetInfo.delta) > 3
+          ? `${clubName} ${chosenWindow.label} is ${targetInfo.delta > 0 ? 'long' : 'short'} vs target`
+          : `${clubName} ${chosenWindow.label} distance needs tightening`;
         issues.push({
-          key: `wedge_window_${ck}_${worstWindow.label.replace(/[^a-z0-9]/gi,'_')}`,
+          key: `wedge_window_${ck}_${chosenWindow.label.replace(/[^a-z0-9]/gi,'_')}`,
           club: ck, clubName, type: 'consistency',
-          n: worstWindow.n, conf, confLabel, lowConf,
+          n: chosenWindow.n, conf, confLabel, lowConf,
           score: sev * conf * impact * 0.95 * recency,
-          simple: `${clubName} ${worstWindow.label} distance needs tightening`,
-          support: `${worstWindow.n} shots · avg ${f(worstWindow.avg,0)}m · spread ±${f(worstWindow.sd,1)}m`,
-          deeper: `${clubName} wedges are now judged inside each partial-shot window. A 10m, 20m, and 30m 58° shot should not be blended together. The opportunity is making ${worstWindow.label} repeat inside a tighter carry band.`,
-          drill: `${worstWindow.label} ladder: 12 balls to one carry window, score only shots inside ±3m`,
-          goal:  `${worstWindow.label} carry spread below ±5m`,
+          simple,
+          support: `${chosenWindow.n} shots · avg ${f(chosenWindow.avg,0)}m · spread ±${f(chosenWindow.sd,1)}m${targetText}`,
+          deeper: `${clubName} wedges are judged inside each partial-shot window and compared with your target matrix. The goal is repeatability plus calibration: the same window should finish close to its intended carry.`,
+          drill: `${chosenWindow.label} calibration ladder: 12 balls to ${targetInfo ? `${f(targetInfo.target,0)}m` : 'one carry window'}, score only shots inside ±3m`,
+          goal:  targetInfo ? `${chosenWindow.label} average within ±3m of ${f(targetInfo.target,0)}m` : `${chosenWindow.label} carry spread below ±5m`,
           durationMin: 25,
         });
       }

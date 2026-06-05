@@ -59,6 +59,9 @@ function carrySDColor(v) {
 // ── Init ───────────────────────────────────────────────────────────────────
 async function initAnalysisTab() {
   await CA().loadAliases();
+  if (typeof window.loadWedgeWindows === 'function') {
+    await window.loadWedgeWindows();
+  }
   buildAnalysisClubTabs();
   buildFilterTabs();
   loadAnalysis();
@@ -637,14 +640,14 @@ function drawProgressChart(key,shots){
           return vals.length ? { i, date: d, value: vals.reduce((a,b)=>a+b,0)/vals.length, n: vals.length } : null;
         }).filter(Boolean);
         const count = Object.values(byDate).reduce((a, vals) => a + vals.length, 0);
-        return { label, points, count };
+        return { label, points, count, target: window.getWedgeTarget?.(analysisClub, label) ?? null };
       })
       .filter(s => s.points.length >= 2)
       .sort((a,b) => b.count - a.count)
       .slice(0, 5);
 
     if (series.length) {
-      const vals = series.flatMap(s => s.points.map(p => p.value));
+      const vals = series.flatMap(s => [...s.points.map(p => p.value), ...(s.target != null ? [s.target] : [])]);
       const padw = { t:30, r:20, b:44, l:48 };
       const cww = w - padw.l - padw.r;
       const chw = h - padw.t - padw.b;
@@ -680,6 +683,17 @@ function drawProgressChart(key,shots){
         const col = palette[si % palette.length];
         const xs = s.points.map(p => pxw(p.i));
         const ys = s.points.map(p => pyw(p.value));
+        if (s.target != null) {
+          const ty = pyw(s.target);
+          ctx.save();
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = 0.35;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([6,4]);
+          ctx.beginPath();ctx.moveTo(padw.l,ty);ctx.lineTo(w-padw.r,ty);ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
         ctx.strokeStyle = col;
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
@@ -706,15 +720,17 @@ function drawProgressChart(key,shots){
       series.forEach((s, si) => {
         if (lx > w - 80) return;
         const col = palette[si % palette.length];
+        const last = s.points[s.points.length - 1]?.value;
+        const delta = s.target != null && last != null ? Math.round(last - s.target) : null;
         ctx.fillStyle = col;
         ctx.beginPath();ctx.arc(lx+4,padw.t+chw+20,4,0,Math.PI*2);ctx.fill();
         ctx.fillStyle = cvw.dim;
-        ctx.fillText(s.label, lx+12, padw.t+chw+23);
-        lx += Math.max(62, s.label.length * 7 + 22);
+        ctx.fillText(delta == null ? s.label : `${s.label} ${delta > 0 ? '+' : ''}${delta}m`, lx+12, padw.t+chw+23);
+        lx += Math.max(76, s.label.length * 7 + (delta == null ? 22 : 46));
       });
 
       const noteElW = document.getElementById('progress-baseline-note');
-      if (noteElW) noteElW.textContent = 'Carry split by wedge window. Pick windows in the TrackMan shot log for cleaner lines.';
+      if (noteElW) noteElW.textContent = 'Carry split by wedge window. Dashed coloured lines show your target carry when set.';
       return;
     }
 
@@ -953,6 +969,7 @@ const WEDGE_WINDOW_OPTIONS = [
   { value:"8 o'clock", label:"8 o'clock" },
   { value:"9 o'clock", label:"9 o'clock" },
   { value:"10 o'clock", label:"10 o'clock" },
+  { value:"11 o'clock", label:"11 o'clock" },
   { value:'half swing', label:'Half' },
   { value:'3/4 swing', label:'3/4' },
   { value:'stock', label:'Stock' },

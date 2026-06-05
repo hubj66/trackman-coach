@@ -53,6 +53,38 @@
     );
   }
 
+  async function fetchWedgeWindows(userId) {
+    return fetchOwnRows(
+      'wedge_windows',
+      userId,
+      'id,user_id,club_key,window,target_carry,notes,updated_at',
+      query => query.order('club_key', { ascending: true }).order('window', { ascending: true })
+    );
+  }
+
+  async function upsertWedgeWindow(userId, row) {
+    return client()
+      .from('wedge_windows')
+      .upsert({
+        user_id: userId,
+        club_key: row.club_key,
+        window: row.window,
+        target_carry: row.target_carry,
+        notes: row.notes || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,club_key,window' })
+      .select('id,user_id,club_key,window,target_carry,notes,updated_at')
+      .single();
+  }
+
+  async function deleteWedgeWindow(userId, id) {
+    return client()
+      .from('wedge_windows')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+  }
+
   window.TCData = {
     client,
     getSession,
@@ -63,5 +95,8 @@
     fetchTrackmanShots,
     fetchChippingSessions,
     fetchPuttingSessions,
+    fetchWedgeWindows,
+    upsertWedgeWindow,
+    deleteWedgeWindow,
   };
 })();
