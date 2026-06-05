@@ -1255,6 +1255,7 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
 .bag-chart-legend{display:flex;gap:14px;padding:0 2px}
 .bag-chart-legend-area{font-family:var(--mono);font-size:10px;color:var(--green);opacity:.85}
 .bag-chart-legend-line{font-family:var(--mono);font-size:10px;color:var(--amber);opacity:.9}
+.bag-chart-pending{font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:14px;text-align:center}
 
 
 
