@@ -436,6 +436,7 @@ function renderClubReport(allShots) {
     <div class="report-summary-line">${escapeHtml(clubLabel)} / ${reportFilterLabel()} / ${reportShots.length} shots / medians</div>
     ${renderWedgeTargetReport(reportShots)}
     <div class="report-metric-grid">${cards}</div>
+    <div class="report-diagram-note">Blue = club/attack path, red = face/launch, dashed grey = neutral reference. Quality labels are simple checkpoints, not fixed swing laws.</div>
     <div class="report-diagram-grid">
       <canvas id="report-delivery-canvas" height="260"></canvas>
       <canvas id="report-path-canvas" height="260"></canvas>
@@ -447,26 +448,74 @@ function prepReportCanvas(id) {
   if (!canvas) return null;
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
+  const dynamicHeight = Math.round(Math.max(260, Math.min(340, rect.width * 0.62)));
+  canvas.style.height = dynamicHeight + 'px';
   canvas.width = Math.max(1, Math.round(rect.width * dpr));
-  canvas.height = Math.max(1, Math.round(canvas.getAttribute('height') * dpr));
+  canvas.height = Math.max(1, Math.round(dynamicHeight * dpr));
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return { canvas, ctx, w:rect.width, h:Number(canvas.getAttribute('height')) };
+  return { canvas, ctx, w:rect.width, h:dynamicHeight };
 }
 
 function reportMedian(shots, key) {
   return statMedian(shots.map(s => s[key]).filter(x => x != null && !isNaN(x)));
 }
 
-function drawReportText(ctx, label, value, x, y, align='left') {
+function reportMetricQuality(key, value) {
+  if (value == null || isNaN(value)) return { label:'No data', color:_cv().dim };
+  const abs = Math.abs(Number(value));
+  const green = '#00d68f', amber = '#ffaa00', red = '#ff6b6b';
+  if (['face_angle','club_path','face_to_path','spin_axis'].includes(key)) {
+    if (abs <= 2) return { label:'Good', color:green };
+    if (abs <= 5) return { label:'OK', color:amber };
+    return { label:'Watch', color:red };
+  }
+  if (key === 'attack_angle') {
+    if (value <= -1 && value >= -6) return { label:'Good', color:green };
+    if (value <= 1 && value >= -8) return { label:'OK', color:amber };
+    return { label:'Watch', color:red };
+  }
+  if (key === 'launch_angle') {
+    if (value >= 16 && value <= 34) return { label:'OK', color:green };
+    return { label:'Check', color:amber };
+  }
+  if (key === 'spin_rate') {
+    if (value >= 3500) return { label:'OK', color:green };
+    return { label:'Low', color:amber };
+  }
+  return { label:'Info', color:_cv().lineColor };
+}
+
+function drawReportText(ctx, label, value, x, y, align='left', quality=null) {
   const cv = _cv();
   ctx.textAlign = align;
-  ctx.font = "12px 'DM Sans',sans-serif";
+  ctx.font = "600 13px 'DM Sans',sans-serif";
   ctx.fillStyle = cv.titleTxt;
   ctx.fillText(label, x, y);
-  ctx.font = "13px 'DM Mono',monospace";
+  ctx.font = "700 15px 'DM Mono',monospace";
   ctx.fillStyle = cv.lineColor;
   ctx.fillText(value, x, y + 17);
+  if (quality) {
+    ctx.font = "700 10px 'DM Mono',monospace";
+    ctx.fillStyle = quality.color;
+    ctx.fillText(quality.label, x, y + 34);
+  }
+}
+
+function drawReportLegend(ctx, items, x, y) {
+  ctx.font = "10px 'DM Mono',monospace";
+  ctx.textAlign = 'left';
+  let lx = x;
+  items.forEach(item => {
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash(item.dashed ? [5, 4] : []);
+    ctx.beginPath();ctx.moveTo(lx, y - 3);ctx.lineTo(lx + 16, y - 3);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = _cv().dim;
+    ctx.fillText(item.label, lx + 20, y);
+    lx += item.w || 88;
+  });
 }
 
 function drawClubReportDiagrams() {
@@ -492,6 +541,11 @@ function drawDeliveryDiagram(shots) {
   const spinLoft = reportMedian(shots, 'spin_loft');
   const baseX = w * 0.47;
   const baseY = h * 0.70;
+  ctx.strokeStyle = cv.gridMid;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(28, baseY - 26); ctx.lineTo(w - 28, baseY - 26); ctx.stroke();
+  ctx.setLineDash([]);
   ctx.strokeStyle = cv.baseline;
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(28, baseY); ctx.lineTo(w - 28, baseY); ctx.stroke();
@@ -502,6 +556,7 @@ function drawDeliveryDiagram(shots) {
   ctx.beginPath(); ctx.moveTo(baseX - 82, baseY + Math.sin(attackRad) * 36); ctx.lineTo(baseX + 72, baseY - Math.sin(attackRad) * 36); ctx.stroke();
 
   ctx.strokeStyle = '#ff4f3a';
+  ctx.lineWidth = 2.5;
   const launchRad = (launch || 0) * Math.PI / 180;
   ctx.beginPath(); ctx.moveTo(baseX, baseY); ctx.lineTo(baseX + 104, baseY - Math.tan(launchRad) * 104); ctx.stroke();
 
@@ -520,10 +575,15 @@ function drawDeliveryDiagram(shots) {
   ctx.beginPath(); ctx.arc(w * 0.78, baseY - 30, 18, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = cv.gridMid; ctx.stroke();
 
+  drawReportLegend(ctx, [
+    { label:'launch', color:'#ff4f3a', w:82 },
+    { label:'attack', color:'#2f68ff', w:82 },
+    { label:'reference', color:cv.gridMid, dashed:true, w:104 },
+  ], 16, h - 14);
   drawReportText(ctx, 'Dynamic Loft', metricDisplay(REPORT_METRICS.find(m => m.key === 'dyn_loft'), dynLoft), 16, 24);
-  drawReportText(ctx, 'Spin Rate', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_rate'), spin), w - 16, 24, 'right');
-  drawReportText(ctx, 'Attack Angle', metricDisplay(REPORT_METRICS.find(m => m.key === 'attack_angle'), attack), 16, h - 42);
-  drawReportText(ctx, 'Spin Loft', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_loft'), spinLoft), w - 16, h - 42, 'right');
+  drawReportText(ctx, 'Spin Rate', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_rate'), spin), w - 16, 24, 'right', reportMetricQuality('spin_rate', spin));
+  drawReportText(ctx, 'Attack Angle', metricDisplay(REPORT_METRICS.find(m => m.key === 'attack_angle'), attack), 16, h - 62, 'left', reportMetricQuality('attack_angle', attack));
+  drawReportText(ctx, 'Spin Loft', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_loft'), spinLoft), w - 16, h - 62, 'right');
 }
 
 function drawPathDiagram(shots) {
@@ -574,10 +634,15 @@ function drawPathDiagram(shots) {
   ctx.beginPath(); ctx.arc(w * 0.76, cy - 8, 18, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = cv.gridMid; ctx.stroke();
 
-  drawReportText(ctx, 'Club Path', metricDisplay(REPORT_METRICS.find(m => m.key === 'club_path'), path), 16, 24);
-  drawReportText(ctx, 'Face To Path', metricDisplay(REPORT_METRICS.find(m => m.key === 'face_to_path'), ftp), w - 16, 24, 'right');
-  drawReportText(ctx, 'Face Angle', metricDisplay(REPORT_METRICS.find(m => m.key === 'face_angle'), face), 16, h - 42);
-  drawReportText(ctx, 'Spin Axis', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_axis'), axis), w - 16, h - 42, 'right');
+  drawReportLegend(ctx, [
+    { label:'path', color:'#2f68ff', w:70 },
+    { label:'face', color:'#ff4f3a', w:70 },
+    { label:'neutral', color:cv.baseline, dashed:true, w:88 },
+  ], 16, h - 14);
+  drawReportText(ctx, 'Club Path', metricDisplay(REPORT_METRICS.find(m => m.key === 'club_path'), path), 16, 24, 'left', reportMetricQuality('club_path', path));
+  drawReportText(ctx, 'Face To Path', metricDisplay(REPORT_METRICS.find(m => m.key === 'face_to_path'), ftp), w - 16, 24, 'right', reportMetricQuality('face_to_path', ftp));
+  drawReportText(ctx, 'Face Angle', metricDisplay(REPORT_METRICS.find(m => m.key === 'face_angle'), face), 16, h - 62, 'left', reportMetricQuality('face_angle', face));
+  drawReportText(ctx, 'Spin Axis', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_axis'), axis), w - 16, h - 62, 'right', reportMetricQuality('spin_axis', axis));
 }
 
 function _cv() {
@@ -913,7 +978,7 @@ function renderProgressSection(allShots) {
   ${showMetrics ? `<div class="progress-chart-tabs">
     ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
   </div>` : ''}
-  <canvas id="progress-canvas" height="190" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:var(--canvas-bg);"></canvas>
+  <canvas id="progress-canvas" height="220" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:var(--canvas-bg);"></canvas>
   <div class="progress-baseline-note" id="progress-baseline-note"></div>`;
 }
 
@@ -946,7 +1011,8 @@ function prepProgressCanvas(height=190) {
   const canvas=document.getElementById('progress-canvas');
   if(!canvas)return null;
   const dpr=Math.min(window.devicePixelRatio||2,3);
-  const w=canvas.parentElement?.clientWidth||340,h=height;
+  const w=canvas.parentElement?.clientWidth||340;
+  const h=Math.max(height, w < 430 ? 250 : height);
   canvas.width=w*dpr;canvas.height=h*dpr;
   canvas.style.width=w+'px';canvas.style.height=h+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
@@ -973,9 +1039,10 @@ function drawEmptyChart(ctx, w, h, line1, line2='') {
 }
 
 function drawSessionChart(key, shots) {
-  const p = prepProgressCanvas(190);
+  const p = prepProgressCanvas(220);
   if (!p) return;
   const { ctx, w, h } = p;
+  const compact = w < 430;
   const cv = _cv();
   const colorMap = buildSessionColorMap(shots);
   const byDate = {};
@@ -997,7 +1064,7 @@ function drawSessionChart(key, shots) {
   const values = sessions.map(s => s.value);
   const baseline = key === 'playable_rate' ? 70 : getBaselineForMetric(key, analysisClub);
   const allVals = baseline != null ? [...values, baseline] : values;
-  const pad={t:30,r:20,b:42,l:48};
+  const pad=compact ? {t:36,r:16,b:56,l:54} : {t:30,r:20,b:44,l:48};
   const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   const span=Math.max(...allVals)-Math.min(...allVals)||1;
   const min=Math.min(...allVals)-span*0.14,max=Math.max(...allVals)+span*0.14;
@@ -1007,7 +1074,7 @@ function drawSessionChart(key, shots) {
   const isPct = key === 'playable_rate';
   const isSign=['face_angle','club_path','face_to_path','attack_angle'].includes(key);
 
-  ctx.strokeStyle=cv.grid;ctx.lineWidth=1;ctx.font="9px 'DM Mono',monospace";ctx.fillStyle=cv.dim;ctx.textAlign='right';
+  ctx.strokeStyle=cv.grid;ctx.lineWidth=1;ctx.font=`${compact ? 10 : 9}px 'DM Mono',monospace`;ctx.fillStyle=cv.dim;ctx.textAlign='right';
   for(let i=0;i<=4;i++){
     const y=pad.t+(ch/4)*i,val=max-((max-min)/4)*i;
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
@@ -1018,6 +1085,7 @@ function drawSessionChart(key, shots) {
     const by=py(baseline);
     ctx.save();ctx.strokeStyle=cv.baseline;ctx.setLineDash([8,5]);ctx.beginPath();ctx.moveTo(pad.l,by);ctx.lineTo(w-pad.r,by);ctx.stroke();ctx.restore();
   }
+  const labelStep = compact ? Math.max(1, Math.ceil(sessions.length / 5)) : 1;
   sessions.forEach((s,i)=>{
     const x=xOf(i), y=py(s.value), col=colorMap[s.date]||cv.lineColor;
     const baseVal = min <= 0 && max >= 0 ? 0 : min;
@@ -1025,15 +1093,17 @@ function drawSessionChart(key, shots) {
     ctx.fillStyle=col;ctx.globalAlpha=0.72;
     ctx.fillRect(x-barW/2, Math.min(y,zero), barW, Math.max(3, Math.abs(zero-y)));
     ctx.globalAlpha=1;
-    ctx.fillStyle=cv.dim;ctx.font="9px 'DM Mono',monospace";ctx.textAlign='center';
-    ctx.fillText(s.date.slice(5), x, pad.t+ch+20);
+    if (i % labelStep === 0 || i === sessions.length - 1) {
+      ctx.fillStyle=cv.dim;ctx.font=`${compact ? 10 : 9}px 'DM Mono',monospace`;ctx.textAlign='center';
+      ctx.fillText(s.date.slice(5), x, pad.t+ch+(compact ? 28 : 20));
+    }
   });
   const med=statMedian(values);
   if (med != null) {
     const my=py(med);
     ctx.strokeStyle=cv.lineColor;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad.l,my);ctx.lineTo(w-pad.r,my);ctx.stroke();
   }
-  ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
+  ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font=`700 ${compact ? 12 : 11}px 'Barlow Condensed',sans-serif`;
   ctx.fillText(`${progLabel(key).toUpperCase()} BY SESSION`,pad.l,pad.t-12);
   const note = document.getElementById('progress-baseline-note');
   if (note) note.textContent = `Each bar is one session median${baseline != null ? ' / dashed = target or baseline' : ''}.`;

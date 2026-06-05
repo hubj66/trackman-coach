@@ -396,6 +396,7 @@ button:active{background:var(--surface4)}
 .progress-chart-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px}
 .prog-tab{padding:4px 9px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer;transition:all .15s}
 .prog-tab.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+#progress-canvas{min-height:220px}
 .progress-baseline-note{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:5px;padding:0 2px}
 .report-filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px}
 .report-filter-btn{padding:4px 9px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer}
@@ -410,8 +411,9 @@ button:active{background:var(--surface4)}
 .report-trend.up{color:var(--green)}
 .report-trend.down{color:var(--amber)}
 .report-trend.neutral{color:var(--text3)}
+.report-diagram-note{font-family:var(--mono);font-size:10px;line-height:1.45;color:var(--text3);background:var(--surface2);border:0.5px solid var(--border);border-radius:8px;padding:7px 9px;margin:0 0 8px}
 .report-diagram-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.report-diagram-grid canvas{width:100%;display:block;border-radius:8px;background:var(--canvas-bg);border:0.5px solid var(--border)}
+.report-diagram-grid canvas{width:100%;min-height:260px;display:block;border-radius:8px;background:var(--canvas-bg);border:0.5px solid var(--border)}
 .wedge-target-report{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin:0 0 10px;overflow:hidden}
 .wedge-target-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:0.5px solid var(--border);background:var(--surface2)}
 .wedge-target-title{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
@@ -514,6 +516,7 @@ button:active{background:var(--surface4)}
   .analysis-kpi-grid{grid-template-columns:repeat(2,1fr)}
   .report-metric-grid{grid-template-columns:repeat(2,1fr)}
   .report-diagram-grid{grid-template-columns:1fr}
+  .report-diagram-grid canvas{min-height:300px}
   .analysis-two-col{grid-template-columns:1fr}
   .fault-summary{grid-template-columns:1fr}
   .tournament-kpis{grid-template-columns:repeat(3,1fr)}
@@ -1392,6 +1395,7 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
   .report-filter-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
   .report-filter-btn{min-height:34px;flex-shrink:0}
   .report-window-select{min-height:34px;flex-shrink:0}
+  #progress-canvas{min-height:250px}
 
   .acc-head{min-height:54px;padding:13px 12px}
   .acc-title{min-width:0}
