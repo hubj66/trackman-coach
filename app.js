@@ -701,7 +701,7 @@ const _WW_CLUBS = [
   {v:'58',l:'58°'},{v:'60',l:'60°'},{v:'lw',l:'LW'},
 ];
 const _WW_WINDOWS = [
-  "7 o'clock","8 o'clock","9 o'clock","10 o'clock",
+  "7 o'clock","8 o'clock","9 o'clock","10 o'clock","11 o'clock",
   'half swing','3/4 swing','stock'
 ];
 

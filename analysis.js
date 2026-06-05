@@ -953,6 +953,7 @@ const WEDGE_WINDOW_OPTIONS = [
   { value:"8 o'clock", label:"8 o'clock" },
   { value:"9 o'clock", label:"9 o'clock" },
   { value:"10 o'clock", label:"10 o'clock" },
+  { value:"11 o'clock", label:"11 o'clock" },
   { value:'half swing', label:'Half' },
   { value:'3/4 swing', label:'3/4' },
   { value:'stock', label:'Stock' },
