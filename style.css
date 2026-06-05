@@ -383,6 +383,25 @@ button:active{background:var(--surface4)}
 .trackman-insight.neutral{border-left-color:var(--border2)}
 .trackman-insight-title{font-size:13px;font-weight:700;color:var(--text);line-height:1.25}
 .trackman-insight-body{font-size:11px;color:var(--text3);line-height:1.35;margin-top:3px}
+.swing-cause-panel{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:10px;margin:0 0 10px}
+.swing-cause-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
+.swing-cause-title{font-family:var(--cond);font-size:16px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--text)}
+.swing-cause-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:1px}
+.swing-cause-empty{font-size:12px;color:var(--text3);line-height:1.45;background:var(--surface2);border-radius:7px;padding:9px}
+.swing-pattern-pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.swing-pattern-pills span{font-family:var(--mono);font-size:9px;color:var(--text2);background:var(--surface2);border:0.5px solid var(--border);border-radius:999px;padding:4px 7px}
+.swing-cause-questions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.swing-cause-question{min-width:0}
+.swing-cause-question-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:5px}
+.swing-cause-options{display:flex;flex-wrap:wrap;gap:4px}
+.swing-cause-option{padding:5px 7px;border:0.5px solid var(--border2);border-radius:999px;background:transparent;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer}
+.swing-cause-option.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.swing-cause-result{background:var(--surface2);border:0.5px solid var(--border);border-radius:8px;padding:9px}
+.swing-cause-result-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px}
+.swing-cause-result-title{font-size:14px;font-weight:800;color:var(--text);line-height:1.25}
+.swing-cause-result-body{font-size:12px;color:var(--text2);line-height:1.45;margin-top:5px}
+.swing-cause-test{font-size:12px;color:var(--text2);line-height:1.45;margin-top:7px;padding-top:7px;border-top:0.5px solid var(--border)}
+.swing-cause-test strong{color:var(--green)}
 .analysis-acc-content{padding:12px 14px 4px}
 .load-into-coach-btn{display:flex;align-items:center;gap:6px;background:var(--green-dim);color:var(--green);border:0.5px solid rgba(0,214,143,.3);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;width:100%;justify-content:center}
 .load-into-coach-btn:active{background:rgba(0,214,143,.25)}
@@ -555,6 +574,9 @@ button:active{background:var(--surface4)}
   .report-diagram-grid canvas{min-height:300px}
   .trackman-subgrid{grid-template-columns:1fr}
   .trackman-insights{grid-template-columns:1fr}
+  .swing-cause-questions{grid-template-columns:1fr}
+  .swing-cause-options{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .swing-cause-option{min-height:34px;flex-shrink:0}
   .analysis-two-col{grid-template-columns:1fr}
   .fault-summary{grid-template-columns:1fr}
   .tournament-kpis{grid-template-columns:repeat(3,1fr)}

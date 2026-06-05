@@ -11,6 +11,7 @@ let currentChartMode = 'sessions';
 let currentAnalysisSection = 'report';
 let currentReportFilter = 'included';
 let currentReportWindow = 'all';
+let swingCauseAnswers = {};
 let _allFetchedShots = [];
 let openSessions = new Set();
 let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
@@ -66,6 +67,7 @@ async function initAnalysisTab() {
   if (typeof window.loadWedgeWindows === 'function') {
     await window.loadWedgeWindows();
   }
+  loadSwingCauseAnswers();
   buildAnalysisClubTabs();
   buildFilterTabs();
   loadAnalysis();
@@ -170,6 +172,7 @@ function renderAnalysis(allShots) {
         <div class="trackman-section-sub">What matters for this club right now.</div>
       </div>
       ${renderTrackmanInsights(shots, allShots)}
+      ${renderSwingCauseCheck(shots)}
       ${renderClubReport(allShots)}
       <div class="trackman-subgrid">
         <div class="trackman-subpanel">${renderOverviewKPIs(shots)}</div>
@@ -508,6 +511,205 @@ function renderTrackmanInsights(shots, allShots) {
       <div class="trackman-insight-title">${escapeHtml(i.title)}</div>
       <div class="trackman-insight-body">${escapeHtml(i.body)}</div>
     </div>`).join('')}
+  </div>`;
+}
+
+const SWING_CAUSE_QUESTIONS = [
+  {
+    key:'focus',
+    label:'What were you focusing on?',
+    options:[
+      { value:'hips', label:'Hips / rotation' },
+      { value:'release', label:'Arms / release' },
+      { value:'tempo', label:'Tempo' },
+      { value:'strike', label:'Strike' },
+      { value:'ballpos', label:'Ball position' },
+      { value:'unsure', label:'Not sure' },
+    ],
+  },
+  {
+    key:'ball',
+    label:'What did the ball mostly do?',
+    options:[
+      { value:'start_right', label:'Started right' },
+      { value:'curve_right', label:'Straight then right' },
+      { value:'pull_fade', label:'Left then right' },
+      { value:'mixed', label:'Mixed starts' },
+      { value:'unsure', label:'Not sure' },
+    ],
+  },
+  {
+    key:'feel',
+    label:'What did it feel like?',
+    options:[
+      { value:'stuck', label:'Club stuck behind' },
+      { value:'late', label:'Hands late' },
+      { value:'open', label:'Face open' },
+      { value:'body_pull', label:'Pulling with body' },
+      { value:'weak', label:'Weak strike' },
+      { value:'unsure', label:'Not sure' },
+    ],
+  },
+];
+
+function loadSwingCauseAnswers() {
+  try { swingCauseAnswers = JSON.parse(localStorage.getItem('tc_swing_cause_answers') || '{}'); }
+  catch { swingCauseAnswers = {}; }
+}
+
+function saveSwingCauseAnswers() {
+  try { localStorage.setItem('tc_swing_cause_answers', JSON.stringify(swingCauseAnswers)); } catch {}
+}
+
+function causeAnswersForClub() {
+  if (!swingCauseAnswers[analysisClub]) swingCauseAnswers[analysisClub] = {};
+  return swingCauseAnswers[analysisClub];
+}
+
+function setSwingCauseChoice(key, value) {
+  const answers = causeAnswersForClub();
+  answers[key] = value;
+  saveSwingCauseAnswers();
+  renderAnalysis(analysisShots);
+}
+
+function angleDesc(value, goodAbs, labelPos, labelNeg) {
+  if (value == null) return '-';
+  if (Math.abs(value) <= goodAbs) return `neutral ${fSign(value,1)} deg`;
+  return `${value > 0 ? labelPos : labelNeg} ${fSign(value,1)} deg`;
+}
+
+function swingPatternStats(shots) {
+  const recent = [...shots].sort(byRecent).slice(0, 30);
+  const faces = recent.map(s => s.face_angle).filter(x => x != null && !isNaN(x));
+  const paths = recent.map(s => s.club_path).filter(x => x != null && !isNaN(x));
+  const ftps = recent.map(s => s.face_to_path).filter(x => x != null && !isNaN(x));
+  const sides = recent.map(s => s.side).filter(x => x != null && !isNaN(x));
+  if (recent.length < 5 || faces.length < 4 || paths.length < 4) return null;
+  const face = statMedian(faces);
+  const path = statMedian(paths);
+  const ftp = statMedian(ftps);
+  const side = statMedian(sides);
+  const faceSd = statStdDev(faces);
+  const miss = side == null ? 'unknown' : side > 5 ? 'right' : side < -5 ? 'left' : 'center';
+  return {
+    n: recent.length,
+    face,
+    path,
+    ftp,
+    side,
+    faceSd,
+    miss,
+    faceText: angleDesc(face, 2, 'open', 'closed'),
+    pathText: angleDesc(path, 2, 'in-to-out', 'out-to-in'),
+    ftpText: angleDesc(ftp, 3, 'open to path', 'closed to path'),
+    scatterText: faceSd == null ? '-' : faceSd > 3.5 ? `high scatter +/-${f(faceSd,1)} deg` : `stable +/-${f(faceSd,1)} deg`,
+  };
+}
+
+function swingCauseResult(stats, answers) {
+  const focus = answers.focus || '';
+  const ball = answers.ball || '';
+  const feel = answers.feel || '';
+  const faceOpen = stats.face != null && stats.face > 2;
+  const faceClosed = stats.face != null && stats.face < -2;
+  const inToOut = stats.path != null && stats.path > 2;
+  const outToIn = stats.path != null && stats.path < -2;
+  const ftpNeutral = stats.ftp == null || Math.abs(stats.ftp) <= 3;
+  const ftpOpen = stats.ftp != null && stats.ftp > 3;
+  const highScatter = stats.faceSd != null && stats.faceSd > 3.5;
+
+  let title = 'Face/path pattern needs one more input';
+  let cause = 'Use the choices above to narrow whether this is mostly face control, path, strike, or timing.';
+  let test = 'Hit 6 normal shots, then change one feel only and compare face angle, face scatter and start direction.';
+
+  if (stats.miss === 'right' && faceOpen && inToOut && ftpNeutral) {
+    title = 'Likely face open to target, not a path problem';
+    cause = 'The club is traveling from the inside, but the face is still open to the target. If you are driving hard with the hips, the arms/club may be arriving late.';
+    test = 'Try an earlier face-closure or turn-down release feel for 6 shots. Keep path similar, but look for face angle closer to 0 and lower face scatter.';
+  } else if (ball === 'curve_right' || ftpOpen) {
+    title = 'Likely face open relative to path';
+    cause = 'The curve-right pattern points more to face-to-path than aim. The ball may start okay and then peel right.';
+    test = 'Try a release/face-control drill and check whether face-to-path moves closer to 0 without path getting more left.';
+  } else if (highScatter || ball === 'mixed') {
+    title = 'Likely timing or release inconsistency';
+    cause = 'The average may not be the main issue; the face is arriving inconsistently from shot to shot.';
+    test = 'Use a slower tempo or shorter swing set. Track whether face scatter drops before chasing more speed.';
+  } else if (stats.miss === 'left' && faceClosed) {
+    title = 'Likely face closed to target';
+    cause = 'The face is arriving closed enough to move start direction left. Path matters less if the face is consistently closed.';
+    test = 'Use a softer release feel and check whether face angle moves closer to 0 while strike stays solid.';
+  } else if (outToIn && Math.abs(stats.path) > Math.abs(stats.face || 0)) {
+    title = 'Path may be the bigger lever';
+    cause = 'Path is more left than neutral, so swing direction may be influencing the miss pattern.';
+    test = 'Try a path-neutral rehearsal and check whether club path moves closer to 0 without face getting more open.';
+  }
+
+  if ((focus === 'hips' || feel === 'body_pull' || feel === 'stuck' || feel === 'late') && faceOpen) {
+    title = 'Body may be outracing arms/club';
+    cause = 'Your input points to rotation leading the club. That can leave the face open to target, especially when the club feels stuck or the hands feel late.';
+    test = 'Keep the hip feel, but add an earlier turn-down release. Good result: face closer to 0, same or slightly less inside-out path, tighter face scatter.';
+  } else if (focus === 'release' || feel === 'open') {
+    test = 'Make release the experiment: 3 normal shots, 3 earlier face-closure shots. Keep only the version that improves face angle without creating a pull.';
+  } else if (focus === 'tempo') {
+    test = 'Use a 75% tempo set. If face scatter improves, speed/sequence may be part of the issue.';
+  } else if (focus === 'strike' || feel === 'weak') {
+    cause += ' Strike feedback matters here too; weak contact can make face/path numbers harder to trust.';
+    test = 'Pair the face/path check with strike quality. Only trust the pattern from solid strikes.';
+  } else if (focus === 'ballpos') {
+    test = 'Test one ball-position change at a time. Keep the best version only if start direction and face scatter both improve.';
+  }
+
+  return { title, cause, test };
+}
+
+function renderSwingCauseCheck(shots) {
+  const stats = swingPatternStats(shots);
+  if (!stats) {
+    return `<div class="swing-cause-panel">
+      <div class="swing-cause-head">
+        <div>
+          <div class="swing-cause-title">Cause Check</div>
+          <div class="swing-cause-sub">Need 5+ recent shots with face and path data.</div>
+        </div>
+      </div>
+      <div class="swing-cause-empty">Import a few TrackMan shots with face angle and club path, then this will ask follow-up questions and suggest a testable feel.</div>
+    </div>`;
+  }
+  const answers = causeAnswersForClub();
+  const result = swingCauseResult(stats, answers);
+  const answered = SWING_CAUSE_QUESTIONS.filter(q => answers[q.key]).length;
+  const pattern = [
+    `Miss ${stats.miss}`,
+    `Face ${stats.faceText}`,
+    `Path ${stats.pathText}`,
+    `FTP ${stats.ftpText}`,
+    `Face ${stats.scatterText}`,
+  ];
+  return `<div class="swing-cause-panel">
+    <div class="swing-cause-head">
+      <div>
+        <div class="swing-cause-title">Cause Check</div>
+        <div class="swing-cause-sub">${answered}/3 inputs selected / based on last ${stats.n} shots</div>
+      </div>
+    </div>
+    <div class="swing-pattern-pills">
+      ${pattern.map(p => `<span>${escapeHtml(p)}</span>`).join('')}
+    </div>
+    <div class="swing-cause-questions">
+      ${SWING_CAUSE_QUESTIONS.map(q => `<div class="swing-cause-question">
+        <div class="swing-cause-question-label">${escapeHtml(q.label)}</div>
+        <div class="swing-cause-options">
+          ${q.options.map(o => `<button class="swing-cause-option${answers[q.key]===o.value?' on':''}" onclick="setSwingCauseChoice('${q.key}','${o.value}')">${escapeHtml(o.label)}</button>`).join('')}
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="swing-cause-result">
+      <div class="swing-cause-result-label">Likely cause to test</div>
+      <div class="swing-cause-result-title">${escapeHtml(result.title)}</div>
+      <div class="swing-cause-result-body">${escapeHtml(result.cause)}</div>
+      <div class="swing-cause-test"><strong>Test:</strong> ${escapeHtml(result.test)}</div>
+    </div>
   </div>`;
 }
 
@@ -2546,6 +2748,7 @@ window.setAnalysisClub        = setAnalysisClub;
 window.setAnalysisFilter      = setAnalysisFilter;
 window.setReportFilter        = setReportFilter;
 window.setReportWindow        = setReportWindow;
+window.setSwingCauseChoice    = setSwingCauseChoice;
 window.showTrackmanSection    = showTrackmanSection;
 window.switchChartMode        = switchChartMode;
 window.switchProgChart        = switchProgChart;
