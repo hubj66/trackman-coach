@@ -365,6 +365,24 @@ button:active{background:var(--surface4)}
 .analysis-filter-tabs{display:flex;gap:4px;flex-wrap:wrap;padding-top:5px}
 .filter-tab{padding:3px 10px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer;transition:all .15s}
 .filter-tab.on{background:var(--surface3);border-color:var(--border2);color:var(--text)}
+.trackman-section-tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--bg);border-bottom:0.5px solid var(--border);padding:7px 12px}
+.trackman-section-tab{min-height:34px;border:0.5px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text3);font-size:12px;font-weight:700;cursor:pointer}
+.trackman-section-tab.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.trackman-section{padding:12px 14px 16px;border-bottom:0.5px solid var(--border)}
+.trackman-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.trackman-section-title{font-family:var(--cond);font-size:18px;font-weight:800;letter-spacing:.03em;color:var(--text);text-transform:uppercase}
+.trackman-section-sub{font-size:12px;color:var(--text3);text-align:right}
+.trackman-subgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.trackman-subpanel{min-width:0}
+.trackman-chart-divider{height:0.5px;background:var(--border);margin:14px 0}
+.trackman-insights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:10px}
+.trackman-insight{background:var(--surface);border:0.5px solid var(--border);border-left:3px solid var(--border2);border-radius:8px;padding:9px 10px;min-width:0}
+.trackman-insight.good{border-left-color:var(--green)}
+.trackman-insight.ok{border-left-color:var(--amber)}
+.trackman-insight.bad{border-left-color:var(--red)}
+.trackman-insight.neutral{border-left-color:var(--border2)}
+.trackman-insight-title{font-size:13px;font-weight:700;color:var(--text);line-height:1.25}
+.trackman-insight-body{font-size:11px;color:var(--text3);line-height:1.35;margin-top:3px}
 .analysis-acc-content{padding:12px 14px 4px}
 .load-into-coach-btn{display:flex;align-items:center;gap:6px;background:var(--green-dim);color:var(--green);border:0.5px solid rgba(0,214,143,.3);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;width:100%;justify-content:center}
 .load-into-coach-btn:active{background:rgba(0,214,143,.25)}
@@ -463,6 +481,24 @@ button:active{background:var(--surface4)}
 .analysis-raw-table td{padding:5px 6px;border-bottom:0.5px solid var(--border);color:var(--text2);vertical-align:middle}
 .analysis-raw-table tbody tr:last-child td{border-bottom:none}
 .analysis-raw-table tbody tr:hover td{background:var(--surface2)}
+.analysis-shot-card-list{display:none}
+.analysis-shot-card{border-left:3px solid var(--session-color,var(--border2));background:var(--surface);border-radius:8px;border-top:0.5px solid var(--border);border-right:0.5px solid var(--border);border-bottom:0.5px solid var(--border);padding:9px 10px;margin-bottom:7px}
+.shot-card-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.shot-card-time{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.shot-card-carry{font-family:var(--cond);font-size:20px;font-weight:800;color:var(--text);margin-right:auto}
+.shot-card-status{font-family:var(--mono);font-size:9px;border-radius:12px;padding:3px 7px}
+.shot-card-status.use{background:var(--green-dim);color:var(--green)}
+.shot-card-status.skip{background:rgba(255,170,0,.12);color:var(--amber)}
+.shot-card-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:7px}
+.shot-card-metrics span{background:var(--surface2);border-radius:6px;padding:5px 6px;min-width:0}
+.shot-card-metrics small{display:block;font-family:var(--mono);font-size:8px;color:var(--text3);text-transform:uppercase}
+.shot-card-metrics strong{display:block;font-family:var(--mono);font-size:11px;margin-top:1px}
+.shot-card-foot{display:flex;align-items:center;gap:8px}
+.shot-card-foot .shot-notes{flex:1;max-width:none}
+.shot-card-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.shot-card-edit-grid label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase}
+.shot-card-edit-notes{grid-column:1/-1}
+.shot-card-actions{display:flex;gap:8px;margin-top:9px}
 .session-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;flex-shrink:0;vertical-align:middle}
 .shot-time{font-family:var(--mono);font-size:10px;color:var(--text3)}
 .shot-notes{max-width:100px;overflow:hidden;text-overflow:ellipsis;color:var(--text3);font-size:10px}
@@ -517,6 +553,8 @@ button:active{background:var(--surface4)}
   .report-metric-grid{grid-template-columns:repeat(2,1fr)}
   .report-diagram-grid{grid-template-columns:1fr}
   .report-diagram-grid canvas{min-height:300px}
+  .trackman-subgrid{grid-template-columns:1fr}
+  .trackman-insights{grid-template-columns:1fr}
   .analysis-two-col{grid-template-columns:1fr}
   .fault-summary{grid-template-columns:1fr}
   .tournament-kpis{grid-template-columns:repeat(3,1fr)}
@@ -1401,6 +1439,14 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
   .acc-title{min-width:0}
   .acc-subtitle{max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sub-acc-head,.log-sub-head{min-height:48px;padding-left:12px;padding-right:12px}
+  .trackman-section-tabs{top:0;padding:7px 10px}
+  .trackman-section{padding:12px 12px 16px}
+  .trackman-section-head{align-items:flex-start;flex-direction:column;gap:2px}
+  .trackman-section-sub{text-align:left}
+  .analysis-raw-wrap{display:none}
+  .analysis-shot-card-list{display:block}
+  .session-head{padding-top:13px;padding-bottom:13px}
+  .session-meta{white-space:normal;line-height:1.25}
 
   .irow{padding:12px 12px 10px}
   input[type=range]{height:34px}

@@ -8,6 +8,7 @@ let analysisRawSort = { col: 'shot_time', dir: -1 };
 let editingRowId   = null;
 let currentProgKey = 'carry';
 let currentChartMode = 'sessions';
+let currentAnalysisSection = 'report';
 let currentReportFilter = 'included';
 let currentReportWindow = 'all';
 let _allFetchedShots = [];
@@ -161,25 +162,38 @@ function renderAnalysis(allShots) {
     return;
   }
 
-  // Preserve accordion open/closed states across club switches and filter changes.
-  // On first render (no anacc-overview in DOM yet) fall back to defaults.
-  const _accIds = ['report', 'overview', 'maps', 'consist', 'direction', 'distance', 'progress', 'shots'];
-  const _firstRender = !document.getElementById('anacc-overview');
-  const openAccs = new Set(
-    _firstRender
-      ? ['report', 'overview', 'maps', 'progress', 'shots']
-      : _accIds.filter(id => document.getElementById('anacc-' + id)?.classList.contains('open'))
-  );
-
   el.innerHTML = unknownBanner + `
-    ${renderAnalysisAcc('report',    'Club Report',           renderClubReport(allShots), openAccs.has('report'))}
-    ${renderAnalysisAcc('overview',  'Overview',              renderOverviewKPIs(shots), openAccs.has('overview'))}
-    ${renderAnalysisAcc('maps',      'Shot Maps',             renderShotMaps(shots, allShots), openAccs.has('maps'))}
-    ${renderAnalysisAcc('consist',   'Consistency',           renderConsistency(shots), openAccs.has('consist'))}
-    ${renderAnalysisAcc('direction', 'Direction &amp; Pattern', renderDirection(shots), openAccs.has('direction'))}
-    ${renderAnalysisAcc('distance',  'Distance Control',      renderDistanceControl(shots), openAccs.has('distance'))}
-    ${renderAnalysisAcc('progress',  'Progress Over Time',    renderProgressSection(allShots), openAccs.has('progress'))}
-    ${renderAnalysisAcc('shots',     'Shot Log',              renderSessionGroups(shots, colorMap), openAccs.has('shots'))}
+    ${renderTrackmanSectionTabs()}
+    <section class="trackman-section" id="trackman-section-report">
+      <div class="trackman-section-head">
+        <div class="trackman-section-title">Report</div>
+        <div class="trackman-section-sub">What matters for this club right now.</div>
+      </div>
+      ${renderTrackmanInsights(shots, allShots)}
+      ${renderClubReport(allShots)}
+      <div class="trackman-subgrid">
+        <div class="trackman-subpanel">${renderOverviewKPIs(shots)}</div>
+        <div class="trackman-subpanel">${renderConsistency(shots)}</div>
+        <div class="trackman-subpanel">${renderDirection(shots)}</div>
+        <div class="trackman-subpanel">${renderDistanceControl(shots)}</div>
+      </div>
+    </section>
+    <section class="trackman-section" id="trackman-section-charts">
+      <div class="trackman-section-head">
+        <div class="trackman-section-title">Charts</div>
+        <div class="trackman-section-sub">Trends, windows and shot pattern.</div>
+      </div>
+      ${renderProgressSection(allShots)}
+      <div class="trackman-chart-divider"></div>
+      ${renderShotMaps(shots, allShots)}
+    </section>
+    <section class="trackman-section" id="trackman-section-shots">
+      <div class="trackman-section-head">
+        <div class="trackman-section-title">Shots</div>
+        <div class="trackman-section-sub">Edit use/skip, wedge windows and notes.</div>
+      </div>
+      ${renderSessionGroups(shots, colorMap)}
+    </section>
   `;
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -203,6 +217,25 @@ function renderAnalysis(allShots) {
       if (head) { head.classList.add('open'); }
     });
   }));
+}
+
+function renderTrackmanSectionTabs() {
+  const tabs = [
+    { key:'report', label:'Report' },
+    { key:'charts', label:'Charts' },
+    { key:'shots',  label:'Shots' },
+  ];
+  return `<div class="trackman-section-tabs">
+    ${tabs.map(t => `<button class="trackman-section-tab${currentAnalysisSection===t.key?' on':''}" onclick="showTrackmanSection('${t.key}')">${t.label}</button>`).join('')}
+  </div>`;
+}
+
+function showTrackmanSection(key) {
+  currentAnalysisSection = key;
+  document.querySelectorAll('.trackman-section-tab').forEach(btn => {
+    btn.classList.toggle('on', btn.textContent.toLowerCase() === key);
+  });
+  document.getElementById(`trackman-section-${key}`)?.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function renderAnalysisAcc(id, title, content, defaultOpen) {
@@ -412,6 +445,69 @@ function renderWedgeTargetReport(reportShots) {
         </div>`;
       }).join('')}
     </div>
+  </div>`;
+}
+
+function renderTrackmanInsights(shots, allShots) {
+  const reportShots = getClubReportShots(allShots);
+  const insights = [];
+
+  if (isAnalysisWedgeClub()) {
+    const targetRows = wedgeWindowTargetRows(reportShots).filter(r => r.miss != null);
+    if (targetRows.length) {
+      const biggest = [...targetRows].sort((a,b) => Math.abs(b.miss) - Math.abs(a.miss))[0];
+      const cls = targetMissClass(biggest.miss);
+      insights.push({
+        cls,
+        title:`${windowDisplayLabel(biggest.label)} is ${Math.abs(Math.round(biggest.miss))}m ${biggest.miss > 0 ? 'long' : 'short'}`,
+        body:`Target ${f(biggest.target,0)}m, median ${f(biggest.median,0)}m across ${biggest.count} shots.`,
+      });
+    } else {
+      insights.push({
+        cls:'neutral',
+        title:'No calibrated wedge window yet',
+        body:'Edit a few wedge shots and set Window so targets can compare against real medians.',
+      });
+    }
+  }
+
+  const face = statMedian(shots.map(s => s.face_angle).filter(x => x != null && !isNaN(x)));
+  if (face != null) {
+    const q = reportMetricQuality('face_angle', face);
+    insights.push({
+      cls:q.label === 'Good' ? 'good' : q.label === 'OK' ? 'ok' : 'bad',
+      title:`Face ${face > 0 ? 'open' : face < 0 ? 'closed' : 'neutral'} ${fSign(face,1)} deg`,
+      body: q.label === 'Good' ? 'Face control is in a good range.' : 'Watch start direction and face control in the next session.',
+    });
+  }
+
+  const ftp = statMedian(shots.map(s => s.face_to_path).filter(x => x != null && !isNaN(x)));
+  if (ftp != null) {
+    const q = reportMetricQuality('face_to_path', ftp);
+    insights.push({
+      cls:q.label === 'Good' ? 'good' : q.label === 'OK' ? 'ok' : 'bad',
+      title:`Face-to-path ${fSign(ftp,1)} deg`,
+      body: Math.abs(ftp) <= 3 ? 'Curve control looks playable.' : 'This can create too much curve if it stays there.',
+    });
+  }
+
+  const carryMetric = REPORT_METRICS.find(m => m.key === 'carry');
+  const carryTrend = reportTrend(carryMetric, [...reportShots].sort(byRecent));
+  if (carryTrend.text) {
+    insights.push({
+      cls:carryTrend.cls === 'up' ? 'good' : carryTrend.cls === 'down' ? 'ok' : 'neutral',
+      title:`Carry ${carryTrend.text}`,
+      body:'Recent shots compared with the previous similar group.',
+    });
+  }
+
+  const shown = insights.slice(0, 3);
+  if (!shown.length) return '';
+  return `<div class="trackman-insights">
+    ${shown.map(i => `<div class="trackman-insight ${i.cls}">
+      <div class="trackman-insight-title">${escapeHtml(i.title)}</div>
+      <div class="trackman-insight-body">${escapeHtml(i.body)}</div>
+    </div>`).join('')}
   </div>`;
 }
 
@@ -1056,7 +1152,7 @@ function drawSessionChart(key, shots) {
     .map(([date, ss]) => ({ date, value:sessionMetricValue(ss, key), count:ss.length }))
     .filter(s => s.value != null);
   if (!sessions.length) {
-    drawEmptyChart(ctx, w, h, 'No session data for this metric');
+    drawEmptyChart(ctx, w, h, 'No session data for this metric', 'Choose another metric or import shots with this TrackMan field.');
     const note = document.getElementById('progress-baseline-note');
     if (note) note.textContent = '';
     return;
@@ -1130,7 +1226,7 @@ function drawPatternChart(shots) {
   const colorMap = buildSessionColorMap(shots);
   const valid = shots.filter(s => s.carry != null && s.side != null);
   if (valid.length < 2) {
-    drawEmptyChart(ctx, w, h, 'Need carry and side data for shot pattern');
+    drawEmptyChart(ctx, w, h, 'Need carry and side data for shot pattern', 'Import TrackMan shots with Carry and Side to see this chart.');
     const note = document.getElementById('progress-baseline-note');
     if (note) note.textContent = '';
     return;
@@ -1370,7 +1466,7 @@ function drawProgressChart(key,shots){
     ctx.textAlign = 'center';
     ctx.fillText('Need 2+ sessions in assigned wedge windows', w/2, h/2 - 6);
     ctx.font = "11px 'Barlow',sans-serif";
-    ctx.fillText('Unassigned shots are ignored here so buckets never mix with windows', w/2, h/2 + 14);
+    ctx.fillText('Edit wedge shots and set Window, then this chart will compare target vs actual.', w/2, h/2 + 14);
     const noteElW = document.getElementById('progress-baseline-note');
     if (noteElW) noteElW.textContent = 'Wedge carry charts stay split by window instead of blending partial shots.';
     return;
@@ -1674,6 +1770,9 @@ function renderShotRows(shots, sessionCol) {
         ${shots.map(s => renderShotRow(s, sessionCol)).join('')}
       </tbody>
     </table>
+  </div>
+  <div class="analysis-shot-card-list">
+    ${shots.map(s => renderShotCard(s, sessionCol)).join('')}
   </div>`;
 }
 
@@ -1681,7 +1780,7 @@ function renderShotRow(s, sessionCol) {
   const time = s.shot_time ? new Date(s.shot_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : (s.created_at ? new Date(s.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '');
   const wedgeShot = isWedgeShot(s);
   if (s.id === editingRowId) {
-    return `<tr class="shot-row shot-row-editing" data-id="${s.id}">
+    return `<tr class="shot-row shot-row-editing" data-id="${s.id}" data-shot-id="${s.id}">
       <td><span class="shot-time">${time}</span></td>
       <td>${f(s.carry,1)}</td><td>${f(s.smash_factor,2)}</td>
       <td>${fSign(s.face_angle,1)}</td><td>${fSign(s.club_path,1)}</td><td>${fSign(s.face_to_path,1)}</td>
@@ -1699,7 +1798,7 @@ function renderShotRow(s, sessionCol) {
       </td>
     </tr>`;
   }
-  return `<tr class="shot-row" data-id="${s.id}">
+  return `<tr class="shot-row" data-id="${s.id}" data-shot-id="${s.id}">
     <td><span class="shot-time">${time}</span></td>
     <td>${f(s.carry,1)}</td>
     <td>${f(s.smash_factor,2)}</td>
@@ -1719,6 +1818,57 @@ function renderShotRow(s, sessionCol) {
   </tr>`;
 }
 
+function renderShotCard(s, sessionCol) {
+  const time = s.shot_time ? new Date(s.shot_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : (s.created_at ? new Date(s.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '');
+  const wedgeShot = isWedgeShot(s);
+  const status = s.exclude_from_progress ? 'Skip' : 'Use';
+  if (s.id === editingRowId) {
+    return `<div class="analysis-shot-card shot-row-editing" data-shot-id="${s.id}" style="--session-color:${sessionCol}">
+      <div class="shot-card-head">
+        <span class="shot-card-time">${time}</span>
+        <span class="shot-card-carry">${f(s.carry,1)}m</span>
+      </div>
+      <div class="shot-card-edit-grid">
+        <label>Use<select id="edit-excl-m-${s.id}" class="edit-select">
+          <option value="0"${!s.exclude_from_progress?' selected':''}>Use</option>
+          <option value="1"${s.exclude_from_progress?' selected':''}>Skip</option>
+        </select></label>
+        ${wedgeShot ? `<label>Window${renderShotWindowSelectMobile(s)}</label>` : ''}
+        <label class="shot-card-edit-notes">Notes<input id="edit-notes-m-${s.id}" class="edit-notes-input" type="text" value="${escapeHtml(s.notes||'')}" placeholder="Notes..."></label>
+      </div>
+      <div class="shot-card-actions">
+        <button class="shot-action-btn shot-save" onclick="saveEditRow('${s.id}')">Save</button>
+        <button class="shot-action-btn shot-cancel" onclick="cancelEditRow()">Cancel</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="analysis-shot-card" data-shot-id="${s.id}" style="--session-color:${sessionCol}">
+    <div class="shot-card-head">
+      <span class="shot-card-time">${time}</span>
+      <span class="shot-card-carry">${f(s.carry,1)}m</span>
+      <span class="shot-card-status ${s.exclude_from_progress?'skip':'use'}">${status}</span>
+    </div>
+    <div class="shot-card-metrics">
+      <span><small>Face</small><strong class="${faceCol(s.face_angle)}">${fSign(s.face_angle,1)}</strong></span>
+      <span><small>Path</small><strong>${fSign(s.club_path,1)}</strong></span>
+      <span><small>FTP</small><strong class="${ftpCol(s.face_to_path)}">${fSign(s.face_to_path,1)}</strong></span>
+      <span><small>Spin</small><strong>${s.spin_rate?Math.round(s.spin_rate):'-'}</strong></span>
+    </div>
+    <div class="shot-card-foot">
+      <span>${renderShotWindowDisplay(s)}</span>
+      <span class="shot-notes">${escapeHtml(s.notes||'')}</span>
+      <button class="shot-action-btn shot-edit" onclick="startEditRow('${s.id}')">Edit</button>
+    </div>
+  </div>`;
+}
+
+function renderShotWindowSelectMobile(s) {
+  const current = isWedgeWindowValue(s.shot_type) ? normalizeWedgeWindowValue(s.shot_type) : '';
+  return `<select id="edit-window-m-${s.id}" class="edit-select edit-window-select" title="Wedge shot window">
+    ${WEDGE_WINDOW_OPTIONS.map(o => `<option value="${escapeHtml(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+  </select>`;
+}
+
 function faceCol(v){return v==null?'':Math.abs(v)<=2?'cell-good':Math.abs(v)<=4?'cell-warn':'cell-bad';}
 function ftpCol(v){return v==null?'':Math.abs(v)<=3?'cell-good':Math.abs(v)<=6?'cell-warn':'cell-bad';}
 
@@ -1729,14 +1879,18 @@ function sortRawTable(col){
   analysisRawSort=analysisRawSort.col===col?{col,dir:analysisRawSort.dir*-1}:{col,dir:-1};
   renderAnalysis(analysisShots);
 }
+function findVisibleShotNode(id) {
+  const nodes = [...document.querySelectorAll(`[data-shot-id="${id}"]`)];
+  return nodes.find(n => n.offsetParent !== null) || nodes[0] || null;
+}
 function renderAnalysisKeepingRow(id){
-  const row = document.querySelector(`tr[data-id="${id}"]`);
+  const row = findVisibleShotNode(id);
   const beforeTop = row?.getBoundingClientRect().top ?? null;
   const beforeScrollY = window.scrollY;
   renderAnalysis(analysisShots);
   if (beforeTop == null) return;
   requestAnimationFrame(() => {
-    const nextRow = document.querySelector(`tr[data-id="${id}"]`);
+    const nextRow = findVisibleShotNode(id);
     if (!nextRow) { window.scrollTo(0, beforeScrollY); return; }
     window.scrollBy(0, nextRow.getBoundingClientRect().top - beforeTop);
   });
@@ -1747,9 +1901,9 @@ function startEditRow(id){
 }
 function cancelEditRow(){const id=editingRowId;editingRowId=null;renderAnalysisKeepingRow(id);}
 async function saveEditRow(id){
-  const exclEl=document.getElementById(`edit-excl-${id}`);
-  const windowEl=document.getElementById(`edit-window-${id}`);
-  const notesEl=document.getElementById(`edit-notes-${id}`);
+  const exclEl=document.getElementById(`edit-excl-${id}`)||document.getElementById(`edit-excl-m-${id}`);
+  const windowEl=document.getElementById(`edit-window-${id}`)||document.getElementById(`edit-window-m-${id}`);
+  const notesEl=document.getElementById(`edit-notes-${id}`)||document.getElementById(`edit-notes-m-${id}`);
   if(!exclEl||!notesEl)return;
   const { user } = await window.TCData.getCurrentUser();
   const uid = user?.id;
@@ -2392,6 +2546,7 @@ window.setAnalysisClub        = setAnalysisClub;
 window.setAnalysisFilter      = setAnalysisFilter;
 window.setReportFilter        = setReportFilter;
 window.setReportWindow        = setReportWindow;
+window.showTrackmanSection    = showTrackmanSection;
 window.switchChartMode        = switchChartMode;
 window.switchProgChart        = switchProgChart;
 window.redrawCurrentTrackmanChart = redrawCurrentTrackmanChart;
