@@ -109,8 +109,8 @@ async function loadAnalysis() {
   editingRowId = null;
   await CA().loadAliases();
 
-  const { data: _authData } = await window.supabaseClient.auth.getSession();
-  if (!_authData?.session?.user) {
+  const { user } = await window.TCData.getCurrentUser();
+  if (!user) {
     el.innerHTML = `<div class="analysis-empty">
       <strong>Sign in to view your TrackMan data</strong>
       Your shot history, progress charts and club stats will appear here.
@@ -119,14 +119,11 @@ async function loadAnalysis() {
     return;
   }
 
-  const sb = window.supabaseClient;
-  const user = _authData.session.user;
-  const { data, error } = await sb
-    .from('trackman_shots')
-    .select('id,club,carry,total,side,total_side,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,launch_direction,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_loft,spin_axis,max_height,landing_angle,hang_time,notes,is_full_shot,exclude_from_progress,shot_type,strike_quality,shot_time,created_at')
-    .eq('user_id', user.id)
-    .order('shot_time', { ascending: false })
-    .limit(2000);
+  const { data, error } = await window.TCData.fetchTrackmanShots(
+    user.id,
+    'id,club,carry,total,side,total_side,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,launch_direction,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_loft,spin_axis,max_height,landing_angle,hang_time,notes,is_full_shot,exclude_from_progress,shot_type,strike_quality,shot_time,created_at',
+    { limit: 2000 }
+  );
 
   if (error) { el.innerHTML = `<div class="analysis-empty">Error: ${escapeHtml(error.message)}</div>`; return; }
   _allFetchedShots = data || [];
@@ -134,14 +131,7 @@ async function loadAnalysis() {
   renderAnalysis(analysisShots);
 }
 
-function applyFilter(shots) {
-  switch (analysisFilter) {
-    case 'full':          return shots.filter(s => s.is_full_shot !== false);
-    case 'progress':      return shots.filter(s => s.exclude_from_progress !== true);
-    case 'full_progress': return shots.filter(s => s.is_full_shot !== false && s.exclude_from_progress !== true);
-    default:              return shots;
-  }
-}
+function applyFilter(shots) { return window.TCGolf.filterAnalysisShots(shots, analysisFilter); }
 
 function buildSessionColorMap(shots) {
   const dates = [...new Set([...shots].sort((a,b)=>new Date(a.shot_time||a.created_at)-new Date(b.shot_time||b.created_at)).map(s=>(s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
@@ -926,8 +916,8 @@ async function saveEditRow(id){
   const exclEl=document.getElementById(`edit-excl-${id}`);
   const notesEl=document.getElementById(`edit-notes-${id}`);
   if(!fullEl||!exclEl||!notesEl)return;
-  const{data:_ad}=await window.supabaseClient.auth.getSession();
-  const uid=_ad?.session?.user?.id;
+  const { user } = await window.TCData.getCurrentUser();
+  const uid = user?.id;
   if(!uid){showToast('Not logged in');return;}
   const updates={is_full_shot:fullEl.value==='1',exclude_from_progress:exclEl.value==='1',notes:notesEl.value.trim()||null};
   const{error}=await window.supabaseClient.from('trackman_shots').update(updates).eq('id',id).eq('user_id',uid);
@@ -1497,8 +1487,8 @@ function _drawDirHistogram(canvasId, values) {
 // ── Alias Manager ──────────────────────────────────────────────────────────
 async function renderAliasManager(){
   const el=document.getElementById('alias-manager');if(!el)return;
-  const{data:_ad}=await window.supabaseClient.auth.getSession();
-  if(!_ad?.session?.user){
+  const { user } = await window.TCData.getCurrentUser();
+  if(!user){
     el.innerHTML='<div class="alias-msg" style="padding:8px 0;">Log in to manage club aliases.</div>';
     return;
   }

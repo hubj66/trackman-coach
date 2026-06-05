@@ -512,16 +512,13 @@ async function loadLastSessionBanner() {
   if (!keys.length) { banner.style.display = 'none'; return; }
 
   try {
-    const sb = window.supabaseClient;
-    const { data: _authData } = await sb.auth.getSession();
-    const _uid = _authData?.session?.user?.id;
-    if (!_uid) { banner.style.display = 'none'; return; }
-    const { data } = await sb
-      .from('trackman_shots')
-      .select('club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_axis,shot_time,created_at,is_full_shot,exclude_from_progress')
-      .eq('user_id', _uid)
-      .order('shot_time', { ascending: false })
-      .limit(300);
+    const { user } = await window.TCData.getCurrentUser();
+    if (!user) { banner.style.display = 'none'; return; }
+    const { data } = await window.TCData.fetchTrackmanShots(
+      user.id,
+      'club,carry,smash_factor,ball_speed,club_speed,spin_rate,launch_angle,attack_angle,club_path,face_angle,face_to_path,dyn_loft,spin_axis,shot_time,created_at,is_full_shot,exclude_from_progress',
+      { limit: 300 }
+    );
 
     if (!data?.length) { banner.style.display = 'none'; return; }
 
@@ -533,26 +530,7 @@ async function loadLastSessionBanner() {
 
     if (!relevantShots.length) { banner.style.display = 'none'; return; }
 
-    const lastDate = (relevantShots[0].shot_time || relevantShots[0].created_at)?.slice(0,10);
-    const lastSessionShots = relevantShots.filter(s => (s.shot_time||s.created_at)?.startsWith(lastDate));
-    const progress = lastSessionShots.filter(s => s.is_full_shot !== false && s.exclude_from_progress !== true);
-
-    const n = progress.length || lastSessionShots.length;
-    const shots = progress.length ? progress : lastSessionShots;
-
-    const avgOf = key => {
-      const v = shots.map(s => s[key]).filter(x => x != null && !isNaN(x));
-      return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
-    };
-
-    _lastSessionCache[club] = {
-      date: lastDate, n,
-      carry: avgOf('carry'), face: avgOf('face_angle'), path: avgOf('club_path'),
-      attack: avgOf('attack_angle'), smash: avgOf('smash_factor'),
-      launch: avgOf('launch_angle'), spin: avgOf('spin_rate'),
-      ballSpeed: avgOf('ball_speed'), clubSpeed: avgOf('club_speed'),
-      dynLoft: avgOf('dyn_loft'), spinAxis: avgOf('spin_axis'),
-    };
+    _lastSessionCache[club] = window.TCGolf.summarizeLastTrackmanSession(relevantShots);
 
     const s = _lastSessionCache[club];
     const fmtN = (v, dp=1) => v != null ? Number(v).toFixed(dp) : '–';
