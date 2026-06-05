@@ -661,9 +661,9 @@ function applyTheme(theme) {
   const btn = document.getElementById('theme-btn');
   if (btn) btn.textContent = theme === 'light' ? '🌙 Dark' : '☀ Light';
   // Redraw canvases if analysis tab is visible
-  if (typeof drawProgressChart === 'function' && document.getElementById('progress-canvas')) {
+  if (typeof window.redrawCurrentTrackmanChart === 'function' && document.getElementById('progress-canvas')) {
     requestAnimationFrame(() => {
-      drawProgressChart(window.currentProgKey || 'carry', typeof applyFilter === 'function' ? applyFilter(window.analysisShots || []) : []);
+      window.redrawCurrentTrackmanChart();
     });
   }
 }
