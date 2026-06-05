@@ -680,9 +680,8 @@ async function initTodayTab() {
 
   el.innerHTML = '<div class="today-loading"><div class="today-loading-spinner"></div>Loading your coaching summary…</div>';
 
-  const sb = window.supabaseClient;
-  const { data: authData } = await sb.auth.getSession();
-  if (!authData?.session?.user) {
+  const { user } = await window.TCData.getCurrentUser();
+  if (!user) {
     el.innerHTML = `
       <div class="today-empty-state">
         <div class="today-empty-icon">🏌️</div>
@@ -692,29 +691,27 @@ async function initTodayTab() {
       </div>`;
     return;
   }
-  const user = authData.session.user;
   const CA = window.clubAliases;
   if (CA?.loadAliases) {
     await CA.loadAliases();
   }
 
   const [{ data: shots }, { data: chips }, { data: putts }] = await Promise.all([
-    sb.from('trackman_shots')
-      .select('id,club,carry,total,side,smash_factor,ball_speed,face_angle,face_to_path,club_path,attack_angle,launch_angle,spin_rate,is_full_shot,exclude_from_progress,shot_time,created_at')
-      .eq('user_id', user.id)
-      .eq('exclude_from_progress', false)
-      .order('shot_time', { ascending: false })
-      .limit(300),
-    sb.from('chipping_sessions')
-      .select('session_date,attempts,inside_1m,between_1_2m,outside_3m')
-      .eq('user_id', user.id)
-      .order('session_date', { ascending: false })
-      .limit(10),
-    sb.from('putting_sessions')
-      .select('session_date,distance_m,holed,total')
-      .eq('user_id', user.id)
-      .order('session_date', { ascending: false })
-      .limit(20),
+    window.TCData.fetchTrackmanShots(
+      user.id,
+      'id,club,carry,total,side,smash_factor,ball_speed,face_angle,face_to_path,club_path,attack_angle,launch_angle,spin_rate,is_full_shot,exclude_from_progress,shot_time,created_at',
+      { limit: 300, progressOnly: true }
+    ),
+    window.TCData.fetchChippingSessions(
+      user.id,
+      'session_date,attempts,inside_1m,between_1_2m,outside_3m',
+      10
+    ),
+    window.TCData.fetchPuttingSessions(
+      user.id,
+      'session_date,distance_m,holed,total',
+      20
+    ),
   ]);
 
   const allShots = _mergeManualShots(shots || []);
