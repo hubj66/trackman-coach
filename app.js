@@ -86,6 +86,15 @@ function openMoreSection(name) {
     if (typeof window.loadProfileSection === 'function') window.loadProfileSection();
     return;
   }
+  if (name === 'wedgewindows') {
+    document.getElementById('more-list').style.display = 'none';
+    document.getElementById('more-aliases-section').style.display = 'none';
+    document.getElementById('more-section-title').textContent = 'Wedge windows';
+    document.getElementById('more-section-body').innerHTML = '';
+    document.getElementById('more-section').style.display = 'flex';
+    renderWedgeWindowsSection();
+    return;
+  }
   const section = MORE_SECTIONS[name];
   if (!section) return;
   document.getElementById('more-list').style.display = 'none';
@@ -685,6 +694,72 @@ rangeMode = getSavedRangeMode();
 applyRangeModeToClubs(rangeMode);
 updateModeButtons();
 render();
+
+// ── Wedge windows setup (localStorage) ────────────────────────────────────
+const _WW_CLUBS = [
+  {v:'pw',l:'PW'},{v:'sw',l:'SW'},{v:'aw',l:'AW/GW'},
+  {v:'58',l:'58°'},{v:'60',l:'60°'},{v:'lw',l:'LW'},
+];
+const _WW_WINDOWS = [
+  "7 o'clock","8 o'clock","9 o'clock","10 o'clock",
+  'half swing','3/4 swing','stock'
+];
+
+function _getWedgeWindows(){try{return JSON.parse(localStorage.getItem('tc_wedge_windows')||'[]');}catch{return[];}}
+function _setWedgeWindows(arr){localStorage.setItem('tc_wedge_windows',JSON.stringify(arr));}
+function getWedgeTarget(clubKey,winVal){const r=_getWedgeWindows().find(x=>x.club===clubKey&&x.window===winVal);return r?r.targetCarry:null;}
+window.getWedgeTarget=getWedgeTarget;
+
+function renderWedgeWindowsSection(){
+  const el=document.getElementById('more-section-body');if(!el)return;
+  const rows=_getWedgeWindows();
+  const tableHtml=rows.length
+    ?`<div class="ww-table">
+        <div class="ww-table-head"><span>Club</span><span>Window</span><span>Target</span><span>Feel / cue</span><span></span></div>
+        ${rows.map((r,i)=>`<div class="ww-table-row">
+          <span class="ww-cell-club">${escapeHtml((_WW_CLUBS.find(c=>c.v===r.club)||{l:r.club}).l)}</span>
+          <span class="ww-cell-win">${escapeHtml(r.window)}</span>
+          <span class="ww-cell-carry">${r.targetCarry}m</span>
+          <span class="ww-cell-notes">${escapeHtml(r.notes||'')}</span>
+          <button class="ww-del-btn" onclick="deleteWedgeWindow(${i})">✕</button>
+        </div>`).join('')}
+      </div>`
+    :'<div class="stats-empty" style="margin:0 0 14px">No targets set yet.</div>';
+  el.innerHTML=`${tableHtml}
+    <div class="ww-add-form">
+      <div class="ww-add-title">Add target</div>
+      <div class="ww-form-row">
+        <select id="ww-club">${_WW_CLUBS.map(c=>`<option value="${c.v}">${c.l}</option>`).join('')}</select>
+        <select id="ww-window">${_WW_WINDOWS.map(w=>`<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join('')}</select>
+      </div>
+      <div class="ww-form-row">
+        <input id="ww-carry" type="number" min="5" max="150" placeholder="Target carry (m)" inputmode="numeric">
+        <input id="ww-notes" type="text" placeholder="Feel / cue (optional)" autocorrect="off" spellcheck="false">
+      </div>
+      <button class="ww-save-btn" onclick="addWedgeWindow()">Add target</button>
+    </div>`;
+}
+window.renderWedgeWindowsSection=renderWedgeWindowsSection;
+
+function addWedgeWindow(){
+  const club=document.getElementById('ww-club')?.value;
+  const win=document.getElementById('ww-window')?.value;
+  const carry=parseInt(document.getElementById('ww-carry')?.value||'0');
+  const notes=document.getElementById('ww-notes')?.value?.trim()||'';
+  if(!club||!win||!carry||carry<1)return;
+  const rows=_getWedgeWindows();
+  const idx=rows.findIndex(r=>r.club===club&&r.window===win);
+  const entry={club,window:win,targetCarry:carry,notes};
+  if(idx>=0)rows[idx]=entry;else rows.push(entry);
+  const co=_WW_CLUBS.map(c=>c.v);
+  rows.sort((a,b)=>{const ci=co.indexOf(a.club)-co.indexOf(b.club);return ci||_WW_WINDOWS.indexOf(a.window)-_WW_WINDOWS.indexOf(b.window);});
+  _setWedgeWindows(rows);
+  renderWedgeWindowsSection();
+}
+window.addWedgeWindow=addWedgeWindow;
+
+function deleteWedgeWindow(i){const rows=_getWedgeWindows();rows.splice(i,1);_setWedgeWindows(rows);renderWedgeWindowsSection();}
+window.deleteWedgeWindow=deleteWedgeWindow;
 
 window.addEventListener('load', () => {
   loadGolfDict();

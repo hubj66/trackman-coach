@@ -999,7 +999,11 @@ function renderShotWindowSelect(s) {
 
 function renderShotWindowDisplay(s) {
   if (!isWedgeShot(s) || !isWedgeWindowValue(s.shot_type)) return '<span class="cell-dim">-</span>';
-  return `<span class="shot-window-pill">${escapeHtml(s.shot_type)}</span>`;
+  const ca = CA();
+  const resolvedKey = ca?.resolveClub ? ca.resolveClub(s.club) : null;
+  const target = resolvedKey && window.getWedgeTarget ? window.getWedgeTarget(resolvedKey, s.shot_type) : null;
+  const targetHtml = target != null ? `<span class="shot-window-target">${target}m</span>` : '';
+  return `<span class="shot-window-pill">${escapeHtml(s.shot_type)}</span>${targetHtml}`;
 }
 
 function renderShotRows(shots, sessionCol) {

@@ -1,0 +1,244 @@
+$ git format-patch HEAD~1 --stdout > /tmp/wedge.patch && cat /tmp/wedge.patch
+
+From bf386a312180aaa33ebeb6937cc66f41828238ed Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 5 Jun 2026 12:55:40 +0000
+Subject: [PATCH] Add Wedge windows setup: target carry per club+window
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+More → Wedge windows lets you define a target carry for each
+club/window combination (e.g. 58° + 8 o'clock = 20m, 9 o'clock = 30m).
+Stored in localStorage as tc_wedge_windows — no DB work needed.
+
+- app.js: CRUD functions, renderWedgeWindowsSection(), getWedgeTarget()
+  exposed globally; new 'wedgewindows' case in openMoreSection()
+- index.html: Wedge windows button added to More menu list
+- today.js: wedge window card now shows "+3m vs 20m" delta per row
+  when a specific club is selected; "set target" hint with link to setup
+- analysis.js: window display pill shows target carry next to it
+- style.css: ww-table, ww-form, ww-delta chip styles
+
+https://claude.ai/code/session_016UBmvSbRR1vd9nfCrs2Dfw
+---
+ analysis.js |  6 ++++-
+ app.js      | 75 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ index.html  |  5 ++++
+ style.css   | 24 +++++++++++++++++
+ today.js    | 26 +++++++++++++------
+ 5 files changed, 127 insertions(+), 9 deletions(-)
+
+diff --git a/analysis.js b/analysis.js
+index 8d717ea..d3491d0 100644
+--- a/analysis.js
++++ b/analysis.js
+@@ -999,7 +999,11 @@ function renderShotWindowSelect(s) {
+ 
+ function renderShotWindowDisplay(s) {
+   if (!isWedgeShot(s) || !isWedgeWindowValue(s.shot_type)) return '<span class="cell-dim">-</span>';
+-  return `<span class="shot-window-pill">${escapeHtml(s.shot_type)}</span>`;
++  const ca = CA();
++  const resolvedKey = ca?.resolveClub ? ca.resolveClub(s.club) : null;
++  const target = resolvedKey && window.getWedgeTarget ? window.getWedgeTarget(resolvedKey, s.shot_type) : null;
++  const targetHtml = target != null ? `<span class="shot-window-target">${target}m</span>` : '';
++  return `<span class="shot-window-pill">${escapeHtml(s.shot_type)}</span>${targetHtml}`;
+ }
+ 
+ function renderShotRows(shots, sessionCol) {
+diff --git a/app.js b/app.js
+index 158f798..e16f8e4 100644
+--- a/app.js
++++ b/app.js
+@@ -86,6 +86,15 @@ function openMoreSection(name) {
+     if (typeof window.loadProfileSection === 'function') window.loadProfileSection();
+     return;
+   }
++  if (name === 'wedgewindows') {
++    document.getElementById('more-list').style.display = 'none';
++    document.getElementById('more-aliases-section').style.display = 'none';
++    document.getElementById('more-section-title').textContent = 'Wedge windows';
++    document.getElementById('more-section-body').innerHTML = '';
++    document.getElementById('more-section').style.display = 'flex';
++    renderWedgeWindowsSection();
++    return;
++  }
+   const section = MORE_SECTIONS[name];
+   if (!section) return;
+   document.getElementById('more-list').style.display = 'none';
+@@ -686,6 +695,72 @@ applyRangeModeToClubs(rangeMode);
+ updateModeButtons();
+ render();
+ 
++// ── Wedge windows setup (localStorage) ────────────────────────────────────
++const _WW_CLUBS = [
++  {v:'pw',l:'PW'},{v:'sw',l:'SW'},{v:'aw',l:'AW/GW'},
++  {v:'58',l:'58°'},{v:'60',l:'60°'},{v:'lw',l:'LW'},
++];
++const _WW_WINDOWS = [
++  "7 o'clock","8 o'clock","9 o'clock","10 o'clock",
++  'half swing','3/4 swing','stock'
++];
++
++function _getWedgeWindows(){try{return JSON.parse(localStorage.getItem('tc_wedge_windows')||'[]');}catch{return[];}}
++function _setWedgeWindows(arr){localStorage.setItem('tc_wedge_windows',JSON.stringify(arr));}
++function getWedgeTarget(clubKey,winVal){const r=_getWedgeWindows().find(x=>x.club===clubKey&&x.window===winVal);return r?r.targetCarry:null;}
++window.getWedgeTarget=getWedgeTarget;
++
++function renderWedgeWindowsSection(){
++  const el=document.getElementById('more-section-body');if(!el)return;
++  const rows=_getWedgeWindows();
++  const tableHtml=rows.length
++    ?`<div class="ww-table">
++        <div class="ww-table-head"><span>Club</span><span>Window</span><span>Target</span><span>Feel / cue</span><span></span></div>
++        ${rows.map((r,i)=>`<div class="ww-table-row">
++          <span class="ww-cell-club">${escapeHtml((_WW_CLUBS.find(c=>c.v===r.club)||{l:r.club}).l)}</span>
++          <span class="ww-cell-win">${escapeHtml(r.window)}</span>
++          <span class="ww-cell-carry">${r.targetCarry}m</span>
++          <span class="ww-cell-notes">${escapeHtml(r.notes||'')}</span>
++          <button class="ww-del-btn" onclick="deleteWedgeWindow(${i})">✕</button>
++        </div>`).join('')}
++      </div>`
++    :'<div class="stats-empty" style="margin:0 0 14px">No targets set yet.</div>';
++  el.innerHTML=`${tableHtml}
++    <div class="ww-add-form">
++      <div class="ww-add-title">Add target</div>
++      <div class="ww-form-row">
++        <select id="ww-club">${_WW_CLUBS.map(c=>`<option value="${c.v}">${c.l}</option>`).join('')}</select>
++        <select id="ww-window">${_WW_WINDOWS.map(w=>`<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join('')}</select>
++      </div>
++      <div class="ww-form-row">
++        <input id="ww-carry" type="number" min="5" max="150" placeholder="Target carry (m)" inputmode="numeric">
++        <input id="ww-notes" type="text" placeholder="Feel / cue (optional)" autocorrect="off" spellcheck="false">
++      </div>
++      <button class="ww-save-btn" onclick="addWedgeWindow()">Add target</button>
++    </div>`;
++}
++window.renderWedgeWindowsSection=renderWedgeWindowsSection;
++
++function addWedgeWindow(){
++  const club=document.getElementById('ww-club')?.value;
++  const win=document.getElementById('ww-window')?.value;
++  const carry=parseInt(document.getElementById('ww-carry')?.value||'0');
++  const notes=document.getElementById('ww-notes')?.value?.trim()||'';
++  if(!club||!win||!carry||carry<1)return;
++  const rows=_getWedgeWindows();
++  const idx=rows.findIndex(r=>r.club===club&&r.window===win);
++  const entry={club,window:win,targetCarry:carry,notes};
++  if(idx>=0)rows[idx]=entry;else rows.push(entry);
++  const co=_WW_CLUBS.map(c=>c.v);
++  rows.sort((a,b)=>{const ci=co.indexOf(a.club)-co.indexOf(b.club);return ci||_WW_WINDOWS.indexOf(a.window)-_WW_WINDOWS.indexOf(b.window);});
++  _setWedgeWindows(rows);
++  renderWedgeWindowsSection();
++}
++window.addWedgeWindow=addWedgeWindow;
++
++function deleteWedgeWindow(i){const rows=_getWedgeWindows();rows.splice(i,1);_setWedgeWindows(rows);renderWedgeWindowsSection();}
++window.deleteWedgeWindow=deleteWedgeWindow;
++
+ window.addEventListener('load', () => {
+   loadGolfDict();
+   const lastTab = getLastTab();
+diff --git a/index.html b/index.html
+index 80c6af1..d01f25b 100644
+--- a/index.html
++++ b/index.html
+@@ -555,6 +555,11 @@
+         <span class="more-item-label">Profile</span>
+         <span class="more-item-arrow">›</span>
+       </button>
++      <button class="more-item" onclick="openMoreSection('wedgewindows')">
++        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="15.5" y2="14"/></svg></span>
++        <span class="more-item-label">Wedge windows</span>
++        <span class="more-item-arrow">›</span>
++      </button>
+       <button class="more-item" onclick="openMoreSection('appsettings')">
+         <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+         <span class="more-item-label">App settings</span>
+diff --git a/style.css b/style.css
+index 564c37a..bc1eae3 100644
+--- a/style.css
++++ b/style.css
+@@ -1159,6 +1159,30 @@ body.light-theme .today-focus-card{background:var(--surface)}
+ body.light-theme .today-train-card{background:var(--surface2)}
+ body.light-theme .today-context-chip.active{background:rgba(0,180,115,.1);border-color:rgba(0,180,115,.4);color:rgba(0,150,100,1)}
+ body.light-theme .today-wedge-card{background:var(--surface2)}
++/* wedge window delta chips (Today + TrackMan) */
++.ww-delta{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap}
++.ww-delta-ok{background:rgba(0,214,143,.15);color:var(--green)}
++.ww-delta-long{background:rgba(255,170,0,.15);color:var(--amber)}
++.ww-delta-short{background:rgba(255,100,100,.12);color:#ff7070}
++.ww-delta-none{color:var(--text3);font-size:10px;font-family:var(--mono)}
++.ww-setup-hint{font-size:11px;color:var(--text3);margin-top:8px;text-align:right}
++.ww-setup-link{background:none;border:none;color:var(--green);font-size:11px;cursor:pointer;padding:0;text-decoration:underline}
++.shot-window-target{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:4px}
++/* Wedge windows setup panel (More menu) */
++.ww-table{margin-bottom:16px;border:0.5px solid var(--border2);border-radius:10px;overflow:hidden}
++.ww-table-head{display:grid;grid-template-columns:52px 1fr 50px 1fr 28px;gap:4px;padding:7px 10px;background:var(--surface2);font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
++.ww-table-row{display:grid;grid-template-columns:52px 1fr 50px 1fr 28px;gap:4px;padding:9px 10px;border-top:0.5px solid var(--border);align-items:center;font-size:13px}
++.ww-cell-club{font-family:var(--cond);font-weight:700;color:var(--text)}
++.ww-cell-win{color:var(--text2);font-size:12px}
++.ww-cell-carry{font-family:var(--mono);font-weight:600;color:var(--green)}
++.ww-cell-notes{color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++.ww-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:15px;border-radius:4px}
++.ww-del-btn:hover{color:#ff4d4d}
++.ww-add-form{background:var(--surface2);border-radius:10px;padding:13px}
++.ww-add-title{font-family:var(--cond);font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
++.ww-form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
++.ww-form-row select,.ww-form-row input{width:100%;box-sizing:border-box;padding:9px 10px;background:var(--surface);border:0.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--sans)}
++.ww-save-btn{width:100%;padding:11px;background:var(--green);color:#000;border:none;border-radius:8px;font-family:var(--cond);font-size:14px;font-weight:700;letter-spacing:.05em;cursor:pointer;margin-top:2px}
+ 
+ .today-options-card{background:var(--surface);border:0.5px solid var(--border);border-radius:13px;padding:12px 14px;margin:10px 0}
+ .today-options-head{font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+diff --git a/today.js b/today.js
+index c3d9c12..5666e0c 100644
+--- a/today.js
++++ b/today.js
+@@ -329,7 +329,7 @@ function _renderClubFocusSection(focusKey) {
+   const stats     = _buildFocusStats(focusShots);
+   const statsCard = _renderFocusStatsCard(stats, focusLabel, focusShots.length);
+   const techCard  = _renderFocusTechnicalCard(stats, focusLabel);
+-  const wedgeCard = _isWedgeKey(focusKey) ? _renderWedgeWindowCard(focusShots, focusLabel) : '';
++  const wedgeCard = _isWedgeKey(focusKey) ? _renderWedgeWindowCard(focusShots, focusLabel, focusKey) : '';
+ 
+   // 1–4 shots — show what we have, flag insufficient data
+   if (focusShots.length < 5) {
+@@ -474,19 +474,29 @@ function _worstWedgeWindow(windows) {
+     .sort((a, b) => b.sd - a.sd)[0] || null;
+ }
+ 
+-function _renderWedgeWindowCard(shots, focusLabel) {
++function _renderWedgeWindowCard(shots, focusLabel, clubKey) {
+   const windows = _buildWedgeWindows(shots).filter(w => w.n >= 2);
+   if (!windows.length) return '';
++  const specificClub = clubKey && ['pw','58','sw','aw','gw','lw','60'].includes(clubKey);
+ 
+   return `<div class="today-wedge-card">
+     <div class="today-wedge-head">Partial wedge windows</div>
+     <div class="today-wedge-sub">${escapeHtml(focusLabel)} grouped by TrackMan shot type or notes first, then carry bucket.</div>
+-    ${windows.slice(0, 6).map(w => `<div class="today-wedge-row">
+-      <span class="today-wedge-label">${escapeHtml(w.label)}</span>
+-      <span class="today-wedge-stat">${escapeHtml(String(w.n))} shots</span>
+-      <span class="today-wedge-stat">${f(w.avg,0)}m avg</span>
+-      <span class="today-wedge-stat today-wedge-sd">±${w.sd == null ? '-' : f(w.sd,1)}m</span>
+-    </div>`).join('')}
++    ${windows.slice(0, 6).map(w => {
++      const target = specificClub ? (window.getWedgeTarget?.(clubKey, w.label) ?? null) : null;
++      const delta = target != null && w.avg != null ? Math.round(w.avg - target) : null;
++      const deltaHtml = delta != null
++        ? `<span class="ww-delta ${Math.abs(delta) <= 2 ? 'ww-delta-ok' : delta > 0 ? 'ww-delta-long' : 'ww-delta-short'}">${delta > 0 ? '+' : ''}${delta}m vs ${target}m</span>`
++        : specificClub ? `<span class="ww-delta ww-delta-none">set target</span>` : '';
++      return `<div class="today-wedge-row">
++        <span class="today-wedge-label">${escapeHtml(w.label)}</span>
++        <span class="today-wedge-stat">${escapeHtml(String(w.n))} shots</span>
++        <span class="today-wedge-stat">${f(w.avg,0)}m avg</span>
++        <span class="today-wedge-stat today-wedge-sd">±${w.sd == null ? '-' : f(w.sd,1)}m</span>
++        ${deltaHtml}
++      </div>`;
++    }).join('')}
++    ${specificClub ? `<div class="ww-setup-hint">Set targets in <button class="ww-setup-link" onclick="openMoreSection('wedgewindows')">More → Wedge windows</button></div>` : ''}
+   </div>`;
+ }
+ 
+-- 
+2.43.0

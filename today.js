@@ -329,7 +329,7 @@ function _renderClubFocusSection(focusKey) {
   const stats     = _buildFocusStats(focusShots);
   const statsCard = _renderFocusStatsCard(stats, focusLabel, focusShots.length);
   const techCard  = _renderFocusTechnicalCard(stats, focusLabel);
-  const wedgeCard = _isWedgeKey(focusKey) ? _renderWedgeWindowCard(focusShots, focusLabel) : '';
+  const wedgeCard = _isWedgeKey(focusKey) ? _renderWedgeWindowCard(focusShots, focusLabel, focusKey) : '';
 
   // 1–4 shots — show what we have, flag insufficient data
   if (focusShots.length < 5) {
@@ -474,19 +474,29 @@ function _worstWedgeWindow(windows) {
     .sort((a, b) => b.sd - a.sd)[0] || null;
 }
 
-function _renderWedgeWindowCard(shots, focusLabel) {
+function _renderWedgeWindowCard(shots, focusLabel, clubKey) {
   const windows = _buildWedgeWindows(shots).filter(w => w.n >= 2);
   if (!windows.length) return '';
+  const specificClub = clubKey && ['pw','58','sw','aw','gw','lw','60'].includes(clubKey);
 
   return `<div class="today-wedge-card">
     <div class="today-wedge-head">Partial wedge windows</div>
     <div class="today-wedge-sub">${escapeHtml(focusLabel)} grouped by TrackMan shot type or notes first, then carry bucket.</div>
-    ${windows.slice(0, 6).map(w => `<div class="today-wedge-row">
-      <span class="today-wedge-label">${escapeHtml(w.label)}</span>
-      <span class="today-wedge-stat">${escapeHtml(String(w.n))} shots</span>
-      <span class="today-wedge-stat">${f(w.avg,0)}m avg</span>
-      <span class="today-wedge-stat today-wedge-sd">±${w.sd == null ? '-' : f(w.sd,1)}m</span>
-    </div>`).join('')}
+    ${windows.slice(0, 6).map(w => {
+      const target = specificClub ? (window.getWedgeTarget?.(clubKey, w.label) ?? null) : null;
+      const delta = target != null && w.avg != null ? Math.round(w.avg - target) : null;
+      const deltaHtml = delta != null
+        ? `<span class="ww-delta ${Math.abs(delta) <= 2 ? 'ww-delta-ok' : delta > 0 ? 'ww-delta-long' : 'ww-delta-short'}">${delta > 0 ? '+' : ''}${delta}m vs ${target}m</span>`
+        : specificClub ? `<span class="ww-delta ww-delta-none">set target</span>` : '';
+      return `<div class="today-wedge-row">
+        <span class="today-wedge-label">${escapeHtml(w.label)}</span>
+        <span class="today-wedge-stat">${escapeHtml(String(w.n))} shots</span>
+        <span class="today-wedge-stat">${f(w.avg,0)}m avg</span>
+        <span class="today-wedge-stat today-wedge-sd">±${w.sd == null ? '-' : f(w.sd,1)}m</span>
+        ${deltaHtml}
+      </div>`;
+    }).join('')}
+    ${specificClub ? `<div class="ww-setup-hint">Set targets in <button class="ww-setup-link" onclick="openMoreSection('wedgewindows')">More → Wedge windows</button></div>` : ''}
   </div>`;
 }
 
