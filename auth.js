@@ -533,7 +533,9 @@ function renderBagCards(){
     return;
   }
   const cards=visible.map(row=>{
-    const shots=_getRecentClubShots(row.club_key);
+    const allShots=_getRecentClubShots(row.club_key);
+    const shots=allShots.slice(0,BAG_ROLLING_WINDOW);
+    const totalShots=allShots.length;
     const carries=shots.map(s=>s.carry).filter(Boolean);
     const avgC=avg(carries),carrySD=stdDev(carries);
     // Trim top/bottom 10 % to remove outlier shanks from the range display
@@ -585,6 +587,14 @@ function renderBagCards(){
   <span class="bag-card-chevron">${expanded?'▲':'▼'}</span>
 </div>
 ${expanded?`<div class="bag-card-body">
+  ${totalShots>=BAG_ROLLING_WINDOW?`<div class="bag-chart-wrap">
+    <canvas id="bag-chart-${k}" class="bag-chart-canvas" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-bottom:6px;"></canvas>
+    <div class="bag-chart-sub" id="bag-chart-sub-${k}"></div>
+    <div class="bag-chart-legend">
+      <span class="bag-chart-legend-area">▆ Carry (m)</span>
+      <span class="bag-chart-legend-line">— Face (°)</span>
+    </div>
+  </div>`:totalShots>0?`<div class="bag-chart-pending">Trend chart unlocks at ${BAG_ROLLING_WINDOW} shots · ${totalShots}/${BAG_ROLLING_WINDOW} so far</div>`:''}
   ${n>=5?`<div class="bag-chart-wrap">
     <canvas id="bag-chart-${k}" class="bag-chart-canvas" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-bottom:6px;"></canvas>
     <div class="bag-chart-sub" id="bag-chart-sub-${k}"></div>
@@ -658,7 +668,7 @@ ${expanded?`<div class="bag-card-body">
   requestAnimationFrame(()=>requestAnimationFrame(()=>drawBagCharts()));
 }
 
-const BAG_RECENT_CAP=50;
+const BAG_RECENT_CAP=500;
 
 function _getRecentClubShots(clubKey){
   const all=_bagGrouped[clubKey]||[];
@@ -680,7 +690,7 @@ function _rollingAvg(values,win){
   return out;
 }
 
-const BAG_ROLLING_WINDOW=10;
+const BAG_ROLLING_WINDOW=50;
 
 function _buildBagRollingData(clubKey){
   const recent=_getRecentClubShots(clubKey);
@@ -690,11 +700,12 @@ function _buildBagRollingData(clubKey){
   const faces=chrono.map(s=>s.face_angle!=null?s.face_angle:null);
   const rC=_rollingAvg(carries,BAG_ROLLING_WINDOW);
   const rF=_rollingAvg(faces,BAG_ROLLING_WINDOW);
+  // skip warm-up: only keep points where the full window is available
   return chrono.map((s,i)=>({
     date:(s.shot_time||s.created_at||'').substring(0,10),
     carry:rC[i],
     face:rF[i],
-  }));
+  })).slice(BAG_ROLLING_WINDOW-1);
 }
 
 function _smoothLinePath(ctx,xs,ys){
@@ -715,10 +726,11 @@ function drawBagClubChart(clubKey){
   const canvasId='bag-chart-'+clubKey.replace(/[^a-z0-9]/g,'_');
   const canvas=document.getElementById(canvasId);
   if(!canvas)return;
+  const rawCount=_getRecentClubShots(clubKey).length;
   const points=_buildBagRollingData(clubKey).filter(p=>p.carry!=null);
-  if(points.length<5){const wrap=canvas.closest('.bag-chart-wrap');if(wrap)wrap.style.display='none';return;}
+  if(points.length<1){const wrap=canvas.closest('.bag-chart-wrap');if(wrap)wrap.style.display='none';return;}
 
-  // Subtitle: last N shots, time span
+  // Subtitle: window, total shots, time span
   const subtitle=document.getElementById('bag-chart-sub-'+clubKey.replace(/[^a-z0-9]/g,'_'));
   if(subtitle){
     const dates=points.map(p=>p.date).filter(Boolean);
@@ -726,119 +738,6 @@ function drawBagClubChart(clubKey){
     if(dates.length>=2){
       const days=Math.max(1,Math.round((new Date(dates[dates.length-1])-new Date(dates[0]))/86400000));
       span=days<14?days+'d':days<60?Math.round(days/7)+'w':Math.round(days/30)+'mo';
-    }
-    subtitle.textContent=`Rolling avg · last ${points.length} shots${span?' · '+span:''} · window ${BAG_ROLLING_WINDOW}`;
-  }
-
-  const isLight=document.body.classList.contains('light-theme');
-  const dpr=Math.min(window.devicePixelRatio||1,2);
-  const w=canvas.offsetWidth;if(!w)return;
-  const h=140;
-  canvas.width=w*dpr;canvas.height=h*dpr;
-  canvas.style.height=h+'px';
-  const ctx=canvas.getContext('2d');
-  ctx.scale(dpr,dpr);
-
-  ctx.fillStyle=isLight?'#e3ddd5':'#161819';
-  ctx.fillRect(0,0,w,h);
-
-  const pad={top:14,right:34,bottom:22,left:38};
-  const pw=w-pad.left-pad.right;
-  const ph=h-pad.top-pad.bottom;
-
-  // Carry scale (left axis)
-  const carries=points.map(p=>p.carry);
-  const cMin=Math.min(...carries)*0.88;
-  const cMax=Math.max(...carries)*1.08;
-  const cRange=cMax-cMin||1;
-  const yC=v=>pad.top+ph-((v-cMin)/cRange)*ph;
-  const xOf=i=>pad.left+(i/(points.length-1||1))*pw;
-
-  const xs=points.map((_,i)=>xOf(i));
-  const ysC=points.map(p=>yC(p.carry));
-
-  // Carry — filled smooth area
-  const grad=ctx.createLinearGradient(0,pad.top,0,pad.top+ph);
-  grad.addColorStop(0,isLight?'rgba(0,160,100,.35)':'rgba(0,214,143,.30)');
-  grad.addColorStop(1,isLight?'rgba(0,160,100,.04)':'rgba(0,214,143,.02)');
-  ctx.fillStyle=grad;
-  ctx.beginPath();
-  _smoothLinePath(ctx,xs,ysC);
-  ctx.lineTo(xs[xs.length-1],pad.top+ph);
-  ctx.lineTo(xs[0],pad.top+ph);
-  ctx.closePath();
-  ctx.fill();
-
-  // Carry — top stroke
-  const carryClr=isLight?'rgba(0,150,95,.95)':'rgba(0,214,143,.95)';
-  ctx.beginPath();
-  _smoothLinePath(ctx,xs,ysC);
-  ctx.strokeStyle=carryClr;ctx.lineWidth=2;ctx.lineJoin='round';ctx.lineCap='round';
-  ctx.stroke();
-
-  // Face angle scale (right axis, centred on 0) — smooth line
-  const facePts=points.filter(p=>p.face!=null);
-  if(facePts.length>=2){
-    const faceVals=points.map(p=>p.face).filter(v=>v!=null);
-    const fAbs=Math.max(Math.abs(Math.min(...faceVals)),Math.abs(Math.max(...faceVals)),2.5);
-    const fLo=-(fAbs*1.35),fHi=fAbs*1.35,fRange=fHi-fLo;
-    const yF=v=>pad.top+ph-((v-fLo)/fRange)*ph;
-
-    // Zero reference line
-    const zy=yF(0);
-    ctx.setLineDash([2,3]);
-    ctx.strokeStyle=isLight?'rgba(0,0,0,.13)':'rgba(255,255,255,.10)';
-    ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(pad.left,zy);ctx.lineTo(pad.left+pw,zy);ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Face — smooth line across non-null points
-    const faceClr=isLight?'rgba(190,120,0,.9)':'rgba(255,170,0,.95)';
-    const facePoints=points.map((p,i)=>p.face!=null?{x:xOf(i),y:yF(p.face)}:null).filter(Boolean);
-    if(facePoints.length>=2){
-      ctx.beginPath();
-      _smoothLinePath(ctx,facePoints.map(p=>p.x),facePoints.map(p=>p.y));
-      ctx.strokeStyle=faceClr;ctx.lineWidth=2;ctx.lineJoin='round';ctx.lineCap='round';
-      ctx.stroke();
-      facePoints.forEach(p=>{
-        ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);
-        ctx.fillStyle=faceClr;ctx.fill();
-      });
-    }
-
-    // Right axis labels (face °)
-    const rClr=isLight?'rgba(190,120,0,.6)':'rgba(255,170,0,.55)';
-    ctx.fillStyle=rClr;ctx.font='8px monospace';ctx.textAlign='left';
-    ctx.fillText('+'+fAbs.toFixed(1)+'°',pad.left+pw+3,pad.top+8);
-    ctx.fillText('0°',pad.left+pw+3,zy+3);
-    ctx.fillText('-'+fAbs.toFixed(1)+'°',pad.left+pw+3,h-pad.bottom+4);
-  }
-
-  // Left axis labels (carry m)
-  const lClr=isLight?'rgba(0,150,95,.6)':'rgba(0,214,143,.55)';
-  ctx.fillStyle=lClr;ctx.font='8px monospace';ctx.textAlign='right';
-  ctx.fillText(Math.round(cMax)+'m',pad.left-3,pad.top+8);
-  ctx.fillText(Math.round(cMin)+'m',pad.left-3,h-pad.bottom+4);
-
-  // X axis labels — show first, middle, last unique dates
-  const tClr=isLight?'rgba(70,65,60,.45)':'rgba(138,144,153,.45)';
-  ctx.fillStyle=tClr;ctx.font='8px monospace';
-  const lastIdx=points.length-1;
-  const midIdx=Math.floor(lastIdx/2);
-  const xLabels=[
-    {i:0,         align:'left',   text:points[0].date.substring(5)},
-    {i:midIdx,    align:'center', text:points[midIdx].date.substring(5)},
-    {i:lastIdx,   align:'right',  text:points[lastIdx].date.substring(5)},
-  ];
-  xLabels.forEach(l=>{
-    ctx.textAlign=l.align;
-    const x=l.align==='left'?pad.left:l.align==='right'?pad.left+pw:xOf(l.i);
-    ctx.fillText(l.text,x,h-4);
-  });
-}
-
-function drawBagCharts(){
-  (_bagExpandedKeys||new Set()).forEach(k=>drawBagClubChart(k));
 }
 
 async function loadClubsOverview(){
