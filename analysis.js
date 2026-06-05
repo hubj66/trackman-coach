@@ -906,11 +906,23 @@ function sortRawTable(col){
   analysisRawSort=analysisRawSort.col===col?{col,dir:analysisRawSort.dir*-1}:{col,dir:-1};
   renderAnalysis(analysisShots);
 }
-function startEditRow(id){
-  editingRowId=id;renderAnalysis(analysisShots);
-  requestAnimationFrame(()=>document.querySelector(`tr[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'}));
+function renderAnalysisKeepingRow(id){
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  const beforeTop = row?.getBoundingClientRect().top ?? null;
+  const beforeScrollY = window.scrollY;
+  renderAnalysis(analysisShots);
+  if (beforeTop == null) return;
+  requestAnimationFrame(() => {
+    const nextRow = document.querySelector(`tr[data-id="${id}"]`);
+    if (!nextRow) { window.scrollTo(0, beforeScrollY); return; }
+    window.scrollBy(0, nextRow.getBoundingClientRect().top - beforeTop);
+  });
 }
-function cancelEditRow(){editingRowId=null;renderAnalysis(analysisShots);}
+function startEditRow(id){
+  editingRowId=id;
+  renderAnalysisKeepingRow(id);
+}
+function cancelEditRow(){const id=editingRowId;editingRowId=null;renderAnalysisKeepingRow(id);}
 async function saveEditRow(id){
   const fullEl=document.getElementById(`edit-full-${id}`);
   const exclEl=document.getElementById(`edit-excl-${id}`);
@@ -926,7 +938,7 @@ async function saveEditRow(id){
     const idx=arr.findIndex(s=>s.id===id);
     if(idx!==-1)arr[idx]={...arr[idx],...updates};
   });
-  editingRowId=null;showToast('Saved ✓');renderAnalysis(analysisShots);
+  editingRowId=null;showToast('Saved ✓');renderAnalysisKeepingRow(id);
 }
 
 // ── Shot Maps ─────────────────────────────────────────────────────────────
