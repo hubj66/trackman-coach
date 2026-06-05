@@ -585,6 +585,13 @@ function renderBagCards(){
   <span class="bag-card-chevron">${expanded?'▲':'▼'}</span>
 </div>
 ${expanded?`<div class="bag-card-body">
+  ${n>=3?`<div class="bag-chart-wrap">
+    <canvas id="bag-chart-${k}" class="bag-chart-canvas" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-bottom:10px;"></canvas>
+    <div class="bag-chart-legend">
+      <span class="bag-chart-legend-bar">▮ Carry (m)</span>
+      <span class="bag-chart-legend-line">— Face (°)</span>
+    </div>
+  </div>`:''}
   ${n>0?`<div class="bag-sections">
     <div class="bag-section"><div class="bag-sec-title">Distance</div>
       <div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>
@@ -647,6 +654,134 @@ ${expanded?`<div class="bag-card-body">
   }
 
   el.innerHTML=`<div class="bag-toolbar"><label class="bag-toggle-label"><input type="checkbox" class="bag-toggle-input"${_bagShowInactive?' checked':''} onchange="toggleBagInactive(this.checked)"> Show inactive clubs</label></div>${gapSectionHtml}<div class="bag-cards">${cards}</div>`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>drawBagCharts()));
+}
+
+function _buildBagSessionData(clubKey){
+  const shots=_bagGrouped[clubKey]||[];
+  const map={};
+  shots.forEach(s=>{
+    const d=(s.shot_time||s.created_at||'').substring(0,10);
+    if(!d)return;
+    if(!map[d])map[d]=[];
+    map[d].push(s);
+  });
+  return Object.entries(map)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .slice(-10);
+}
+
+function drawBagClubChart(clubKey){
+  const canvasId='bag-chart-'+clubKey.replace(/[^a-z0-9]/g,'_');
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const sessions=_buildBagSessionData(clubKey);
+  const points=sessions.map(([date,sh])=>{
+    const carries=sh.filter(s=>s.carry>0&&s.is_full_shot!==false).map(s=>s.carry);
+    const faces=sh.filter(s=>s.face_angle!=null).map(s=>s.face_angle);
+    const avgCarry=carries.length?carries.reduce((a,b)=>a+b,0)/carries.length:null;
+    const avgFace=faces.length?faces.reduce((a,b)=>a+b,0)/faces.length:null;
+    return{date,carry:avgCarry,face:avgFace};
+  }).filter(p=>p.carry!=null);
+  if(points.length<2){canvas.closest('.bag-chart-wrap')?.style&&(canvas.closest('.bag-chart-wrap').style.display='none');return;}
+
+  const isLight=document.body.classList.contains('light-theme');
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=canvas.offsetWidth;if(!w)return;
+  const h=130;
+  canvas.width=w*dpr;canvas.height=h*dpr;
+  canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  ctx.fillStyle=isLight?'#e3ddd5':'#161819';
+  ctx.fillRect(0,0,w,h);
+
+  const pad={top:16,right:32,bottom:22,left:38};
+  const pw=w-pad.left-pad.right;
+  const ph=h-pad.top-pad.bottom;
+
+  // Carry scale (left axis)
+  const carries=points.map(p=>p.carry);
+  const cMin=Math.min(...carries)*0.88;
+  const cMax=Math.max(...carries)*1.06;
+  const cRange=cMax-cMin||1;
+  const yC=v=>pad.top+ph-((v-cMin)/cRange)*ph;
+  const xOf=i=>pad.left+(i/(points.length-1||1))*pw;
+
+  // Bar width — narrower when many sessions
+  const barW=Math.max(6,Math.min(22,pw/points.length*0.55));
+
+  // Draw bars (carry)
+  const barClr=isLight?'rgba(0,155,95,.4)':'rgba(0,214,143,.3)';
+  const barClrHi=isLight?'rgba(0,155,95,.65)':'rgba(0,214,143,.55)';
+  const avgCarryAll=carries.reduce((a,b)=>a+b,0)/carries.length;
+  points.forEach((p,i)=>{
+    const x=xOf(i),yTop=yC(p.carry),barH=yC(cMin)-yTop;
+    ctx.fillStyle=p.carry>=avgCarryAll?barClrHi:barClr;
+    ctx.fillRect(x-barW/2,yTop,barW,barH);
+    // value label above bar
+    ctx.fillStyle=isLight?'rgba(30,30,30,.5)':'rgba(240,237,232,.45)';
+    ctx.font='8px monospace';ctx.textAlign='center';
+    ctx.fillText(Math.round(p.carry),x,yTop-3);
+  });
+
+  // Face angle scale (right axis, centred on 0)
+  const facePts=points.filter(p=>p.face!=null);
+  if(facePts.length>=2){
+    const faceVals=facePts.map(p=>p.face);
+    const fAbs=Math.max(Math.abs(Math.min(...faceVals)),Math.abs(Math.max(...faceVals)),2.5);
+    const fLo=-(fAbs*1.35),fHi=fAbs*1.35,fRange=fHi-fLo;
+    const yF=v=>pad.top+ph-((v-fLo)/fRange)*ph;
+
+    // Zero reference line
+    const zy=yF(0);
+    ctx.setLineDash([2,3]);
+    ctx.strokeStyle=isLight?'rgba(0,0,0,.12)':'rgba(255,255,255,.08)';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.left,zy);ctx.lineTo(pad.left+pw,zy);ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Face line
+    const faceClr=isLight?'rgba(190,120,0,.9)':'rgba(255,170,0,.9)';
+    ctx.beginPath();
+    let first=true;
+    points.forEach((p,i)=>{
+      if(p.face==null)return;
+      first?ctx.moveTo(xOf(i),yF(p.face)):ctx.lineTo(xOf(i),yF(p.face));
+      first=false;
+    });
+    ctx.strokeStyle=faceClr;ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+
+    // Face dots
+    points.forEach((p,i)=>{
+      if(p.face==null)return;
+      ctx.beginPath();ctx.arc(xOf(i),yF(p.face),3,0,Math.PI*2);
+      ctx.fillStyle=faceClr;ctx.fill();
+    });
+
+    // Right axis labels (face °)
+    const rClr=isLight?'rgba(190,120,0,.55)':'rgba(255,170,0,.5)';
+    ctx.fillStyle=rClr;ctx.font='8px monospace';ctx.textAlign='left';
+    ctx.fillText('+'+Math.round(fAbs)+'°',pad.left+pw+3,pad.top+8);
+    ctx.fillText('-'+Math.round(fAbs)+'°',pad.left+pw+3,h-pad.bottom+4);
+  }
+
+  // Left axis labels (carry)
+  const lClr=isLight?'rgba(0,155,95,.55)':'rgba(0,214,143,.5)';
+  ctx.fillStyle=lClr;ctx.font='8px monospace';ctx.textAlign='right';
+  ctx.fillText(Math.round(cMax)+'m',pad.left-3,pad.top+8);
+  ctx.fillText(Math.round(cMin)+'m',pad.left-3,h-pad.bottom+4);
+
+  // X axis labels
+  const tClr=isLight?'rgba(70,65,60,.4)':'rgba(138,144,153,.4)';
+  ctx.fillStyle=tClr;ctx.font='8px monospace';ctx.textAlign='center';
+  const step=Math.max(1,Math.floor(points.length/3));
+  points.forEach((p,i)=>{if(i%step===0||i===points.length-1)ctx.fillText(p.date.substring(5),xOf(i),h-4);});
+}
+
+function drawBagCharts(){
+  (_bagExpandedKeys||new Set()).forEach(k=>drawBagClubChart(k));
 }
 
 async function loadClubsOverview(){
@@ -656,7 +791,7 @@ async function loadClubsOverview(){
   const CA=window.clubAliases;await CA.loadAliases();
   const[clubsRes,shotsRes,roundShotsRes]=await Promise.all([
     sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('user_id',_currentUserId).order('club_name'),
-    sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).limit(2000),
+    sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).limit(2000),
     sb.from('round_shots').select('club,distance_m,miss_direction').eq('user_id',_currentUserId).limit(2000)
   ]);
   const hasAliases=CA.CLUB_DEFINITIONS.some(d=>CA.getRawNamesForKey(d.key).length>0);
