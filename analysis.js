@@ -972,7 +972,7 @@ const WEDGE_WINDOW_OPTIONS = [
   { value:"11 o'clock", label:"11 o'clock" },
   { value:'half swing', label:'Half' },
   { value:'3/4 swing', label:'3/4' },
-  { value:'stock', label:'Stock' },
+  { value:'full', label:'Full' },
 ];
 
 function isWedgeShot(s) {
@@ -987,7 +987,7 @@ function isAnalysisWedgeClub() {
 }
 
 function isWedgeWindowValue(value) {
-  return WEDGE_WINDOW_OPTIONS.some(o => o.value && o.value === value);
+  return WEDGE_WINDOW_OPTIONS.some(o => o.value && o.value === value) || value === 'stock';
 }
 
 function wedgeWindowLabelForShot(s) {
@@ -997,7 +997,7 @@ function wedgeWindowLabelForShot(s) {
   if (clock) return `${clock[1]} o'clock`;
   if (/\b(half|1\/2|50%)\b/.test(raw)) return 'half swing';
   if (/\b(three quarter|3\/4|75%)\b/.test(raw)) return '3/4 swing';
-  if (/\b(full|stock)\b/.test(raw)) return 'stock';
+  if (/\b(full|stock)\b/.test(raw)) return 'full';
   const carry = Number(s.carry);
   if (!carry || isNaN(carry)) return 'unlabelled';
   if (carry <= 15) return '0-15m';
@@ -1121,7 +1121,7 @@ async function saveEditRow(id){
   const updates={exclude_from_progress:exclEl.value==='1',notes:notesEl.value.trim()||null};
   if(windowEl){
     updates.shot_type = windowEl.value || (current.shot_type && !isWedgeWindowValue(current.shot_type) ? current.shot_type : null);
-    updates.is_full_shot = windowEl.value ? windowEl.value === 'stock' : current.is_full_shot !== false;
+    updates.is_full_shot = windowEl.value ? windowEl.value === 'full' : current.is_full_shot !== false;
   }
   const{error}=await window.supabaseClient.from('trackman_shots').update(updates).eq('id',id).eq('user_id',uid);
   if(error){showToast('Save failed: '+error.message);return;}

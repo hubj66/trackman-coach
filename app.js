@@ -702,7 +702,7 @@ const _WW_CLUBS = [
 ];
 const _WW_WINDOWS = [
   "7 o'clock","8 o'clock","9 o'clock","10 o'clock","11 o'clock",
-  'half swing','3/4 swing','stock'
+  'half swing','3/4 swing','full'
 ];
 
 let _wedgeWindowsCache = [];
@@ -711,7 +711,10 @@ let _wedgeWindowsError = null;
 
 function _getLocalWedgeWindows(){try{return JSON.parse(localStorage.getItem('tc_wedge_windows')||'[]');}catch{return[];}}
 function _setLocalWedgeWindows(arr){localStorage.setItem('tc_wedge_windows',JSON.stringify(arr));}
-function _normWedgeWindow(r){return{id:r.id||null,club:r.club_key||r.club,window:r.window,targetCarry:Number(r.target_carry??r.targetCarry),notes:r.notes||''};}
+function _normWedgeWindow(r){
+  const label = r.window_label || r.window;
+  return{id:r.id||null,club:r.club_key||r.club,window:label==='stock'?'full':label,targetCarry:Number(r.target_carry??r.targetCarry),notes:r.notes||''};
+}
 function _cacheWedgeWindows(rows){_wedgeWindowsCache=(rows||[]).map(_normWedgeWindow).filter(r=>r.club&&r.window&&!isNaN(r.targetCarry));_setLocalWedgeWindows(_wedgeWindowsCache);}
 async function loadWedgeWindows(force=false){
   if(_wedgeWindowsLoaded&&!force)return _wedgeWindowsCache;
@@ -725,7 +728,7 @@ async function loadWedgeWindows(force=false){
   const missingLocal=localRows.filter(l=>!rows.some(r=>r.club===l.club&&r.window===l.window));
   if(missingLocal.length){
     for(const r of missingLocal){
-      await window.TCData.upsertWedgeWindow(user.id,{club_key:r.club,window:r.window,target_carry:r.targetCarry,notes:r.notes||null});
+      await window.TCData.upsertWedgeWindow(user.id,{club_key:r.club,window:r.window==='stock'?'full':r.window,target_carry:r.targetCarry,notes:r.notes||null});
     }
     const refreshed=await window.TCData.fetchWedgeWindows(user.id);
     rows=refreshed.error?rows:(refreshed.data||[]).map(_normWedgeWindow);
@@ -787,7 +790,7 @@ async function saveWedgeWindowMatrix(){
     if(raw){
       const target=Number(raw);
       if(isNaN(target)||target<=0)continue;
-      const { error } = await window.TCData.upsertWedgeWindow(user.id,{club_key:club,window:win,target_carry:target});
+      const { error } = await window.TCData.upsertWedgeWindow(user.id,{club_key:club,window:win==='stock'?'full':win,target_carry:target});
       if(error){showToast('Save failed: '+error.message);return;}
       changed++;
     } else if(id) {

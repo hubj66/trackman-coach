@@ -437,7 +437,7 @@ function _wedgeWindowLabel(shot) {
   if (clock) return `${clock[1]} o'clock`;
   if (/\b(half|1\/2|50%)\b/.test(raw)) return 'half swing';
   if (/\b(three quarter|3\/4|75%)\b/.test(raw)) return '3/4 swing';
-  if (/\b(full|stock)\b/.test(raw)) return 'stock';
+  if (/\b(full|stock)\b/.test(raw)) return 'full';
   const carry = Number(shot.carry);
   if (!carry || isNaN(carry)) return 'unlabelled';
   if (carry <= 15) return '0-15m';
