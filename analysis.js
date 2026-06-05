@@ -13,7 +13,7 @@ let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
 
 const FILTER_OPTIONS = [
   { key:'all',           label:'All' },
-  { key:'progress',      label:'Progress' },
+  { key:'progress',      label:'Included' },
 ];
 
 const SESSION_COLORS = ['#00d68f','#ffaa00','#7b9cff','#ff7eb3','#40e0d0','#f4a460','#b8ff5a','#ff6b6b','#c084fc','#34d3f7','#fbbf24','#a3e635'];
@@ -621,7 +621,7 @@ function drawProgressChart(key,shots){
   if (key === 'carry' && isAnalysisWedgeClub()) {
     const cvw = _cv();
     const wedgeShots = [...shots]
-      .filter(s => s.carry > 0)
+      .filter(s => s.carry > 0 && isWedgeWindowValue(s.shot_type))
       .sort((a,b) => new Date(a.shot_time||a.created_at) - new Date(b.shot_time||b.created_at));
     const dateList = [...new Set(wedgeShots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
     const groups = {};
@@ -737,9 +737,9 @@ function drawProgressChart(key,shots){
     ctx.fillStyle = '#4e5660';
     ctx.font = "13px 'Barlow',sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText('Need 2+ sessions in the same wedge window', w/2, h/2 - 6);
+    ctx.fillText('Need 2+ sessions in assigned wedge windows', w/2, h/2 - 6);
     ctx.font = "11px 'Barlow',sans-serif";
-    ctx.fillText('Edit wedge shots and set Window to build separate progress lines', w/2, h/2 + 14);
+    ctx.fillText('Unassigned shots are ignored here so buckets never mix with windows', w/2, h/2 + 14);
     const noteElW = document.getElementById('progress-baseline-note');
     if (noteElW) noteElW.textContent = 'Wedge carry charts stay split by window instead of blending partial shots.';
     return;
@@ -1031,7 +1031,7 @@ function renderShotRows(shots, sessionCol) {
         <th>Carry</th><th>Smash</th>
         <th>Face</th><th>Path</th><th>FTP</th>
         <th>Atk</th><th>Launch</th><th>Spin</th><th>Side</th>
-        <th>Progress</th><th>Window</th><th>Notes</th><th></th>
+        <th>Use</th><th>Window</th><th>Notes</th><th></th>
       </tr></thead>
       <tbody>
         ${shots.map(s => renderShotRow(s, sessionCol)).join('')}
@@ -1051,8 +1051,8 @@ function renderShotRow(s, sessionCol) {
       <td>${fSign(s.attack_angle,1)}</td><td>${f(s.launch_angle,1)}</td>
       <td>${s.spin_rate?Math.round(s.spin_rate):'–'}</td><td>${fSign(s.side,1)}</td>
       <td><select id="edit-excl-${s.id}" class="edit-select">
-        <option value="0"${!s.exclude_from_progress?' selected':''}>Incl</option>
-        <option value="1"${s.exclude_from_progress?' selected':''}>Excl</option>
+        <option value="0"${!s.exclude_from_progress?' selected':''}>Use</option>
+        <option value="1"${s.exclude_from_progress?' selected':''}>Skip</option>
       </select></td>
       <td>${wedgeShot ? renderShotWindowSelect(s) : '<span class="cell-dim">-</span>'}</td>
       <td><input id="edit-notes-${s.id}" class="edit-notes-input" type="text" value="${escapeHtml(s.notes||'')}" placeholder="Notes…"></td>
@@ -1073,7 +1073,7 @@ function renderShotRow(s, sessionCol) {
     <td>${f(s.launch_angle,1)}</td>
     <td>${s.spin_rate?Math.round(s.spin_rate):'–'}</td>
     <td>${fSign(s.side,1)}</td>
-    <td class="${s.exclude_from_progress?'cell-warn':''}">${s.exclude_from_progress?'Excl':''}</td>
+    <td class="${s.exclude_from_progress?'cell-warn':''}">${s.exclude_from_progress?'Skip':'Use'}</td>
     <td>${renderShotWindowDisplay(s)}</td>
     <td class="shot-notes">${escapeHtml(s.notes||'')}</td>
     <td class="shot-actions">
