@@ -835,6 +835,48 @@ function toggleSession(date) {
   }
 }
 
+const WEDGE_WINDOW_OPTIONS = [
+  { value:'', label:'-' },
+  { value:"7 o'clock", label:"7 o'clock" },
+  { value:"8 o'clock", label:"8 o'clock" },
+  { value:"9 o'clock", label:"9 o'clock" },
+  { value:"10 o'clock", label:"10 o'clock" },
+  { value:'half swing', label:'Half' },
+  { value:'3/4 swing', label:'3/4' },
+  { value:'stock', label:'Stock' },
+];
+
+function isWedgeShot(s) {
+  const ca = CA();
+  const wedgeKeys = ['pw','58','sw','aw','gw','lw','60'];
+  if (ca?.shotMatchesClub) return wedgeKeys.some(ck => ca.shotMatchesClub(s, ck));
+  return wedgeKeys.includes(String(s.club || '').toLowerCase());
+}
+
+function isWedgeWindowValue(value) {
+  return WEDGE_WINDOW_OPTIONS.some(o => o.value && o.value === value);
+}
+
+function renderShotWindowSelect(s) {
+  const current = isWedgeWindowValue(s.shot_type) ? s.shot_type : '';
+  return `<select id="edit-window-${s.id}" class="edit-select edit-window-select" title="Wedge shot window" onchange="syncFullShotFromWindow('${s.id}')">
+    ${WEDGE_WINDOW_OPTIONS.map(o => `<option value="${escapeHtml(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+  </select>`;
+}
+
+function renderShotWindowDisplay(s) {
+  if (!isWedgeShot(s) || !isWedgeWindowValue(s.shot_type)) return '<span class="cell-dim">-</span>';
+  return `<span class="shot-window-pill">${escapeHtml(s.shot_type)}</span>`;
+}
+
+function syncFullShotFromWindow(id) {
+  const windowEl = document.getElementById(`edit-window-${id}`);
+  const fullEl = document.getElementById(`edit-full-${id}`);
+  if (!windowEl || !fullEl) return;
+  if (!windowEl.value) return;
+  fullEl.value = windowEl.value === 'stock' ? '1' : '0';
+}
+
 function renderShotRows(shots, sessionCol) {
   return `<div class="analysis-raw-wrap">
     <table class="analysis-raw-table">
@@ -843,7 +885,7 @@ function renderShotRows(shots, sessionCol) {
         <th>Carry</th><th>Smash</th>
         <th>Face</th><th>Path</th><th>FTP</th>
         <th>Atk</th><th>Launch</th><th>Spin</th><th>Side</th>
-        <th>Full</th><th>Prog</th><th>Notes</th><th></th>
+        <th>Full</th><th>Prog</th><th>Window</th><th>Notes</th><th></th>
       </tr></thead>
       <tbody>
         ${shots.map(s => renderShotRow(s, sessionCol)).join('')}
@@ -854,6 +896,7 @@ function renderShotRows(shots, sessionCol) {
 
 function renderShotRow(s, sessionCol) {
   const time = s.shot_time ? new Date(s.shot_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : (s.created_at ? new Date(s.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '');
+  const wedgeShot = isWedgeShot(s);
   if (s.id === editingRowId) {
     return `<tr class="shot-row shot-row-editing" data-id="${s.id}">
       <td><span class="shot-time">${time}</span></td>
@@ -869,6 +912,7 @@ function renderShotRow(s, sessionCol) {
         <option value="0"${!s.exclude_from_progress?' selected':''}>Incl</option>
         <option value="1"${s.exclude_from_progress?' selected':''}>Excl</option>
       </select></td>
+      <td>${wedgeShot ? renderShotWindowSelect(s) : '<span class="cell-dim">-</span>'}</td>
       <td><input id="edit-notes-${s.id}" class="edit-notes-input" type="text" value="${escapeHtml(s.notes||'')}" placeholder="Notes…"></td>
       <td class="shot-actions">
         <button class="shot-action-btn shot-save" onclick="saveEditRow('${s.id}')">✓</button>
@@ -889,6 +933,7 @@ function renderShotRow(s, sessionCol) {
     <td>${fSign(s.side,1)}</td>
     <td class="${s.is_full_shot===false?'cell-dim':'cell-good-dim'}">${s.is_full_shot===false?'–':'✓'}</td>
     <td class="${s.exclude_from_progress?'cell-warn':''}">${s.exclude_from_progress?'Excl':''}</td>
+    <td>${renderShotWindowDisplay(s)}</td>
     <td class="shot-notes">${escapeHtml(s.notes||'')}</td>
     <td class="shot-actions">
       <button class="shot-action-btn shot-edit" onclick="startEditRow('${s.id}')">Edit</button>
@@ -926,12 +971,17 @@ function cancelEditRow(){const id=editingRowId;editingRowId=null;renderAnalysisK
 async function saveEditRow(id){
   const fullEl=document.getElementById(`edit-full-${id}`);
   const exclEl=document.getElementById(`edit-excl-${id}`);
+  const windowEl=document.getElementById(`edit-window-${id}`);
   const notesEl=document.getElementById(`edit-notes-${id}`);
   if(!fullEl||!exclEl||!notesEl)return;
   const { user } = await window.TCData.getCurrentUser();
   const uid = user?.id;
   if(!uid){showToast('Not logged in');return;}
   const updates={is_full_shot:fullEl.value==='1',exclude_from_progress:exclEl.value==='1',notes:notesEl.value.trim()||null};
+  if(windowEl){
+    const current = analysisShots.find(s=>s.id===id) || _allFetchedShots.find(s=>s.id===id) || {};
+    updates.shot_type = windowEl.value || (current.shot_type && !isWedgeWindowValue(current.shot_type) ? current.shot_type : null);
+  }
   const{error}=await window.supabaseClient.from('trackman_shots').update(updates).eq('id',id).eq('user_id',uid);
   if(error){showToast('Save failed: '+error.message);return;}
   [analysisShots,_allFetchedShots].forEach(arr=>{
