@@ -440,11 +440,11 @@ function _wedgeWindowLabel(shot) {
   if (/\b(full|stock)\b/.test(raw)) return 'full';
   const carry = Number(shot.carry);
   if (!carry || isNaN(carry)) return 'unlabelled';
-  if (carry <= 15) return '0-15m';
-  if (carry <= 25) return '16-25m';
-  if (carry <= 35) return '26-35m';
-  if (carry <= 50) return '36-50m';
-  return '50m+';
+  if (carry <= 15) return 'unassigned 0-15m';
+  if (carry <= 25) return 'unassigned 16-25m';
+  if (carry <= 35) return 'unassigned 26-35m';
+  if (carry <= 50) return 'unassigned 36-50m';
+  return 'unassigned 50m+';
 }
 
 function _buildWedgeWindows(shots) {
