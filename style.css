@@ -383,6 +383,33 @@ button:active{background:var(--surface4)}
 .trackman-insight.neutral{border-left-color:var(--border2)}
 .trackman-insight-title{font-size:13px;font-weight:700;color:var(--text);line-height:1.25}
 .trackman-insight-body{font-size:11px;color:var(--text3);line-height:1.35;margin-top:3px}
+.data-used-strip{display:flex;gap:5px;flex-wrap:wrap;margin:-2px 0 10px}
+.data-used-chip{font-family:var(--mono);font-size:9px;color:var(--text2);background:var(--surface2);border:0.5px solid var(--border);border-radius:999px;padding:4px 7px;white-space:nowrap}
+.club-health-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.club-health-card{display:grid;grid-template-columns:1fr auto;gap:2px 6px;text-align:left;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:8px;min-width:0;cursor:pointer}
+.club-health-card.active{border-color:rgba(0,214,143,.42);box-shadow:inset 0 0 0 1px rgba(0,214,143,.12)}
+.club-health-card.good{border-left:3px solid var(--green)}
+.club-health-card.warn{border-left:3px solid var(--amber)}
+.club-health-card.bad{border-left:3px solid var(--red)}
+.club-health-card.neutral{border-left:3px solid var(--border2)}
+.club-health-club{font-family:var(--cond);font-size:14px;font-weight:800;color:var(--text);line-height:1.1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.club-health-score{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.club-health-label{font-size:11px;font-weight:700;color:var(--text2);line-height:1.2}
+.club-health-reason{grid-column:1/-1;font-size:10px;color:var(--text3);line-height:1.25;min-height:24px}
+.play-decision-card,.round-compare-card{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:10px;margin:0 0 10px}
+.play-decision-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:9px}
+.play-decision-kicker,.round-compare-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:3px}
+.play-decision-title{font-family:var(--cond);font-size:20px;font-weight:800;color:var(--text);line-height:1.1}
+.play-decision-carry{font-family:var(--cond);font-size:28px;font-weight:800;color:var(--green);line-height:1}
+.play-decision-carry span{font-size:13px;color:var(--text3);margin-left:2px}
+.play-decision-grid,.round-compare-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.play-decision-grid div,.round-compare-grid div{background:var(--surface2);border-radius:7px;padding:8px;min-width:0}
+.play-decision-grid strong,.round-compare-grid span{display:block;font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:3px}
+.play-decision-grid span,.round-compare-body{display:block;font-size:12px;color:var(--text2);line-height:1.4}
+.play-decision-note{font-size:12px;color:var(--amber);line-height:1.4;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border)}
+.round-compare-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:8px}
+.round-compare-grid strong{display:block;font-family:var(--cond);font-size:18px;color:var(--text);line-height:1.1}
+.round-compare-card.muted .round-compare-body{color:var(--text3)}
 .swing-cause-panel{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:10px;margin:0 0 10px}
 .swing-cause-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
 .swing-cause-title{font-family:var(--cond);font-size:16px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--text)}
@@ -402,6 +429,13 @@ button:active{background:var(--surface4)}
 .swing-cause-result-body{font-size:12px;color:var(--text2);line-height:1.45;margin-top:5px}
 .swing-cause-test{font-size:12px;color:var(--text2);line-height:1.45;margin-top:7px;padding-top:7px;border-top:0.5px solid var(--border)}
 .swing-cause-test strong{color:var(--green)}
+.swing-practice-loop{margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border)}
+.swing-practice-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px}
+.swing-practice-body{font-size:12px;color:var(--text2);line-height:1.4;margin-bottom:7px}
+.swing-practice-actions{display:flex;gap:5px;flex-wrap:wrap}
+.swing-practice-btn{flex:1;min-width:72px;padding:7px 8px;border:0.5px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text2);font-size:12px;font-weight:700;text-transform:capitalize;cursor:pointer}
+.swing-practice-btn.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.swing-practice-saved{font-size:11px;color:var(--text3);line-height:1.35;margin-top:6px}
 .analysis-acc-content{padding:12px 14px 4px}
 .load-into-coach-btn{display:flex;align-items:center;gap:6px;background:var(--green-dim);color:var(--green);border:0.5px solid rgba(0,214,143,.3);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;width:100%;justify-content:center}
 .load-into-coach-btn:active{background:rgba(0,214,143,.25)}
@@ -572,6 +606,11 @@ button:active{background:var(--surface4)}
   .report-metric-grid{grid-template-columns:repeat(2,1fr)}
   .report-diagram-grid{grid-template-columns:1fr}
   .report-diagram-grid canvas{min-height:300px}
+  .club-health-strip{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .club-health-card{min-width:132px}
+  .play-decision-head{align-items:flex-start}
+  .play-decision-grid,.round-compare-grid{grid-template-columns:1fr 1fr}
+  .round-compare-grid strong{font-size:16px}
   .trackman-subgrid{grid-template-columns:1fr}
   .trackman-insights{grid-template-columns:1fr}
   .swing-cause-questions{grid-template-columns:1fr}

@@ -12,6 +12,7 @@ let currentAnalysisSection = 'report';
 let currentReportFilter = 'included';
 let currentReportWindow = 'all';
 let swingCauseAnswers = {};
+let swingPracticeResults = {};
 let _allFetchedShots = [];
 let openSessions = new Set();
 let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
@@ -68,6 +69,7 @@ async function initAnalysisTab() {
     await window.loadWedgeWindows();
   }
   loadSwingCauseAnswers();
+  loadSwingPracticeResults();
   buildAnalysisClubTabs();
   buildFilterTabs();
   loadAnalysis();
@@ -171,8 +173,12 @@ function renderAnalysis(allShots) {
         <div class="trackman-section-title">Report</div>
         <div class="trackman-section-sub">What matters for this club right now.</div>
       </div>
+      ${renderDataUsedChips(allShots, shots, 'Report')}
+      ${renderClubHealthStrip(_allFetchedShots)}
       ${renderTrackmanInsights(shots, allShots)}
+      ${renderPlayDecisionCard(shots)}
       ${renderSwingCauseCheck(shots)}
+      ${renderRoundComparisonCard(allShots)}
       ${renderClubReport(allShots)}
       <div class="trackman-subgrid">
         <div class="trackman-subpanel">${renderOverviewKPIs(shots)}</div>
@@ -186,6 +192,7 @@ function renderAnalysis(allShots) {
         <div class="trackman-section-title">Charts</div>
         <div class="trackman-section-sub">Trends, windows and shot pattern.</div>
       </div>
+      ${renderDataUsedChips(allShots, shots, 'Charts')}
       ${renderProgressSection(allShots)}
       <div class="trackman-chart-divider"></div>
       ${renderShotMaps(shots, allShots)}
@@ -195,6 +202,7 @@ function renderAnalysis(allShots) {
         <div class="trackman-section-title">Shots</div>
         <div class="trackman-section-sub">Edit use/skip, wedge windows and notes.</div>
       </div>
+      ${renderDataUsedChips(allShots, shots, 'Shots')}
       ${renderSessionGroups(shots, colorMap)}
     </section>
   `;
@@ -451,6 +459,196 @@ function renderWedgeTargetReport(reportShots) {
   </div>`;
 }
 
+function renderDataUsedChips(allShots, shots, label) {
+  const clubShots = (allShots || []).filter(s => CA().shotMatchesClub(s, analysisClub));
+  const filtered = shots || [];
+  const roundCount = filtered.filter(s => s.shot_type === 'round').length;
+  const rangeCount = filtered.length - roundCount;
+  const chips = [
+    label,
+    CA().clubLabel(analysisClub),
+    analysisFilter === 'progress' ? 'Included shots' : 'All shots',
+    `${filtered.length} shown`,
+  ].filter(Boolean);
+
+  if (rangeCount && roundCount) chips.push('Range + course');
+  else if (roundCount) chips.push('Course only');
+  else chips.push('Range/simulator');
+
+  if (isAnalysisWedgeClub()) {
+    const assigned = filtered.filter(isAssignedWedgeWindowShot).length;
+    const unassigned = filtered.filter(s => isWedgeShot(s) && !isAssignedWedgeWindowShot(s)).length;
+    chips.push(`${assigned} windowed`);
+    if (unassigned) chips.push(`${unassigned} unassigned`);
+  }
+
+  const skipped = clubShots.filter(s => s.exclude_from_progress).length;
+  if (analysisFilter === 'progress' && skipped) chips.push(`${skipped} skipped`);
+
+  return `<div class="data-used-strip">
+    ${chips.map(c => `<span class="data-used-chip">${escapeHtml(c)}</span>`).join('')}
+  </div>`;
+}
+
+function healthStatusClass(status) {
+  return status === 'good' ? 'good' : status === 'bad' ? 'bad' : status === 'warn' ? 'warn' : 'neutral';
+}
+
+function clubHealthForShots(clubShots) {
+  const shots = window.TCGolf.filterAnalysisShots(clubShots || [], 'progress');
+  if (shots.length < 5) {
+    return { status:'neutral', label:'Needs data', score:'--', reason:`${shots.length} included shots` };
+  }
+
+  const carries = shots.map(s => s.carry).filter(x => x != null && !isNaN(x));
+  const sides = shots.map(s => s.side ?? s.total_side).filter(x => x != null && !isNaN(x));
+  const faces = shots.map(s => s.face_angle).filter(x => x != null && !isNaN(x));
+  const faceSd = statStdDev(faces);
+  const carrySd = statStdDev(carries);
+  const sideMed = statMedian(sides);
+  const faceMed = statMedian(faces);
+  const playableRows = shots.filter(s => s.strike_quality || s.playable_pct != null);
+  const playableGood = playableRows.filter(s => {
+    const pct = Number(s.playable_pct);
+    if (!isNaN(pct)) return pct >= 70;
+    const q = String(s.strike_quality || '').toLowerCase();
+    return q.includes('good') || q.includes('play');
+  }).length;
+  const playableRate = playableRows.length ? playableGood / playableRows.length : null;
+  const reasons = [];
+  let risk = 0;
+
+  if (carrySd != null && carrySd > 12) { risk += 2; reasons.push(`carry spread ${f(carrySd,1)}m`); }
+  else if (carrySd != null && carrySd > 8) { risk += 1; reasons.push(`carry spread ${f(carrySd,1)}m`); }
+
+  if (sideMed != null && Math.abs(sideMed) > 12) { risk += 2; reasons.push(`miss ${Math.abs(Math.round(sideMed))}m ${sideMed > 0 ? 'right' : 'left'}`); }
+  else if (sideMed != null && Math.abs(sideMed) > 6) { risk += 1; reasons.push(`miss ${Math.abs(Math.round(sideMed))}m ${sideMed > 0 ? 'right' : 'left'}`); }
+
+  if (faceMed != null && Math.abs(faceMed) > 5) { risk += 2; reasons.push(`face ${fSign(faceMed,1)} deg`); }
+  else if (faceMed != null && Math.abs(faceMed) > 2.5) { risk += 1; reasons.push(`face ${fSign(faceMed,1)} deg`); }
+
+  if (faceSd != null && faceSd > 4) { risk += 1; reasons.push(`face scatter +/-${f(faceSd,1)} deg`); }
+  if (playableRate != null && playableRate < 0.55) { risk += 2; reasons.push(`playable ${Math.round(playableRate * 100)}%`); }
+  else if (playableRate != null && playableRate < 0.7) { risk += 1; reasons.push(`playable ${Math.round(playableRate * 100)}%`); }
+
+  if (!reasons.length) reasons.push('stable enough to trust');
+  const status = risk >= 4 ? 'bad' : risk >= 2 ? 'warn' : 'good';
+  const label = status === 'good' ? 'Good' : status === 'warn' ? 'Watch' : 'Fix first';
+  const score = status === 'good' ? 'OK' : status === 'warn' ? '!' : '!!';
+  return { status, label, score, reason:reasons.slice(0, 2).join(' / ') };
+}
+
+function renderClubHealthStrip(allShots) {
+  const defs = CA().CLUB_DEFINITIONS.filter(c => !['3w','5w'].includes(c.key));
+  const rows = defs
+    .map(def => {
+      const shots = (allShots || []).filter(s => CA().shotMatchesClub(s, def.key));
+      return { def, shots, health:clubHealthForShots(shots) };
+    })
+    .filter(r => r.shots.length || r.def.key === analysisClub)
+    .sort((a,b) => (a.def.key === analysisClub ? -1 : b.def.key === analysisClub ? 1 : b.shots.length - a.shots.length))
+    .slice(0, 8);
+
+  if (!rows.length) return '';
+  return `<div class="club-health-strip">
+    ${rows.map(r => `<button class="club-health-card ${r.def.key === analysisClub ? 'active' : ''} ${healthStatusClass(r.health.status)}" onclick="setAnalysisClub('${r.def.key}')">
+      <span class="club-health-club">${escapeHtml(r.def.label)}</span>
+      <span class="club-health-score">${escapeHtml(r.health.score)}</span>
+      <span class="club-health-label">${escapeHtml(r.health.label)}</span>
+      <span class="club-health-reason">${escapeHtml(r.health.reason)}</span>
+    </button>`).join('')}
+  </div>`;
+}
+
+function renderPlayDecisionCard(shots) {
+  const carries = shots.map(s => s.carry).filter(x => x != null && !isNaN(x));
+  if (carries.length < 4) return '';
+  const sideVals = shots.map(s => s.side ?? s.total_side).filter(x => x != null && !isNaN(x));
+  const carryMed = statMedian(carries);
+  const carryP10 = statPercentile(carries, 10);
+  const carryP90 = statPercentile(carries, 90);
+  const sideMed = statMedian(sideVals);
+  const sideAbs = sideMed == null ? null : Math.abs(sideMed);
+  let aim = 'Aim normally';
+  let avoid = 'No strong side bias yet.';
+
+  if (sideMed != null && sideMed > 5) {
+    aim = `Aim ${Math.round(Math.min(12, sideAbs / 2 + 3))}m left`;
+    avoid = 'Avoid right pins until the start line is calmer.';
+  } else if (sideMed != null && sideMed < -5) {
+    aim = `Aim ${Math.round(Math.min(12, sideAbs / 2 + 3))}m right`;
+    avoid = 'Avoid left pins until the start line is calmer.';
+  }
+
+  const trust = carryP10 != null && carryP90 != null
+    ? `Play ${f(carryMed,0)}m carry. Normal range ${f(carryP10,0)}-${f(carryP90,0)}m.`
+    : `Play ${f(carryMed,0)}m carry.`;
+
+  let wedgeNote = '';
+  if (isAnalysisWedgeClub()) {
+    const rows = wedgeWindowTargetRows(getClubReportShots(analysisShots)).filter(r => r.miss != null);
+    if (rows.length) {
+      const worst = [...rows].sort((a,b) => Math.abs(b.miss) - Math.abs(a.miss))[0];
+      wedgeNote = `<div class="play-decision-note">Window note: ${escapeHtml(windowDisplayLabel(worst.label))} is ${Math.abs(Math.round(worst.miss))}m ${worst.miss > 0 ? 'long' : 'short'} versus target.</div>`;
+    }
+  }
+
+  return `<div class="play-decision-card">
+    <div class="play-decision-head">
+      <div>
+        <div class="play-decision-kicker">How to play this club</div>
+        <div class="play-decision-title">${escapeHtml(aim)}</div>
+      </div>
+      <div class="play-decision-carry">${escapeHtml(f(carryMed,0))}<span>m</span></div>
+    </div>
+    <div class="play-decision-grid">
+      <div><strong>Distance</strong><span>${escapeHtml(trust)}</span></div>
+      <div><strong>Miss plan</strong><span>${escapeHtml(avoid)}</span></div>
+      <div><strong>Trust level</strong><span>${carries.length >= 15 ? 'Enough shots for a real pattern.' : 'Early signal. Add more shots before making big course decisions.'}</span></div>
+    </div>
+    ${wedgeNote}
+  </div>`;
+}
+
+function renderRoundComparisonCard(allShots) {
+  const clubShots = (allShots || []).filter(s => CA().shotMatchesClub(s, analysisClub) && !s.exclude_from_progress);
+  const rangeShots = clubShots.filter(s => s.shot_type !== 'round');
+  const roundShots = clubShots.filter(s => s.shot_type === 'round');
+  if (!rangeShots.length && !roundShots.length) return '';
+  if (roundShots.length < 3) {
+    return `<div class="round-compare-card muted">
+      <div class="round-compare-title">Round comparison</div>
+      <div class="round-compare-body">Need 3+ on-course TrackMan shots with this club before the app can compare range numbers to real round performance.</div>
+    </div>`;
+  }
+
+  const rangeCarry = statMedian(rangeShots.map(s => s.carry).filter(x => x != null && !isNaN(x)));
+  const roundDist = statMedian(roundShots.map(s => s.total || s.carry).filter(x => x != null && !isNaN(x)));
+  const rangeSide = statMedian(rangeShots.map(s => s.side ?? s.total_side).filter(x => x != null && !isNaN(x)));
+  const roundSide = statMedian(roundShots.map(s => s.side ?? s.total_side).filter(x => x != null && !isNaN(x)));
+  const distDelta = rangeCarry != null && roundDist != null ? roundDist - rangeCarry : null;
+  const sideDelta = rangeSide != null && roundSide != null ? roundSide - rangeSide : null;
+  const distText = distDelta == null
+    ? 'Not enough distance data yet.'
+    : `Course is ${Math.abs(Math.round(distDelta))}m ${distDelta >= 0 ? 'longer' : 'shorter'} than range carry.`;
+  const sideText = sideDelta == null
+    ? 'Not enough miss-side data yet.'
+    : Math.abs(sideDelta) < 5
+      ? 'Course miss matches the practice pattern.'
+      : `Course miss shifts ${Math.abs(Math.round(sideDelta))}m ${sideDelta > 0 ? 'right' : 'left'} versus practice.`;
+
+  return `<div class="round-compare-card">
+    <div class="round-compare-title">Round comparison</div>
+    <div class="round-compare-grid">
+      <div><span>Range carry</span><strong>${rangeCarry == null ? '-' : f(rangeCarry,0)+'m'}</strong></div>
+      <div><span>Course dist</span><strong>${roundDist == null ? '-' : f(roundDist,0)+'m'}</strong></div>
+      <div><span>Range miss</span><strong>${rangeSide == null ? '-' : fSign(rangeSide,0)+'m'}</strong></div>
+      <div><span>Course miss</span><strong>${roundSide == null ? '-' : fSign(roundSide,0)+'m'}</strong></div>
+    </div>
+    <div class="round-compare-body">${escapeHtml(distText)} ${escapeHtml(sideText)}</div>
+  </div>`;
+}
+
 function renderTrackmanInsights(shots, allShots) {
   const reportShots = getClubReportShots(allShots);
   const insights = [];
@@ -561,6 +759,15 @@ function saveSwingCauseAnswers() {
   try { localStorage.setItem('tc_swing_cause_answers', JSON.stringify(swingCauseAnswers)); } catch {}
 }
 
+function loadSwingPracticeResults() {
+  try { swingPracticeResults = JSON.parse(localStorage.getItem('tc_swing_practice_results') || '{}'); }
+  catch { swingPracticeResults = {}; }
+}
+
+function saveSwingPracticeResults() {
+  try { localStorage.setItem('tc_swing_practice_results', JSON.stringify(swingPracticeResults)); } catch {}
+}
+
 function causeAnswersForClub() {
   if (!swingCauseAnswers[analysisClub]) swingCauseAnswers[analysisClub] = {};
   return swingCauseAnswers[analysisClub];
@@ -571,6 +778,31 @@ function setSwingCauseChoice(key, value) {
   answers[key] = value;
   saveSwingCauseAnswers();
   renderAnalysis(analysisShots);
+}
+
+function setSwingPracticeResult(result) {
+  swingPracticeResults[analysisClub] = {
+    result,
+    date: new Date().toISOString(),
+    focus: causeAnswersForClub().focus || '',
+  };
+  saveSwingPracticeResults();
+  renderAnalysis(analysisShots);
+}
+
+function renderSwingPracticeResult(result) {
+  const saved = swingPracticeResults[analysisClub];
+  const savedText = saved?.result
+    ? `Last result: ${saved.result} (${(saved.date || '').slice(0,10) || 'today'})`
+    : 'After the 6-shot test, tap the result so Today can remember what worked.';
+  return `<div class="swing-practice-loop">
+    <div class="swing-practice-title">Practice link</div>
+    <div class="swing-practice-body">${escapeHtml(result.test)}</div>
+    <div class="swing-practice-actions">
+      ${['improved','same','worse'].map(v => `<button class="swing-practice-btn${saved?.result===v?' on':''}" onclick="setSwingPracticeResult('${v}')">${v}</button>`).join('')}
+    </div>
+    <div class="swing-practice-saved">${escapeHtml(savedText)}</div>
+  </div>`;
 }
 
 function angleDesc(value, goodAbs, labelPos, labelNeg) {
@@ -709,6 +941,7 @@ function renderSwingCauseCheck(shots) {
       <div class="swing-cause-result-title">${escapeHtml(result.title)}</div>
       <div class="swing-cause-result-body">${escapeHtml(result.cause)}</div>
       <div class="swing-cause-test"><strong>Test:</strong> ${escapeHtml(result.test)}</div>
+      ${renderSwingPracticeResult(result)}
     </div>
   </div>`;
 }
@@ -2749,6 +2982,7 @@ window.setAnalysisFilter      = setAnalysisFilter;
 window.setReportFilter        = setReportFilter;
 window.setReportWindow        = setReportWindow;
 window.setSwingCauseChoice    = setSwingCauseChoice;
+window.setSwingPracticeResult = setSwingPracticeResult;
 window.showTrackmanSection    = showTrackmanSection;
 window.switchChartMode        = switchChartMode;
 window.switchProgChart        = switchProgChart;
