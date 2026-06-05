@@ -13,9 +13,7 @@ let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
 
 const FILTER_OPTIONS = [
   { key:'all',           label:'All' },
-  { key:'full',          label:'Full swings' },
   { key:'progress',      label:'Progress' },
-  { key:'full_progress', label:'Full + Prog' },
 ];
 
 const SESSION_COLORS = ['#00d68f','#ffaa00','#7b9cff','#ff7eb3','#40e0d0','#f4a460','#b8ff5a','#ff6b6b','#c084fc','#34d3f7','#fbbf24','#a3e635'];
@@ -617,6 +615,120 @@ function drawProgressChart(key,shots){
     return;
   }
 
+  if (key === 'carry' && isAnalysisWedgeClub()) {
+    const cvw = _cv();
+    const wedgeShots = [...shots]
+      .filter(s => s.carry > 0)
+      .sort((a,b) => new Date(a.shot_time||a.created_at) - new Date(b.shot_time||b.created_at));
+    const dateList = [...new Set(wedgeShots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
+    const groups = {};
+    wedgeShots.forEach(s => {
+      const d = (s.shot_time || s.created_at)?.slice(0,10);
+      if (!d) return;
+      const label = wedgeWindowLabelForShot(s);
+      if (!groups[label]) groups[label] = {};
+      if (!groups[label][d]) groups[label][d] = [];
+      groups[label][d].push(Number(s.carry));
+    });
+    const series = Object.entries(groups)
+      .map(([label, byDate]) => {
+        const points = dateList.map((d, i) => {
+          const vals = byDate[d] || [];
+          return vals.length ? { i, date: d, value: vals.reduce((a,b)=>a+b,0)/vals.length, n: vals.length } : null;
+        }).filter(Boolean);
+        const count = Object.values(byDate).reduce((a, vals) => a + vals.length, 0);
+        return { label, points, count };
+      })
+      .filter(s => s.points.length >= 2)
+      .sort((a,b) => b.count - a.count)
+      .slice(0, 5);
+
+    if (series.length) {
+      const vals = series.flatMap(s => s.points.map(p => p.value));
+      const padw = { t:30, r:20, b:44, l:48 };
+      const cww = w - padw.l - padw.r;
+      const chw = h - padw.t - padw.b;
+      const span = Math.max(...vals) - Math.min(...vals) || 1;
+      const min = Math.min(...vals) - span * 0.15;
+      const max = Math.max(...vals) + span * 0.15;
+      const pxw = i => padw.l + (dateList.length <= 1 ? 0 : (i / (dateList.length - 1)) * cww);
+      const pyw = v => padw.t + chw - ((v - min) / (max - min)) * chw;
+      const palette = ['#00d68f','#ffaa00','#7b9cff','#ff7eb3','#40e0d0'];
+
+      ctx.strokeStyle = cvw.grid;
+      ctx.lineWidth = 1;
+      ctx.font = "9px 'DM Mono',monospace";
+      ctx.fillStyle = cvw.dim;
+      ctx.textAlign = 'right';
+      for (let i=0;i<=4;i++) {
+        const y = padw.t + (chw/4) * i;
+        const val = max - ((max-min)/4) * i;
+        ctx.beginPath();ctx.moveTo(padw.l,y);ctx.lineTo(w-padw.r,y);ctx.stroke();
+        ctx.fillText(val.toFixed(0), padw.l-6, y+3);
+      }
+
+      dateList.forEach((d,i) => {
+        if (i === 0) return;
+        ctx.strokeStyle = cvw.sessionSep;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3,4]);
+        ctx.beginPath();ctx.moveTo(pxw(i),padw.t);ctx.lineTo(pxw(i),padw.t+chw);ctx.stroke();
+      });
+      ctx.setLineDash([]);
+
+      series.forEach((s, si) => {
+        const col = palette[si % palette.length];
+        const xs = s.points.map(p => pxw(p.i));
+        const ys = s.points.map(p => pyw(p.value));
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();ctx.moveTo(xs[0],ys[0]);
+        if (xs.length > 2) smLine(xs,ys);
+        else ctx.lineTo(xs[1],ys[1]);
+        ctx.stroke();
+        s.points.forEach((p, pi) => {
+          ctx.fillStyle = col;
+          ctx.globalAlpha = pi === s.points.length - 1 ? 1 : 0.65;
+          ctx.beginPath();ctx.arc(pxw(p.i), pyw(p.value), pi === s.points.length - 1 ? 4 : 3, 0, Math.PI*2);ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+      });
+
+      ctx.textAlign = 'left';
+      ctx.font = "700 11px 'Barlow Condensed',sans-serif";
+      ctx.fillStyle = cvw.titleTxt;
+      ctx.fillText(`${CA().clubLabel(analysisClub).toUpperCase()} CARRY BY WINDOW`, padw.l, padw.t-12);
+
+      ctx.font = "9px 'DM Mono',monospace";
+      let lx = padw.l;
+      series.forEach((s, si) => {
+        if (lx > w - 80) return;
+        const col = palette[si % palette.length];
+        ctx.fillStyle = col;
+        ctx.beginPath();ctx.arc(lx+4,padw.t+chw+20,4,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle = cvw.dim;
+        ctx.fillText(s.label, lx+12, padw.t+chw+23);
+        lx += Math.max(62, s.label.length * 7 + 22);
+      });
+
+      const noteElW = document.getElementById('progress-baseline-note');
+      if (noteElW) noteElW.textContent = 'Carry split by wedge window. Pick windows in the TrackMan shot log for cleaner lines.';
+      return;
+    }
+
+    ctx.fillStyle = '#4e5660';
+    ctx.font = "13px 'Barlow',sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText('Need 2+ sessions in the same wedge window', w/2, h/2 - 6);
+    ctx.font = "11px 'Barlow',sans-serif";
+    ctx.fillText('Edit wedge shots and set Window to build separate progress lines', w/2, h/2 + 14);
+    const noteElW = document.getElementById('progress-baseline-note');
+    if (noteElW) noteElW.textContent = 'Wedge carry charts stay split by window instead of blending partial shots.';
+    return;
+  }
+
   const isSign=['face_angle','club_path','face_to_path','attack_angle'].includes(key);
   const colorMap=buildSessionColorMap(shots);
   const ordered=[...shots].sort((a,b)=>new Date(a.shot_time||a.created_at)-new Date(b.shot_time||b.created_at)).filter(s=>s[key]!=null&&!isNaN(s[key]));
@@ -853,13 +965,34 @@ function isWedgeShot(s) {
   return wedgeKeys.includes(String(s.club || '').toLowerCase());
 }
 
+function isAnalysisWedgeClub() {
+  return ['pw','58','sw','aw','gw','lw','60'].includes(analysisClub);
+}
+
 function isWedgeWindowValue(value) {
   return WEDGE_WINDOW_OPTIONS.some(o => o.value && o.value === value);
 }
 
+function wedgeWindowLabelForShot(s) {
+  if (isWedgeWindowValue(s.shot_type)) return s.shot_type;
+  const raw = String(s.shot_type || s.notes || '').toLowerCase();
+  const clock = raw.match(/(?:^|\b)([7-9]|10|11)\s*(?:o'?clock|oclock|clock)\b/);
+  if (clock) return `${clock[1]} o'clock`;
+  if (/\b(half|1\/2|50%)\b/.test(raw)) return 'half swing';
+  if (/\b(three quarter|3\/4|75%)\b/.test(raw)) return '3/4 swing';
+  if (/\b(full|stock)\b/.test(raw)) return 'stock';
+  const carry = Number(s.carry);
+  if (!carry || isNaN(carry)) return 'unlabelled';
+  if (carry <= 15) return '0-15m';
+  if (carry <= 25) return '16-25m';
+  if (carry <= 35) return '26-35m';
+  if (carry <= 50) return '36-50m';
+  return '50m+';
+}
+
 function renderShotWindowSelect(s) {
   const current = isWedgeWindowValue(s.shot_type) ? s.shot_type : '';
-  return `<select id="edit-window-${s.id}" class="edit-select edit-window-select" title="Wedge shot window" onchange="syncFullShotFromWindow('${s.id}')">
+  return `<select id="edit-window-${s.id}" class="edit-select edit-window-select" title="Wedge shot window">
     ${WEDGE_WINDOW_OPTIONS.map(o => `<option value="${escapeHtml(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
   </select>`;
 }
@@ -867,14 +1000,6 @@ function renderShotWindowSelect(s) {
 function renderShotWindowDisplay(s) {
   if (!isWedgeShot(s) || !isWedgeWindowValue(s.shot_type)) return '<span class="cell-dim">-</span>';
   return `<span class="shot-window-pill">${escapeHtml(s.shot_type)}</span>`;
-}
-
-function syncFullShotFromWindow(id) {
-  const windowEl = document.getElementById(`edit-window-${id}`);
-  const fullEl = document.getElementById(`edit-full-${id}`);
-  if (!windowEl || !fullEl) return;
-  if (!windowEl.value) return;
-  fullEl.value = windowEl.value === 'stock' ? '1' : '0';
 }
 
 function renderShotRows(shots, sessionCol) {
@@ -885,7 +1010,7 @@ function renderShotRows(shots, sessionCol) {
         <th>Carry</th><th>Smash</th>
         <th>Face</th><th>Path</th><th>FTP</th>
         <th>Atk</th><th>Launch</th><th>Spin</th><th>Side</th>
-        <th>Full</th><th>Prog</th><th>Window</th><th>Notes</th><th></th>
+        <th>Progress</th><th>Window</th><th>Notes</th><th></th>
       </tr></thead>
       <tbody>
         ${shots.map(s => renderShotRow(s, sessionCol)).join('')}
@@ -904,10 +1029,6 @@ function renderShotRow(s, sessionCol) {
       <td>${fSign(s.face_angle,1)}</td><td>${fSign(s.club_path,1)}</td><td>${fSign(s.face_to_path,1)}</td>
       <td>${fSign(s.attack_angle,1)}</td><td>${f(s.launch_angle,1)}</td>
       <td>${s.spin_rate?Math.round(s.spin_rate):'–'}</td><td>${fSign(s.side,1)}</td>
-      <td><select id="edit-full-${s.id}" class="edit-select">
-        <option value="1"${s.is_full_shot!==false?' selected':''}>✓</option>
-        <option value="0"${s.is_full_shot===false?' selected':''}>–</option>
-      </select></td>
       <td><select id="edit-excl-${s.id}" class="edit-select">
         <option value="0"${!s.exclude_from_progress?' selected':''}>Incl</option>
         <option value="1"${s.exclude_from_progress?' selected':''}>Excl</option>
@@ -931,7 +1052,6 @@ function renderShotRow(s, sessionCol) {
     <td>${f(s.launch_angle,1)}</td>
     <td>${s.spin_rate?Math.round(s.spin_rate):'–'}</td>
     <td>${fSign(s.side,1)}</td>
-    <td class="${s.is_full_shot===false?'cell-dim':'cell-good-dim'}">${s.is_full_shot===false?'–':'✓'}</td>
     <td class="${s.exclude_from_progress?'cell-warn':''}">${s.exclude_from_progress?'Excl':''}</td>
     <td>${renderShotWindowDisplay(s)}</td>
     <td class="shot-notes">${escapeHtml(s.notes||'')}</td>
@@ -969,18 +1089,18 @@ function startEditRow(id){
 }
 function cancelEditRow(){const id=editingRowId;editingRowId=null;renderAnalysisKeepingRow(id);}
 async function saveEditRow(id){
-  const fullEl=document.getElementById(`edit-full-${id}`);
   const exclEl=document.getElementById(`edit-excl-${id}`);
   const windowEl=document.getElementById(`edit-window-${id}`);
   const notesEl=document.getElementById(`edit-notes-${id}`);
-  if(!fullEl||!exclEl||!notesEl)return;
+  if(!exclEl||!notesEl)return;
   const { user } = await window.TCData.getCurrentUser();
   const uid = user?.id;
   if(!uid){showToast('Not logged in');return;}
-  const updates={is_full_shot:fullEl.value==='1',exclude_from_progress:exclEl.value==='1',notes:notesEl.value.trim()||null};
+  const current = analysisShots.find(s=>s.id===id) || _allFetchedShots.find(s=>s.id===id) || {};
+  const updates={exclude_from_progress:exclEl.value==='1',notes:notesEl.value.trim()||null};
   if(windowEl){
-    const current = analysisShots.find(s=>s.id===id) || _allFetchedShots.find(s=>s.id===id) || {};
     updates.shot_type = windowEl.value || (current.shot_type && !isWedgeWindowValue(current.shot_type) ? current.shot_type : null);
+    updates.is_full_shot = windowEl.value ? windowEl.value === 'stock' : current.is_full_shot !== false;
   }
   const{error}=await window.supabaseClient.from('trackman_shots').update(updates).eq('id',id).eq('user_id',uid);
   if(error){showToast('Save failed: '+error.message);return;}
