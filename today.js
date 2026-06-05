@@ -7,6 +7,14 @@ let _trendShots    = null;
 let _todayFocus    = 'overall';
 let _todayChipSessions = [];
 let _todayPuttSessions = [];
+let _todayPracticeContext = 'range';
+
+const TODAY_PRACTICE_CONTEXTS = [
+  { key:'range',     label:'Range',     desc:'All practice options' },
+  { key:'simulator', label:'Simulator', desc:'Full-swing only; skips wedges and green work' },
+  { key:'no_wedges', label:'No wedges', desc:'Keeps driver, irons and putting options' },
+  { key:'short',     label:'Short',     desc:'Keeps the plan compact' },
+];
 
 const PICKER_CLUBS = [
   { ck:'driver', label:'Driver' },
@@ -29,6 +37,9 @@ const TODAY_FOCUS_LABELS = [
   { key:'8',        label:'8i' },
   { key:'9',        label:'9i' },
   { key:'wedges',   label:'Wedges' },
+  { key:'pw',       label:'PW' },
+  { key:'58',       label:'58°' },
+  { key:'sw',       label:'SW' },
   { key:'chipping', label:'Chipping' },
   { key:'putting',  label:'Putting' },
 ];
@@ -42,6 +53,9 @@ const TODAY_FOCUS_CLUB_KEYS = {
   '8':     ['8'],
   '9':     ['9'],
   wedges:  ['pw','58','sw'],
+  pw:      ['pw'],
+  '58':    ['58'],
+  sw:      ['sw'],
 };
 
 const GLOSSARY_TERMS = {
@@ -198,9 +212,65 @@ window.setTodayFocus = function(key) {
   _renderTodayPage();
 };
 
+function _getPracticeContext() {
+  try {
+    const saved = localStorage.getItem('today_practice_context');
+    return TODAY_PRACTICE_CONTEXTS.some(c => c.key === saved) ? saved : 'range';
+  } catch(e) {
+    return 'range';
+  }
+}
+
+window.setTodayPracticeContext = function(key) {
+  if (!TODAY_PRACTICE_CONTEXTS.some(c => c.key === key)) return;
+  _todayPracticeContext = key;
+  try { localStorage.setItem('today_practice_context', key); } catch(e) {}
+  _renderTodayPage();
+};
+
+function _renderPracticeContextBar() {
+  const active = TODAY_PRACTICE_CONTEXTS.find(c => c.key === _todayPracticeContext) || TODAY_PRACTICE_CONTEXTS[0];
+  return `<div class="today-context-wrap">
+    <div class="today-context-label">Today I can practice</div>
+    <div class="today-context-bar">
+      ${TODAY_PRACTICE_CONTEXTS.map(c =>
+        `<button class="today-context-chip${_todayPracticeContext===c.key?' active':''}" onclick="setTodayPracticeContext('${c.key}')">${escapeHtml(c.label)}</button>`
+      ).join('')}
+    </div>
+    <div class="today-context-desc">${escapeHtml(active.desc)}</div>
+  </div>`;
+}
+
+function _issueCategory(issue) {
+  if (!issue) return 'other';
+  if (issue.type === 'putting' || issue.club === 'putter') return 'putting';
+  if (['pw','sw','58','60','gw','aw'].includes(issue.club)) return 'wedges';
+  if (['chip_chunk','chip_blade','chip_distance_unstable'].includes(issue.key)) return 'short';
+  if (issue.club === 'driver') return 'driver';
+  return 'irons';
+}
+
+function _contextAllowsIssue(issue) {
+  const cat = _issueCategory(issue);
+  if (_todayPracticeContext === 'simulator') return cat === 'driver' || cat === 'irons';
+  if (_todayPracticeContext === 'no_wedges') return cat !== 'wedges' && cat !== 'short';
+  return true;
+}
+
+function _planForCurrentContext(issue) {
+  if (!issue) return issue;
+  if (_todayPracticeContext !== 'short') return issue;
+  return { ...issue, durationMin: Math.min(issue.durationMin || 40, 25) };
+}
+
+function _filterIssuesForContext(issues) {
+  return (issues || []).filter(_contextAllowsIssue).map(_planForCurrentContext);
+}
+
 function _renderTodayPage() {
   const el = document.getElementById('today-content');
   if (!el) return;
+  _todayPracticeContext = _getPracticeContext();
   const chips = _renderFocusChips();
 
   if (_todayFocus === 'chipping') {
@@ -227,9 +297,10 @@ function _renderTodayPage() {
   const health     = _buildHealthTiles(_todayAllShots, _todayChipSessions, _todayPuttSessions);
   const improved   = _detectImprovement(_todayAllShots);
   const regression = _detectRegression(_todayAllShots);
+  const contextIssues = _filterIssuesForContext(_todayIssues);
 
   requestAnimationFrame(() => {
-    el.innerHTML = chips + _renderTodayContent(_todayIssues, health, improved, regression, _todayAllShots.length, fi);
+    el.innerHTML = chips + _renderPracticeContextBar() + _renderTodayContent(contextIssues, health, improved, regression, _todayAllShots.length, fi);
   });
 }
 
@@ -258,10 +329,11 @@ function _renderClubFocusSection(focusKey) {
   const stats     = _buildFocusStats(focusShots);
   const statsCard = _renderFocusStatsCard(stats, focusLabel, focusShots.length);
   const techCard  = _renderFocusTechnicalCard(stats, focusLabel);
+  const wedgeCard = _isWedgeKey(focusKey) ? _renderWedgeWindowCard(focusShots, focusLabel) : '';
 
   // 1–4 shots — show what we have, flag insufficient data
   if (focusShots.length < 5) {
-    return statsCard + techCard +
+    return statsCard + techCard + wedgeCard +
       `<div class="today-focus-card" style="margin:10px 14px 0;">
         <div class="today-focus-card-label">Not enough data yet</div>
         <div style="font-size:13px;color:var(--text2);margin-top:5px;">
@@ -290,7 +362,7 @@ function _renderClubFocusSection(focusKey) {
       <button class="today-layer-btn today-layer-stats" onclick="toggleTodayLayer('stats')">Stats</button>
     </div>
     <div class="today-coach-layer">
-      ${statsCard}${techCard}${issueCard}
+      ${statsCard}${techCard}${wedgeCard}${issueCard}
       ${_renderFocusTrainCard(issue, focusLabel, focusKey)}
       ${_renderDrillHistoryCard()}
       ${_renderFocusQuickActions()}
@@ -355,11 +427,74 @@ function _buildFocusStats(shots) {
   };
 }
 
+function _isWedgeKey(key) {
+  return ['wedges','pw','58','sw','aw','gw','lw','60'].includes(key);
+}
+
+function _wedgeWindowLabel(shot) {
+  const raw = String(shot.shot_type || shot.notes || '').toLowerCase();
+  const clock = raw.match(/(?:^|\b)([7-9]|10|11)\s*(?:o'?clock|oclock|clock)\b/);
+  if (clock) return `${clock[1]} o'clock`;
+  if (/\b(half|1\/2|50%)\b/.test(raw)) return 'half swing';
+  if (/\b(three quarter|3\/4|75%)\b/.test(raw)) return '3/4 swing';
+  if (/\b(full|stock)\b/.test(raw)) return 'stock';
+  const carry = Number(shot.carry);
+  if (!carry || isNaN(carry)) return 'unlabelled';
+  if (carry <= 15) return '0-15m';
+  if (carry <= 25) return '16-25m';
+  if (carry <= 35) return '26-35m';
+  if (carry <= 50) return '36-50m';
+  return '50m+';
+}
+
+function _buildWedgeWindows(shots) {
+  const groups = {};
+  shots.forEach(s => {
+    if (!s.carry) return;
+    const label = _wedgeWindowLabel(s);
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(s);
+  });
+  return Object.entries(groups).map(([label, rows]) => {
+    const carries = rows.map(r => r.carry).filter(Boolean);
+    return {
+      label,
+      n: rows.length,
+      avg: statAvg(carries),
+      sd: statStdDev(carries),
+      min: carries.length ? Math.min(...carries) : null,
+      max: carries.length ? Math.max(...carries) : null,
+    };
+  }).sort((a, b) => (a.avg || 0) - (b.avg || 0));
+}
+
+function _worstWedgeWindow(windows) {
+  return windows
+    .filter(w => w.n >= 4 && w.sd != null)
+    .sort((a, b) => b.sd - a.sd)[0] || null;
+}
+
+function _renderWedgeWindowCard(shots, focusLabel) {
+  const windows = _buildWedgeWindows(shots).filter(w => w.n >= 2);
+  if (!windows.length) return '';
+
+  return `<div class="today-wedge-card">
+    <div class="today-wedge-head">Partial wedge windows</div>
+    <div class="today-wedge-sub">${escapeHtml(focusLabel)} grouped by TrackMan shot type or notes first, then carry bucket.</div>
+    ${windows.slice(0, 6).map(w => `<div class="today-wedge-row">
+      <span class="today-wedge-label">${escapeHtml(w.label)}</span>
+      <span class="today-wedge-stat">${escapeHtml(String(w.n))} shots</span>
+      <span class="today-wedge-stat">${f(w.avg,0)}m avg</span>
+      <span class="today-wedge-stat today-wedge-sd">±${w.sd == null ? '-' : f(w.sd,1)}m</span>
+    </div>`).join('')}
+  </div>`;
+}
+
 function _detectFocusIssue(focusShots, focusKey) {
   const stats = _buildFocusStats(focusShots);
   const { avgFace, avgAttack, carrySD, avgSmash, avgFTP } = stats;
   const isIrons  = ['irons','7','6','8','9'].includes(focusKey);
-  const isWedges = focusKey === 'wedges';
+  const isWedges = _isWedgeKey(focusKey);
   const isDriver = focusKey === 'driver';
   const faces    = focusShots.map(s => s.face_angle).filter(x => x != null);
   const attacks  = focusShots.map(s => s.attack_angle).filter(x => x != null);
@@ -413,14 +548,29 @@ function _detectFocusIssue(focusShots, focusKey) {
     }
   }
 
-  // Carry consistency — needs ≥ 7 carries
-  if (carries.length >= 7 && carrySD != null) {
-    const thresh = isWedges ? 8 : isDriver ? 18 : 14;
+  // Carry consistency. Wedges are scored by partial-shot window, not blended carry.
+  if (isWedges) {
+    const worstWindow = _worstWedgeWindow(_buildWedgeWindows(focusShots));
+    if (worstWindow && worstWindow.sd > 5) {
+      const sev = Math.min(worstWindow.sd / 10, 1);
+      candidates.push({
+        key: `wedge_window_${primaryCk}_${worstWindow.label.replace(/[^a-z0-9]/gi,'_')}`,
+        club: primaryCk, type: 'consistency', score: sev * 0.9,
+        simple: `${worstWindow.label} wedge distance needs tightening`,
+        support: `${worstWindow.n} shots · avg ${f(worstWindow.avg,0)}m · spread ±${f(worstWindow.sd,1)}m`,
+        deeper: 'Your wedge data is separated by partial-shot window. The issue is not that 10m and 30m shots differ. It is whether the same window repeats inside a tight carry band.',
+        drill: `${worstWindow.label} ladder: 12 balls to one carry window, score only shots inside ±3m.`,
+        goal: `${worstWindow.label} carry spread below ±5m`,
+        durationMin: 25,
+      });
+    }
+  } else if (carries.length >= 7 && carrySD != null) {
+    const thresh = isDriver ? 18 : 14;
     if (carrySD > thresh) {
       const sev = Math.min(carrySD / (thresh * 1.8), 1);
       candidates.push({
         key: `consist_${primaryCk}`, club: primaryCk, type: 'consistency', score: sev * 0.85,
-        simple: 'Distance unreliable — carry spread too wide',
+        simple: 'Distance unreliable - carry spread too wide',
         support: `Avg: ${f(stats.avgCarry,0)}m · Spread: ±${f(carrySD,0)}m (target ±${thresh}m)`,
         deeper: `Carry SD of ${f(carrySD,0)}m means club selection is a guess. Below ${thresh}m is the target for course-ready consistency.`,
         drill: 'Consistency block: 10 balls to one target, same swing pace each time.',
@@ -699,7 +849,7 @@ async function initTodayTab() {
   const [{ data: shots }, { data: chips }, { data: putts }] = await Promise.all([
     window.TCData.fetchTrackmanShots(
       user.id,
-      'id,club,carry,total,side,smash_factor,ball_speed,face_angle,face_to_path,club_path,attack_angle,launch_angle,spin_rate,is_full_shot,exclude_from_progress,shot_time,created_at',
+      'id,club,carry,total,side,smash_factor,ball_speed,face_angle,face_to_path,club_path,attack_angle,launch_angle,spin_rate,shot_type,notes,is_full_shot,exclude_from_progress,shot_time,created_at',
       { limit: 300, progressOnly: true }
     ),
     window.TCData.fetchChippingSessions(
@@ -864,9 +1014,26 @@ function _detectTodayIssues(allShots, puttSessions) {
     }
 
     // Carry consistency
-    if (carries.length >= 10) {
+    if (['pw','58','sw'].includes(ck)) {
+      const worstWindow = _worstWedgeWindow(_buildWedgeWindows(clubShots));
+      if (worstWindow && worstWindow.sd > 5) {
+        const sev = Math.min(worstWindow.sd / 10, 1);
+        issues.push({
+          key: `wedge_window_${ck}_${worstWindow.label.replace(/[^a-z0-9]/gi,'_')}`,
+          club: ck, clubName, type: 'consistency',
+          n: worstWindow.n, conf, confLabel, lowConf,
+          score: sev * conf * impact * 0.95 * recency,
+          simple: `${clubName} ${worstWindow.label} distance needs tightening`,
+          support: `${worstWindow.n} shots · avg ${f(worstWindow.avg,0)}m · spread ±${f(worstWindow.sd,1)}m`,
+          deeper: `${clubName} wedges are now judged inside each partial-shot window. A 10m, 20m, and 30m 58° shot should not be blended together. The opportunity is making ${worstWindow.label} repeat inside a tighter carry band.`,
+          drill: `${worstWindow.label} ladder: 12 balls to one carry window, score only shots inside ±3m`,
+          goal:  `${worstWindow.label} carry spread below ±5m`,
+          durationMin: 25,
+        });
+      }
+    } else if (carries.length >= 10) {
       const sdCarry = statStdDev(carries);
-      const thresh  = ['pw','58','sw'].includes(ck) ? 8 : 14;
+      const thresh  = 14;
       if (sdCarry != null && sdCarry > thresh) {
         const sev = Math.min(sdCarry / (thresh * 1.8), 1);
         const med = statMedian(carries);
@@ -874,9 +1041,9 @@ function _detectTodayIssues(allShots, puttSessions) {
           key: `consist_${ck}`, club: ck, clubName, type: 'consistency',
           n, conf, confLabel, lowConf,
           score: sev * conf * impact * 0.85 * recency,
-          simple: `${clubName} distance is unreliable — carry spread too wide`,
+          simple: `${clubName} distance is unreliable - carry spread too wide`,
           support: `Median ${f(med,0)}m · spread ±${f(sdCarry,1)}m`,
-          deeper: `Carry SD of ${f(sdCarry,1)}m (target below ${thresh}m) means your distances are unpredictable under pressure. The goal isn't hitting it further — it's knowing exactly how far you'll carry each shot so club selection isn't a guess.`,
+          deeper: `Carry SD of ${f(sdCarry,1)}m (target below ${thresh}m) means your distances are unpredictable under pressure. The goal isn't hitting it further - it's knowing exactly how far you'll carry each shot so club selection isn't a guess.`,
           drill: 'Consistency block: 10 shots to one target, same swing pace each time',
           goal:  `Carry SD below ${thresh}m`,
           durationMin: 30,
@@ -1074,6 +1241,7 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       <div id="today-plan-section">
         ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
       </div>
+      ${_renderRecommendationOptions(issues, mainIssue)}
       <div class="today-section-label" style="margin-top:4px;">Quick log</div>
       <div class="today-quick-log-row" style="margin-bottom:20px;">
         <button class="today-log-btn" onclick="showPage('analysis')">
@@ -1112,6 +1280,18 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
         <button class="today-drill-library-btn" onclick="openDrillCatalog('${mainIssue ? _issueToDrillCategory(mainIssue) : ''}')">Browse drill library →</button>
       </div>
     </div>`;
+}
+
+function _renderRecommendationOptions(issues, mainIssue) {
+  const options = (issues || []).filter(i => i.key !== mainIssue?.key).slice(0, 4);
+  if (!options.length) return '';
+  return `<div class="today-options-card">
+    <div class="today-options-head">Other good options today</div>
+    ${options.map(i => `<button class="today-option-row" onclick="selectTodayPlan('${escapeHtml(i.key)}')">
+      <span class="today-option-main">${escapeHtml(i.clubName || i.club)} · ${escapeHtml(i.simple)}</span>
+      <span class="today-option-sub">${escapeHtml(i.support || i.goal || '')}</span>
+    </button>`).join('')}
+  </div>`;
 }
 
 function _renderHealthTiles(tiles) {
@@ -1260,6 +1440,14 @@ function selectTodayClub(ck) {
 
   const section = document.getElementById('today-plan-section');
   if (section) section.innerHTML = _renderTrainTodayCard(issue);
+}
+
+function selectTodayPlan(issueKey) {
+  const issue = _filterIssuesForContext(_todayIssues).find(i => i.key === issueKey);
+  if (!issue) return;
+  const section = document.getElementById('today-plan-section');
+  if (section) section.innerHTML = _renderTrainTodayCard(issue);
+  showToast(`Plan switched: ${issue.clubName || issue.club}`);
 }
 
 function _buildGenericPlan(ck, allShots) {
