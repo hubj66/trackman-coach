@@ -23,6 +23,7 @@ const PICKER_CLUBS = [
   { ck:'8',      label:'8i' },
   { ck:'9',      label:'9i' },
   { ck:'pw',     label:'PW' },
+  { ck:'sw',     label:'SW' },
   { ck:'58',     label:'58°' },
   { ck:'putter', label:'Putt' },
 ];
@@ -899,7 +900,7 @@ async function initTodayTab() {
   const chipSessions = chips || [];
   const puttSessions = putts || [];
 
-  const issues    = _detectTodayIssues(allShots, puttSessions);
+  const issues    = _mergeTodayIssues(_detectTodayIssues(allShots, puttSessions), _buildClubHealthIssues(allShots));
 
   _todayAllShots      = allShots;
   _todayIssues        = issues;
@@ -1145,6 +1146,84 @@ function _detectTodayIssues(allShots, puttSessions) {
   return issues.sort((a,b) => b.score - a.score);
 }
 
+function _mergeTodayIssues(detected, healthIssues) {
+  const byKey = new Map();
+  [...(detected || []), ...(healthIssues || [])].forEach(issue => {
+    if (!issue?.key) return;
+    const existing = byKey.get(issue.key);
+    if (!existing || (issue.score || 0) > (existing.score || 0)) byKey.set(issue.key, issue);
+  });
+  return [...byKey.values()].sort((a,b) => (b.score || 0) - (a.score || 0));
+}
+
+function _buildClubHealthIssues(allShots) {
+  const CA = window.clubAliases;
+  if (!CA) return [];
+  const clubKeys = ['driver','6','7','8','9','pw','58','sw'];
+  return clubKeys.map(ck => {
+    const shots = (allShots || []).filter(s => CA.shotMatchesClub(s, ck)).slice(0, 40);
+    if (shots.length < 8) return null;
+    const carries = shots.map(s => s.carry).filter(Boolean);
+    const sides = shots.map(s => s.side).filter(x => x != null);
+    const faces = shots.map(s => s.face_angle).filter(x => x != null);
+    const paths = shots.map(s => s.club_path).filter(x => x != null);
+    const ftps = shots.map(s => s.face_to_path).filter(x => x != null);
+    const carrySD = statStdDev(carries);
+    const sideAvg = sides.length ? statAvg(sides) : null;
+    const faceAvg = faces.length ? statAvg(faces) : null;
+    const faceSD = statStdDev(faces);
+    const pathAvg = paths.length ? statAvg(paths) : null;
+    const ftpAvg = ftps.length ? statAvg(ftps) : null;
+    const reasons = [];
+    let score = 0;
+
+    if (carrySD != null && carrySD > (['pw','58','sw'].includes(ck) ? 7 : 13)) {
+      score += Math.min(carrySD / 20, 1) * 0.65;
+      reasons.push(`carry spread +/-${f(carrySD,1)}m`);
+    }
+    if (sideAvg != null && Math.abs(sideAvg) > 7) {
+      score += Math.min(Math.abs(sideAvg) / 18, 1) * 0.65;
+      reasons.push(`miss ${Math.abs(Math.round(sideAvg))}m ${sideAvg > 0 ? 'right' : 'left'}`);
+    }
+    if (faceAvg != null && Math.abs(faceAvg) > 2.5) {
+      score += Math.min(Math.abs(faceAvg) / 7, 1) * 0.75;
+      reasons.push(`face ${fSign(faceAvg,1)} deg`);
+    }
+    if (faceSD != null && faceSD > 3.5) {
+      score += Math.min(faceSD / 7, 1) * 0.45;
+      reasons.push(`face scatter +/-${f(faceSD,1)} deg`);
+    }
+    if (!reasons.length || score < 0.55) return null;
+
+    const clubName = CA.clubLabel(ck);
+    const avgPathText = pathAvg != null ? ` Path ${fSign(pathAvg,1)} deg.` : '';
+    const avgFtpText = ftpAvg != null ? ` Face-to-path ${fSign(ftpAvg,1)} deg.` : '';
+    const conf = Math.min(shots.length / 30, 1);
+    return {
+      key:`health_${ck}`,
+      club:ck,
+      clubName,
+      type:'club_health',
+      n:shots.length,
+      conf,
+      confLabel:_confLabel(conf),
+      lowConf:shots.length < 30,
+      priority:2,
+      score:score * Math.min(shots.length / 20, 1),
+      simple:`${clubName} is the weakest health signal today`,
+      support:reasons.slice(0, 3).join(' / '),
+      deeper:`Club Health combines distance spread, miss side, face bias and face scatter.${avgPathText}${avgFtpText}`,
+      drill:faceAvg != null && Math.abs(faceAvg) > 2.5
+        ? '6-shot face control test: normal feel, then earlier release feel. Keep the one that moves face closer to 0.'
+        : '10-ball trust test: same target, full routine, record carry and miss side.',
+      goal:faceAvg != null && Math.abs(faceAvg) > 2.5
+        ? 'Face closer to 0 deg and lower scatter'
+        : 'Smaller carry spread and predictable miss side',
+      durationMin:['pw','58','sw'].includes(ck) ? 25 : 35,
+    };
+  }).filter(Boolean);
+}
+
 // ── Health tiles ──────────────────────────────────────────────────────────
 
 function _buildHealthTiles(allShots, chipSessions, puttSessions) {
@@ -1286,6 +1365,7 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
         ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
       </div>
       ${_renderRecommendationOptions(issues, mainIssue)}
+      ${_renderAnythingElseChooser(mainIssue?.club || null)}
       <div class="today-section-label" style="margin-top:4px;">Quick log</div>
       <div class="today-quick-log-row" style="margin-bottom:20px;">
         <button class="today-log-btn" onclick="showPage('analysis')">
@@ -1335,6 +1415,19 @@ function _renderRecommendationOptions(issues, mainIssue) {
       <span class="today-option-main">${escapeHtml(i.clubName || i.club)} · ${escapeHtml(i.simple)}</span>
       <span class="today-option-sub">${escapeHtml(i.support || i.goal || '')}</span>
     </button>`).join('')}
+  </div>`;
+}
+
+function _renderAnythingElseChooser(activeCk) {
+  const btns = PICKER_CLUBS.map(({ ck, label }) =>
+    `<button class="today-anything-btn${ck === activeCk ? ' on' : ''}" data-club="${ck}" onclick="selectTodayClub('${ck}')">${escapeHtml(label)}</button>`
+  ).join('');
+  return `<div class="today-anything-card">
+    <div class="today-anything-head">
+      <span>I want to train something else</span>
+      <small>Pick any club and Today will build a plan.</small>
+    </div>
+    <div class="today-anything-grid">${btns}</div>
   </div>`;
 }
 
@@ -1478,12 +1571,16 @@ function selectTodayClub(ck) {
   document.querySelectorAll('.today-club-btn').forEach(btn => {
     btn.classList.toggle('on', btn.dataset.club === ck);
   });
+  document.querySelectorAll('.today-anything-btn').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.club === ck);
+  });
 
   // Find detected issue for this club, or build a generic plan
   const issue = _todayIssues.find(i => i.club === ck) || _buildGenericPlan(ck, _todayAllShots);
 
   const section = document.getElementById('today-plan-section');
   if (section) section.innerHTML = _renderTrainTodayCard(issue);
+  showToast(`Plan switched: ${issue.clubName || ck}`);
 }
 
 function selectTodayPlan(issueKey) {
