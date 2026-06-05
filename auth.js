@@ -595,14 +595,7 @@ ${expanded?`<div class="bag-card-body">
       <span class="bag-chart-legend-line">— Face (°)</span>
     </div>
   </div>`:totalShots>0?`<div class="bag-chart-pending">Trend chart unlocks at ${BAG_ROLLING_WINDOW} shots · ${totalShots}/${BAG_ROLLING_WINDOW} so far</div>`:''}
-  ${n>=5?`<div class="bag-chart-wrap">
-    <canvas id="bag-chart-${k}" class="bag-chart-canvas" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-bottom:6px;"></canvas>
-    <div class="bag-chart-sub" id="bag-chart-sub-${k}"></div>
-    <div class="bag-chart-legend">
-      <span class="bag-chart-legend-area">▆ Carry (m)</span>
-      <span class="bag-chart-legend-line">— Face (°)</span>
-    </div>
-  </div>`:''}
+  
   ${n>0?`<div class="bag-sections">
     <div class="bag-section"><div class="bag-sec-title">Distance</div>
       <div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>
