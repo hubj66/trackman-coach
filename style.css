@@ -396,6 +396,7 @@ button:active{background:var(--surface4)}
 .progress-chart-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px}
 .prog-tab{padding:4px 9px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer;transition:all .15s}
 .prog-tab.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+#progress-canvas{min-height:220px}
 .progress-baseline-note{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:5px;padding:0 2px}
 .report-filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px}
 .report-filter-btn{padding:4px 9px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer}
@@ -1394,6 +1395,7 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
   .report-filter-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
   .report-filter-btn{min-height:34px;flex-shrink:0}
   .report-window-select{min-height:34px;flex-shrink:0}
+  #progress-canvas{min-height:250px}
 
   .acc-head{min-height:54px;padding:13px 12px}
   .acc-title{min-width:0}

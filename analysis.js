@@ -978,7 +978,7 @@ function renderProgressSection(allShots) {
   ${showMetrics ? `<div class="progress-chart-tabs">
     ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
   </div>` : ''}
-  <canvas id="progress-canvas" height="190" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:var(--canvas-bg);"></canvas>
+  <canvas id="progress-canvas" height="220" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:var(--canvas-bg);"></canvas>
   <div class="progress-baseline-note" id="progress-baseline-note"></div>`;
 }
 
@@ -1011,7 +1011,8 @@ function prepProgressCanvas(height=190) {
   const canvas=document.getElementById('progress-canvas');
   if(!canvas)return null;
   const dpr=Math.min(window.devicePixelRatio||2,3);
-  const w=canvas.parentElement?.clientWidth||340,h=height;
+  const w=canvas.parentElement?.clientWidth||340;
+  const h=Math.max(height, w < 430 ? 250 : height);
   canvas.width=w*dpr;canvas.height=h*dpr;
   canvas.style.width=w+'px';canvas.style.height=h+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
@@ -1038,9 +1039,10 @@ function drawEmptyChart(ctx, w, h, line1, line2='') {
 }
 
 function drawSessionChart(key, shots) {
-  const p = prepProgressCanvas(190);
+  const p = prepProgressCanvas(220);
   if (!p) return;
   const { ctx, w, h } = p;
+  const compact = w < 430;
   const cv = _cv();
   const colorMap = buildSessionColorMap(shots);
   const byDate = {};
@@ -1062,7 +1064,7 @@ function drawSessionChart(key, shots) {
   const values = sessions.map(s => s.value);
   const baseline = key === 'playable_rate' ? 70 : getBaselineForMetric(key, analysisClub);
   const allVals = baseline != null ? [...values, baseline] : values;
-  const pad={t:30,r:20,b:42,l:48};
+  const pad=compact ? {t:36,r:16,b:56,l:54} : {t:30,r:20,b:44,l:48};
   const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   const span=Math.max(...allVals)-Math.min(...allVals)||1;
   const min=Math.min(...allVals)-span*0.14,max=Math.max(...allVals)+span*0.14;
@@ -1072,7 +1074,7 @@ function drawSessionChart(key, shots) {
   const isPct = key === 'playable_rate';
   const isSign=['face_angle','club_path','face_to_path','attack_angle'].includes(key);
 
-  ctx.strokeStyle=cv.grid;ctx.lineWidth=1;ctx.font="9px 'DM Mono',monospace";ctx.fillStyle=cv.dim;ctx.textAlign='right';
+  ctx.strokeStyle=cv.grid;ctx.lineWidth=1;ctx.font=`${compact ? 10 : 9}px 'DM Mono',monospace`;ctx.fillStyle=cv.dim;ctx.textAlign='right';
   for(let i=0;i<=4;i++){
     const y=pad.t+(ch/4)*i,val=max-((max-min)/4)*i;
     ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
@@ -1083,6 +1085,7 @@ function drawSessionChart(key, shots) {
     const by=py(baseline);
     ctx.save();ctx.strokeStyle=cv.baseline;ctx.setLineDash([8,5]);ctx.beginPath();ctx.moveTo(pad.l,by);ctx.lineTo(w-pad.r,by);ctx.stroke();ctx.restore();
   }
+  const labelStep = compact ? Math.max(1, Math.ceil(sessions.length / 5)) : 1;
   sessions.forEach((s,i)=>{
     const x=xOf(i), y=py(s.value), col=colorMap[s.date]||cv.lineColor;
     const baseVal = min <= 0 && max >= 0 ? 0 : min;
@@ -1090,15 +1093,17 @@ function drawSessionChart(key, shots) {
     ctx.fillStyle=col;ctx.globalAlpha=0.72;
     ctx.fillRect(x-barW/2, Math.min(y,zero), barW, Math.max(3, Math.abs(zero-y)));
     ctx.globalAlpha=1;
-    ctx.fillStyle=cv.dim;ctx.font="9px 'DM Mono',monospace";ctx.textAlign='center';
-    ctx.fillText(s.date.slice(5), x, pad.t+ch+20);
+    if (i % labelStep === 0 || i === sessions.length - 1) {
+      ctx.fillStyle=cv.dim;ctx.font=`${compact ? 10 : 9}px 'DM Mono',monospace`;ctx.textAlign='center';
+      ctx.fillText(s.date.slice(5), x, pad.t+ch+(compact ? 28 : 20));
+    }
   });
   const med=statMedian(values);
   if (med != null) {
     const my=py(med);
     ctx.strokeStyle=cv.lineColor;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad.l,my);ctx.lineTo(w-pad.r,my);ctx.stroke();
   }
-  ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
+  ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font=`700 ${compact ? 12 : 11}px 'Barlow Condensed',sans-serif`;
   ctx.fillText(`${progLabel(key).toUpperCase()} BY SESSION`,pad.l,pad.t-12);
   const note = document.getElementById('progress-baseline-note');
   if (note) note.textContent = `Each bar is one session median${baseline != null ? ' / dashed = target or baseline' : ''}.`;
