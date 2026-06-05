@@ -15,6 +15,7 @@ function loadScript(path) {
 loadScript('utils.js');
 loadScript('golfLogic.js');
 loadScript('parsers.js');
+loadScript('roundLogic.js');
 loadScript('rounds.js');
 
 assert.equal(escapeHtml('<b>x</b>'), '&lt;b&gt;x&lt;/b&gt;');
