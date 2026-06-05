@@ -7,6 +7,7 @@ let analysisShots  = [];
 let analysisRawSort = { col: 'shot_time', dir: -1 };
 let editingRowId   = null;
 let currentProgKey = 'carry';
+let currentChartMode = 'sessions';
 let currentReportFilter = 'included';
 let currentReportWindow = 'all';
 let _allFetchedShots = [];
@@ -182,7 +183,7 @@ function renderAnalysis(allShots) {
   `;
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    drawProgressChart(currentProgKey, applyFilter(analysisShots));
+    drawTrackmanChart(currentChartMode, currentProgKey, applyFilter(analysisShots));
     const filteredShots = applyFilter(analysisShots);
     const colorMap2 = buildSessionColorMap(analysisShots);
     const activeShotsForMaps = filteredShots.filter(s =>
@@ -330,6 +331,90 @@ function reportTrend(metric, shots) {
   };
 }
 
+function windowDisplayLabel(value) {
+  return WEDGE_WINDOW_OPTIONS.find(o => o.value === value)?.label || value;
+}
+
+function wedgeWindowTargetRows(reportShots) {
+  if (!isAnalysisWedgeClub()) return [];
+  const assigned = reportShots.filter(isAssignedWedgeWindowShot);
+  const labels = new Set(assigned.map(s => normalizeWedgeWindowValue(s.shot_type)));
+  WEDGE_WINDOW_OPTIONS.forEach(o => {
+    if (o.value && window.getWedgeTarget?.(analysisClub, o.value) != null) labels.add(o.value);
+  });
+  const selectedLabels = currentReportWindow === 'all'
+    ? [...labels]
+    : [...labels].filter(label => label === currentReportWindow);
+  return selectedLabels
+    .map(label => {
+      const shots = assigned
+        .filter(s => normalizeWedgeWindowValue(s.shot_type) === label && s.carry > 0)
+        .sort(byRecent);
+      const carries = shots.map(s => Number(s.carry)).filter(x => !isNaN(x));
+      const target = window.getWedgeTarget?.(analysisClub, label) ?? null;
+      const median = statMedian(carries);
+      const sd = statStdDev(carries);
+      const miss = target != null && median != null ? median - target : null;
+      const n = Math.min(5, Math.floor(carries.length / 2));
+      const recent = n ? statMedian(carries.slice(0, n)) : null;
+      const previous = n ? statMedian(carries.slice(n, n * 2)) : null;
+      const recentDelta = recent != null && previous != null ? recent - previous : null;
+      return { label, shots, count:carries.length, target, median, sd, miss, recentDelta };
+    })
+    .filter(r => r.count || r.target != null)
+    .sort((a,b) => {
+      const ai = WEDGE_WINDOW_OPTIONS.findIndex(o => o.value === a.label);
+      const bi = WEDGE_WINDOW_OPTIONS.findIndex(o => o.value === b.label);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+}
+
+function targetMissClass(miss) {
+  if (miss == null) return 'neutral';
+  const abs = Math.abs(miss);
+  if (abs <= 3) return 'good';
+  if (abs <= 6) return 'ok';
+  return 'bad';
+}
+
+function renderWedgeTargetReport(reportShots) {
+  const rows = wedgeWindowTargetRows(reportShots);
+  if (!rows.length) return '';
+  const bestRows = rows.filter(r => r.miss != null);
+  const nearest = bestRows.length
+    ? [...bestRows].sort((a,b) => Math.abs(a.miss) - Math.abs(b.miss))[0]
+    : null;
+  const needs = bestRows.length
+    ? [...bestRows].sort((a,b) => Math.abs(b.miss) - Math.abs(a.miss))[0]
+    : null;
+  const summary = nearest && needs
+    ? `closest ${windowDisplayLabel(nearest.label)} (${fSign(nearest.miss,0)}m) / biggest miss ${windowDisplayLabel(needs.label)} (${fSign(needs.miss,0)}m)`
+    : 'set targets in More / Wedge windows';
+  return `<div class="wedge-target-report">
+    <div class="wedge-target-head">
+      <div class="wedge-target-title">Window Targets</div>
+      <div class="wedge-target-summary">${escapeHtml(summary)}</div>
+    </div>
+    <div class="wedge-target-table">
+      <div class="wedge-target-row wedge-target-row-head">
+        <span>Window</span><span>Target</span><span>Median</span><span>Miss</span><span>SD</span><span>Recent</span>
+      </div>
+      ${rows.map(r => {
+        const missCls = targetMissClass(r.miss);
+        const trendCls = r.recentDelta == null ? 'neutral' : r.recentDelta > 0 ? 'up' : r.recentDelta < 0 ? 'down' : 'neutral';
+        return `<div class="wedge-target-row">
+          <span class="wedge-target-window">${escapeHtml(windowDisplayLabel(r.label))}<small>${r.count} shots</small></span>
+          <span>${r.target == null ? '-' : f(r.target,0)+'m'}</span>
+          <span>${r.median == null ? '-' : f(r.median,0)+'m'}</span>
+          <span class="target-miss ${missCls}">${r.miss == null ? '-' : fSign(r.miss,0)+'m'}</span>
+          <span>${r.sd == null ? '-' : f(r.sd,1)+'m'}</span>
+          <span class="target-recent ${trendCls}">${r.recentDelta == null ? '-' : fSign(r.recentDelta,1)+'m'}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
 function renderClubReport(allShots) {
   const reportShots = getClubReportShots(allShots);
   const clubLabel = CA().clubLabel(analysisClub);
@@ -349,6 +434,7 @@ function renderClubReport(allShots) {
   }).join('');
   return `${filters}
     <div class="report-summary-line">${escapeHtml(clubLabel)} / ${reportFilterLabel()} / ${reportShots.length} shots / medians</div>
+    ${renderWedgeTargetReport(reportShots)}
     <div class="report-metric-grid">${cards}</div>
     <div class="report-diagram-grid">
       <canvas id="report-delivery-canvas" height="260"></canvas>
@@ -813,21 +899,215 @@ function renderDistanceControl(shots) {
 
 // ── Progress chart ─────────────────────────────────────────────────────────
 function renderProgressSection(allShots) {
+  const modes = [
+    { key:'sessions', label:'Sessions' },
+    { key:'recent', label:'Recent trend' },
+    { key:'windows', label:'Window targets' },
+    { key:'pattern', label:'Shot pattern' },
+  ];
   const metrics=['carry','smash_factor','ball_speed','spin_rate','launch_angle','face_angle','club_path','face_to_path','attack_angle','playable_rate'];
-  return`<div class="progress-chart-tabs">
-    ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
+  const showMetrics = currentChartMode === 'sessions' || currentChartMode === 'recent';
+  return`<div class="chart-mode-tabs">
+    ${modes.map(m=>`<button class="chart-mode-tab${m.key===currentChartMode?' on':''}" onclick="switchChartMode('${m.key}')">${m.label}</button>`).join('')}
   </div>
+  ${showMetrics ? `<div class="progress-chart-tabs">
+    ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
+  </div>` : ''}
   <canvas id="progress-canvas" height="190" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:var(--canvas-bg);"></canvas>
   <div class="progress-baseline-note" id="progress-baseline-note"></div>`;
 }
 
 function progLabel(k){return{carry:'Carry',smash_factor:'Smash',ball_speed:'Ball Spd',spin_rate:'Spin',launch_angle:'Launch',face_angle:'Face',club_path:'Path',face_to_path:'FTP',attack_angle:'Attack',playable_rate:'Playable %'}[k]||k;}
 
+function switchChartMode(mode) {
+  currentChartMode = mode;
+  renderAnalysis(analysisShots);
+}
+
 function switchProgChart(key,btn){
   currentProgKey=key;
   document.querySelectorAll('.prog-tab').forEach(t=>t.classList.remove('on'));
   if(btn)btn.classList.add('on');
-  drawProgressChart(key,applyFilter(analysisShots));
+  drawTrackmanChart(currentChartMode,currentProgKey,applyFilter(analysisShots));
+}
+
+function drawTrackmanChart(mode, key, shots) {
+  if (mode === 'sessions') return drawSessionChart(key, shots);
+  if (mode === 'windows') return drawWindowTargetChart(shots);
+  if (mode === 'pattern') return drawPatternChart(shots);
+  return drawProgressChart(key, shots);
+}
+
+function redrawCurrentTrackmanChart() {
+  drawTrackmanChart(currentChartMode, currentProgKey, applyFilter(analysisShots));
+}
+
+function prepProgressCanvas(height=190) {
+  const canvas=document.getElementById('progress-canvas');
+  if(!canvas)return null;
+  const dpr=Math.min(window.devicePixelRatio||2,3);
+  const w=canvas.parentElement?.clientWidth||340,h=height;
+  canvas.width=w*dpr;canvas.height=h*dpr;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  return { canvas, ctx, w, h };
+}
+
+function sessionMetricValue(shots, key) {
+  if (key === 'playable_rate') {
+    const sideShots = shots.filter(s => s.side != null);
+    return sideShots.length ? sideShots.filter(s => Math.abs(s.side) <= 20).length / sideShots.length * 100 : null;
+  }
+  return statMedian(shots.map(s => s[key]).filter(x => x != null && !isNaN(x)));
+}
+
+function drawEmptyChart(ctx, w, h, line1, line2='') {
+  ctx.fillStyle = _cv().dim;
+  ctx.font = "13px 'Barlow',sans-serif";
+  ctx.textAlign = 'center';
+  ctx.fillText(line1, w/2, h/2 - (line2 ? 6 : 0));
+  if (line2) {
+    ctx.font = "11px 'Barlow',sans-serif";
+    ctx.fillText(line2, w/2, h/2 + 14);
+  }
+}
+
+function drawSessionChart(key, shots) {
+  const p = prepProgressCanvas(190);
+  if (!p) return;
+  const { ctx, w, h } = p;
+  const cv = _cv();
+  const colorMap = buildSessionColorMap(shots);
+  const byDate = {};
+  [...shots].sort((a,b)=>shotDateMs(a)-shotDateMs(b)).forEach(s => {
+    const d = (s.shot_time || s.created_at)?.slice(0,10);
+    if (!d) return;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(s);
+  });
+  const sessions = Object.entries(byDate)
+    .map(([date, ss]) => ({ date, value:sessionMetricValue(ss, key), count:ss.length }))
+    .filter(s => s.value != null);
+  if (!sessions.length) {
+    drawEmptyChart(ctx, w, h, 'No session data for this metric');
+    const note = document.getElementById('progress-baseline-note');
+    if (note) note.textContent = '';
+    return;
+  }
+  const values = sessions.map(s => s.value);
+  const baseline = key === 'playable_rate' ? 70 : getBaselineForMetric(key, analysisClub);
+  const allVals = baseline != null ? [...values, baseline] : values;
+  const pad={t:30,r:20,b:42,l:48};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const span=Math.max(...allVals)-Math.min(...allVals)||1;
+  const min=Math.min(...allVals)-span*0.14,max=Math.max(...allVals)+span*0.14;
+  const py=v=>pad.t+ch-((v-min)/(max-min))*ch;
+  const barW=Math.max(10, Math.min(34, cw / Math.max(sessions.length, 1) * 0.58));
+  const xOf=i=>pad.l+(sessions.length===1?cw/2:(i/(sessions.length-1))*cw);
+  const isPct = key === 'playable_rate';
+  const isSign=['face_angle','club_path','face_to_path','attack_angle'].includes(key);
+
+  ctx.strokeStyle=cv.grid;ctx.lineWidth=1;ctx.font="9px 'DM Mono',monospace";ctx.fillStyle=cv.dim;ctx.textAlign='right';
+  for(let i=0;i<=4;i++){
+    const y=pad.t+(ch/4)*i,val=max-((max-min)/4)*i;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    const txt = isPct ? Math.round(val)+'%' : isSign ? fSign(val,1) : f(val,key==='spin_rate'?0:1);
+    ctx.fillText(txt,pad.l-6,y+3);
+  }
+  if (baseline != null) {
+    const by=py(baseline);
+    ctx.save();ctx.strokeStyle=cv.baseline;ctx.setLineDash([8,5]);ctx.beginPath();ctx.moveTo(pad.l,by);ctx.lineTo(w-pad.r,by);ctx.stroke();ctx.restore();
+  }
+  sessions.forEach((s,i)=>{
+    const x=xOf(i), y=py(s.value), col=colorMap[s.date]||cv.lineColor;
+    const baseVal = min <= 0 && max >= 0 ? 0 : min;
+    const zero=py(baseVal);
+    ctx.fillStyle=col;ctx.globalAlpha=0.72;
+    ctx.fillRect(x-barW/2, Math.min(y,zero), barW, Math.max(3, Math.abs(zero-y)));
+    ctx.globalAlpha=1;
+    ctx.fillStyle=cv.dim;ctx.font="9px 'DM Mono',monospace";ctx.textAlign='center';
+    ctx.fillText(s.date.slice(5), x, pad.t+ch+20);
+  });
+  const med=statMedian(values);
+  if (med != null) {
+    const my=py(med);
+    ctx.strokeStyle=cv.lineColor;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad.l,my);ctx.lineTo(w-pad.r,my);ctx.stroke();
+  }
+  ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
+  ctx.fillText(`${progLabel(key).toUpperCase()} BY SESSION`,pad.l,pad.t-12);
+  const note = document.getElementById('progress-baseline-note');
+  if (note) note.textContent = `Each bar is one session median${baseline != null ? ' / dashed = target or baseline' : ''}.`;
+}
+
+function drawWindowTargetChart(shots) {
+  const p = prepProgressCanvas(190);
+  if (!p) return;
+  const { ctx, w, h } = p;
+  if (!isAnalysisWedgeClub()) {
+    drawEmptyChart(ctx, w, h, 'Window targets are for wedges', 'Select PW, SW, 58, 60 or another wedge club');
+    const note = document.getElementById('progress-baseline-note');
+    if (note) note.textContent = '';
+    return;
+  }
+  return drawProgressChart('carry', shots);
+}
+
+function drawPatternChart(shots) {
+  const p = prepProgressCanvas(210);
+  if (!p) return;
+  const { ctx, w, h } = p;
+  const cv = _cv();
+  const colorMap = buildSessionColorMap(shots);
+  const valid = shots.filter(s => s.carry != null && s.side != null);
+  if (valid.length < 2) {
+    drawEmptyChart(ctx, w, h, 'Need carry and side data for shot pattern');
+    const note = document.getElementById('progress-baseline-note');
+    if (note) note.textContent = '';
+    return;
+  }
+  const carries = valid.map(s => Number(s.carry));
+  const sides = valid.map(s => Number(s.side));
+  const pad={t:28,r:18,b:40,l:48};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const sideMax=Math.max(12, Math.max(...sides.map(Math.abs))*1.25);
+  const cMin=Math.max(0, Math.min(...carries)-8);
+  const cMax=Math.max(...carries)+8;
+  const xOf=s=>pad.l+((s+sideMax)/(sideMax*2))*cw;
+  const yOf=c=>pad.t+ch-((c-cMin)/(cMax-cMin))*ch;
+
+  ctx.strokeStyle=cv.grid;ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+(ch/4)*i,val=cMax-((cMax-cMin)/4)*i;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.fillStyle=cv.dim;ctx.font="9px 'DM Mono',monospace";ctx.textAlign='right';ctx.fillText(Math.round(val)+'m',pad.l-6,y+3);
+  }
+  [-20, -10, 0, 10, 20].forEach(s => {
+    if (Math.abs(s) > sideMax) return;
+    const x=xOf(s);
+    ctx.strokeStyle=s===0?cv.baseline:cv.grid;ctx.lineWidth=s===0?1.4:1;
+    ctx.setLineDash(s===0?[6,5]:[2,4]);
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=cv.dim;ctx.font="9px 'DM Mono',monospace";ctx.textAlign='center';ctx.fillText((s>0?'+':'')+s+'m',x,pad.t+ch+20);
+  });
+  valid.forEach(s => {
+    const date=(s.shot_time||s.created_at)?.slice(0,10)||'';
+    const col=colorMap[date]||cv.lineColor;
+    const x=xOf(Number(s.side)), y=yOf(Number(s.carry));
+    ctx.fillStyle=col;ctx.globalAlpha=0.78;
+    ctx.beginPath();ctx.arc(x,y,4.2,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  const avgSide=statAvg(sides), avgCarry=statAvg(carries);
+  if (avgSide != null && avgCarry != null) {
+    const ax=xOf(avgSide), ay=yOf(avgCarry);
+    ctx.strokeStyle=cv.lineColor;ctx.lineWidth=2;ctx.beginPath();ctx.arc(ax,ay,10,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=cv.lineColor;ctx.beginPath();ctx.arc(ax,ay,4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
+  ctx.fillText(`${CA().clubLabel(analysisClub).toUpperCase()} SHOT PATTERN`,pad.l,pad.t-12);
+  const note = document.getElementById('progress-baseline-note');
+  if (note) note.textContent = 'Side-to-side pattern by carry. Ring shows the average shot.';
 }
 
 function drawProgressChart(key,shots){
@@ -2042,7 +2322,9 @@ window.setAnalysisClub        = setAnalysisClub;
 window.setAnalysisFilter      = setAnalysisFilter;
 window.setReportFilter        = setReportFilter;
 window.setReportWindow        = setReportWindow;
+window.switchChartMode        = switchChartMode;
 window.switchProgChart        = switchProgChart;
+window.redrawCurrentTrackmanChart = redrawCurrentTrackmanChart;
 window.sortRawTable           = sortRawTable;
 window.startEditRow           = startEditRow;
 window.cancelEditRow          = cancelEditRow;

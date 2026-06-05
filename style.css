@@ -390,6 +390,9 @@ button:active{background:var(--surface4)}
 .analysis-row-value.kpi-ok{color:var(--amber)}
 .analysis-row-value.kpi-bad{color:var(--red)}
 .analysis-empty-small{color:var(--text3);font-size:13px;padding:6px 0}
+.chart-mode-tabs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+.chart-mode-tab{padding:5px 10px;border:0.5px solid var(--border2);border-radius:7px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface);cursor:pointer;transition:all .15s}
+.chart-mode-tab.on{background:var(--surface3);border-color:var(--green);color:var(--green)}
 .progress-chart-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px}
 .prog-tab{padding:4px 9px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer;transition:all .15s}
 .prog-tab.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
@@ -409,6 +412,22 @@ button:active{background:var(--surface4)}
 .report-trend.neutral{color:var(--text3)}
 .report-diagram-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .report-diagram-grid canvas{width:100%;display:block;border-radius:8px;background:var(--canvas-bg);border:0.5px solid var(--border)}
+.wedge-target-report{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin:0 0 10px;overflow:hidden}
+.wedge-target-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:0.5px solid var(--border);background:var(--surface2)}
+.wedge-target-title{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)}
+.wedge-target-summary{font-family:var(--mono);font-size:9px;color:var(--text3);text-align:right}
+.wedge-target-table{display:block;overflow-x:auto}
+.wedge-target-row{display:grid;grid-template-columns:minmax(92px,1.2fr) repeat(5,minmax(54px,.7fr));gap:6px;align-items:center;min-width:470px;padding:7px 10px;border-bottom:0.5px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text2)}
+.wedge-target-row:last-child{border-bottom:none}
+.wedge-target-row-head{padding-top:6px;padding-bottom:5px;font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);background:var(--surface)}
+.wedge-target-window{font-family:var(--sans);font-size:12px;color:var(--text);font-weight:600}
+.wedge-target-window small{display:block;font-family:var(--mono);font-size:8px;color:var(--text3);font-weight:400;margin-top:1px}
+.target-miss.good{color:var(--green)}
+.target-miss.ok{color:var(--amber)}
+.target-miss.bad{color:var(--red)}
+.target-recent.up{color:var(--green)}
+.target-recent.down{color:var(--amber)}
+.target-recent.neutral,.target-miss.neutral{color:var(--text3)}
 
 /* ══ FAULT FREQUENCY SUMMARY ════════════════════════════════════════════════ */
 .fault-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 10px;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);border:0.5px solid var(--border)}
@@ -1363,13 +1382,13 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
   .top-nav-btn{min-height:48px;padding:8px 2px 7px;border-radius:9px;font-size:10px;line-height:1.1;letter-spacing:.03em}
   .top-nav-btn svg{width:15px;height:15px}
 
-  .club-scroll,.today-focus-bar,.analysis-club-tabs,.analysis-filter-tabs,.progress-chart-tabs,.drill-catalog-filters{
+  .club-scroll,.today-focus-bar,.analysis-club-tabs,.analysis-filter-tabs,.chart-mode-tabs,.progress-chart-tabs,.drill-catalog-filters{
     flex-wrap:nowrap;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
     scroll-padding-left:12px;
   }
-  .ctab,.today-focus-chip,.atab,.filter-tab,.prog-tab,.drill-cat-btn{min-height:34px;display:flex;align-items:center}
+  .ctab,.today-focus-chip,.atab,.filter-tab,.chart-mode-tab,.prog-tab,.drill-cat-btn{min-height:34px;display:flex;align-items:center}
   .report-filter-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
   .report-filter-btn{min-height:34px;flex-shrink:0}
   .report-window-select{min-height:34px;flex-shrink:0}

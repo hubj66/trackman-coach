@@ -58,7 +58,7 @@
       'wedge_windows',
       userId,
       'id,user_id,club_key,window_label,target_carry,notes,updated_at',
-      query => query.order('club_key', { ascending: true }).order('window', { ascending: true })
+      query => query.order('club_key', { ascending: true }).order('window_label', { ascending: true })
     );
   }
 
