@@ -7,6 +7,8 @@ let analysisShots  = [];
 let analysisRawSort = { col: 'shot_time', dir: -1 };
 let editingRowId   = null;
 let currentProgKey = 'carry';
+let currentReportFilter = 'included';
+let currentReportWindow = 'all';
 let _allFetchedShots = [];
 let openSessions = new Set();
 let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
@@ -160,15 +162,16 @@ function renderAnalysis(allShots) {
 
   // Preserve accordion open/closed states across club switches and filter changes.
   // On first render (no anacc-overview in DOM yet) fall back to defaults.
-  const _accIds = ['overview', 'maps', 'consist', 'direction', 'distance', 'progress', 'shots'];
+  const _accIds = ['report', 'overview', 'maps', 'consist', 'direction', 'distance', 'progress', 'shots'];
   const _firstRender = !document.getElementById('anacc-overview');
   const openAccs = new Set(
     _firstRender
-      ? ['overview', 'maps', 'progress', 'shots']
+      ? ['report', 'overview', 'maps', 'progress', 'shots']
       : _accIds.filter(id => document.getElementById('anacc-' + id)?.classList.contains('open'))
   );
 
   el.innerHTML = unknownBanner + `
+    ${renderAnalysisAcc('report',    'Club Report',           renderClubReport(allShots), openAccs.has('report'))}
     ${renderAnalysisAcc('overview',  'Overview',              renderOverviewKPIs(shots), openAccs.has('overview'))}
     ${renderAnalysisAcc('maps',      'Shot Maps',             renderShotMaps(shots, allShots), openAccs.has('maps'))}
     ${renderAnalysisAcc('consist',   'Consistency',           renderConsistency(shots), openAccs.has('consist'))}
@@ -187,6 +190,7 @@ function renderAnalysis(allShots) {
     );
     drawTopViewMap(activeShotsForMaps, colorMap2);
     drawSideViewMap(activeShotsForMaps, colorMap2);
+    drawClubReportDiagrams();
     const _distOf = s => (s.shot_type === 'round' && s.total) ? s.total : s.carry;
     const _distVals = filteredShots.map(_distOf).filter(Boolean);
     _drawHistogram('dist-histogram', _distVals, { unit:'m', median: statMedian(_distVals), sd: statStdDev(_distVals), title:'distance distribution' });
@@ -213,6 +217,283 @@ function renderAnalysisAcc(id, title, content, defaultOpen) {
 }
 
 // ── Canvas theme helper ────────────────────────────────────────────────────
+const REPORT_METRICS = [
+  { key:'carry',        label:'Carry',        unit:'m',   dp:0, signed:false },
+  { key:'smash_factor', label:'Smash',        unit:'',    dp:2, signed:false },
+  { key:'ball_speed',   label:'Ball Spd',     unit:'m/s', dp:1, signed:false },
+  { key:'spin_rate',    label:'Spin',         unit:'rpm', dp:0, signed:false },
+  { key:'launch_angle', label:'Launch',       unit:'deg', dp:1, signed:true  },
+  { key:'attack_angle', label:'Attack',       unit:'deg', dp:1, signed:true  },
+  { key:'dyn_loft',     label:'Dyn Loft',     unit:'deg', dp:1, signed:true  },
+  { key:'spin_loft',    label:'Spin Loft',    unit:'deg', dp:1, signed:true  },
+  { key:'club_path',    label:'Path',         unit:'deg', dp:1, signed:true  },
+  { key:'face_angle',   label:'Face',         unit:'deg', dp:1, signed:true  },
+  { key:'face_to_path', label:'FTP',          unit:'deg', dp:1, signed:true  },
+  { key:'spin_axis',    label:'Spin Axis',    unit:'deg', dp:1, signed:true  },
+];
+
+function shotDateMs(s) {
+  const raw = s.shot_time || s.created_at || '';
+  const ms = Date.parse(raw);
+  return isNaN(ms) ? 0 : ms;
+}
+
+function byRecent(a, b) { return shotDateMs(b) - shotDateMs(a); }
+
+function isAssignedWedgeWindowShot(s) {
+  return isWedgeShot(s) && isWedgeWindowValue(s.shot_type);
+}
+
+function getClubReportShots(allShots) {
+  let shots = [...(allShots || [])].filter(s => CA().shotMatchesClub(s, analysisClub));
+  if (currentReportFilter === 'included') shots = shots.filter(s => !s.exclude_from_progress);
+  if (currentReportFilter === 'range') shots = shots.filter(s => s.shot_type !== 'round');
+  if (currentReportFilter === 'round') shots = shots.filter(s => s.shot_type === 'round');
+  if (currentReportFilter === 'windowed') shots = shots.filter(isAssignedWedgeWindowShot);
+  if (currentReportWindow !== 'all') shots = shots.filter(s => normalizeWedgeWindowValue(s.shot_type) === currentReportWindow);
+  return shots.sort(byRecent);
+}
+
+function reportFilterLabel() {
+  return {
+    included: 'used shots',
+    all: 'all shots',
+    range: 'range/simulator',
+    round: 'on-course',
+    windowed: 'assigned windows',
+  }[currentReportFilter] || 'used shots';
+}
+
+function reportWindowOptions(allShots) {
+  if (!isAnalysisWedgeClub()) return [];
+  const values = new Set();
+  (allShots || []).forEach(s => {
+    if (CA().shotMatchesClub(s, analysisClub) && isWedgeWindowValue(s.shot_type)) values.add(normalizeWedgeWindowValue(s.shot_type));
+  });
+  return WEDGE_WINDOW_OPTIONS
+    .filter(o => o.value && values.has(o.value))
+    .map(o => ({ value:o.value, label:o.label }));
+}
+
+function setReportFilter(key) {
+  currentReportFilter = key;
+  if (key !== 'windowed') currentReportWindow = 'all';
+  renderAnalysis(analysisShots);
+}
+
+function setReportWindow(value) {
+  currentReportWindow = value || 'all';
+  if (currentReportWindow !== 'all') currentReportFilter = 'windowed';
+  renderAnalysis(analysisShots);
+}
+
+function renderReportFilters(allShots) {
+  const options = [
+    { key:'included', label:'Use' },
+    { key:'all',      label:'All' },
+    { key:'range',    label:'Range' },
+    { key:'round',    label:'Course' },
+  ];
+  if (isAnalysisWedgeClub()) options.push({ key:'windowed', label:'Windows' });
+  const windowOptions = reportWindowOptions(allShots);
+  return `<div class="report-filter-row">
+    ${options.map(o => `<button class="report-filter-btn${currentReportFilter===o.key?' on':''}" onclick="setReportFilter('${o.key}')">${o.label}</button>`).join('')}
+    ${windowOptions.length ? `<select class="report-window-select" onchange="setReportWindow(this.value)" aria-label="Wedge window filter">
+      <option value="all"${currentReportWindow==='all'?' selected':''}>All windows</option>
+      ${windowOptions.map(o => `<option value="${escapeHtml(o.value)}"${currentReportWindow===o.value?' selected':''}>${escapeHtml(o.label)}</option>`).join('')}
+    </select>` : ''}
+  </div>`;
+}
+
+function metricDisplay(metric, value) {
+  if (value == null || isNaN(value)) return '-';
+  const n = Number(value);
+  const core = metric.signed ? fSign(n, metric.dp) : f(n, metric.dp);
+  if (!metric.unit) return core;
+  if (metric.unit === 'deg') return `${core} deg`;
+  return `${core} ${metric.unit}`;
+}
+
+function reportTrend(metric, shots) {
+  const enough = shots.filter(s => s[metric.key] != null && !isNaN(s[metric.key]));
+  if (enough.length < 8) return { text:'', cls:'neutral' };
+  const n = Math.min(10, Math.floor(enough.length / 2));
+  const recent = statMedian(enough.slice(0, n).map(s => s[metric.key]));
+  const previous = statMedian(enough.slice(n, n * 2).map(s => s[metric.key]));
+  if (recent == null || previous == null) return { text:'', cls:'neutral' };
+  const delta = recent - previous;
+  const threshold = metric.key === 'smash_factor' ? 0.01 : (metric.unit === 'rpm' ? 100 : 0.4);
+  if (Math.abs(delta) < threshold) return { text:'stable', cls:'neutral' };
+  return {
+    text: `${delta > 0 ? '+' : ''}${metric.dp === 0 ? Math.round(delta) : delta.toFixed(metric.dp)} vs prev`,
+    cls: delta > 0 ? 'up' : 'down',
+  };
+}
+
+function renderClubReport(allShots) {
+  const reportShots = getClubReportShots(allShots);
+  const clubLabel = CA().clubLabel(analysisClub);
+  const filters = renderReportFilters(allShots);
+  if (!reportShots.length) {
+    return `${filters}<div class="analysis-empty-small">No ${escapeHtml(clubLabel)} shots match this report filter.</div>`;
+  }
+  const cards = REPORT_METRICS.map(metric => {
+    const vals = reportShots.map(s => s[metric.key]).filter(x => x != null && !isNaN(x));
+    const med = statMedian(vals);
+    const trend = reportTrend(metric, reportShots);
+    return `<div class="report-metric-card">
+      <div class="report-metric-label">${metric.label}</div>
+      <div class="report-metric-value">${metricDisplay(metric, med)}</div>
+      <div class="report-trend ${trend.cls}">${trend.text || `${vals.length} shots`}</div>
+    </div>`;
+  }).join('');
+  return `${filters}
+    <div class="report-summary-line">${escapeHtml(clubLabel)} / ${reportFilterLabel()} / ${reportShots.length} shots / medians</div>
+    <div class="report-metric-grid">${cards}</div>
+    <div class="report-diagram-grid">
+      <canvas id="report-delivery-canvas" height="260"></canvas>
+      <canvas id="report-path-canvas" height="260"></canvas>
+    </div>`;
+}
+
+function prepReportCanvas(id) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(canvas.getAttribute('height') * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { canvas, ctx, w:rect.width, h:Number(canvas.getAttribute('height')) };
+}
+
+function reportMedian(shots, key) {
+  return statMedian(shots.map(s => s[key]).filter(x => x != null && !isNaN(x)));
+}
+
+function drawReportText(ctx, label, value, x, y, align='left') {
+  const cv = _cv();
+  ctx.textAlign = align;
+  ctx.font = "12px 'DM Sans',sans-serif";
+  ctx.fillStyle = cv.titleTxt;
+  ctx.fillText(label, x, y);
+  ctx.font = "13px 'DM Mono',monospace";
+  ctx.fillStyle = cv.lineColor;
+  ctx.fillText(value, x, y + 17);
+}
+
+function drawClubReportDiagrams() {
+  const shots = getClubReportShots(analysisShots);
+  drawDeliveryDiagram(shots);
+  drawPathDiagram(shots);
+}
+
+function drawDeliveryDiagram(shots) {
+  const p = prepReportCanvas('report-delivery-canvas');
+  if (!p) return;
+  const { ctx, w, h } = p;
+  const cv = _cv();
+  const light = document.body.classList.contains('light-theme');
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = light ? '#f4f1ea' : '#161a1d';
+  ctx.fillRect(0, 0, w, h);
+
+  const launch = reportMedian(shots, 'launch_angle');
+  const attack = reportMedian(shots, 'attack_angle');
+  const dynLoft = reportMedian(shots, 'dyn_loft');
+  const spin = reportMedian(shots, 'spin_rate');
+  const spinLoft = reportMedian(shots, 'spin_loft');
+  const baseX = w * 0.47;
+  const baseY = h * 0.70;
+  ctx.strokeStyle = cv.baseline;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(28, baseY); ctx.lineTo(w - 28, baseY); ctx.stroke();
+
+  ctx.strokeStyle = '#2f68ff';
+  ctx.lineWidth = 2;
+  const attackRad = (attack || 0) * Math.PI / 180;
+  ctx.beginPath(); ctx.moveTo(baseX - 82, baseY + Math.sin(attackRad) * 36); ctx.lineTo(baseX + 72, baseY - Math.sin(attackRad) * 36); ctx.stroke();
+
+  ctx.strokeStyle = '#ff4f3a';
+  const launchRad = (launch || 0) * Math.PI / 180;
+  ctx.beginPath(); ctx.moveTo(baseX, baseY); ctx.lineTo(baseX + 104, baseY - Math.tan(launchRad) * 104); ctx.stroke();
+
+  ctx.save();
+  ctx.translate(baseX - 6, baseY - 2);
+  ctx.rotate(-0.18);
+  ctx.fillStyle = cv.titleTxt;
+  ctx.fillRect(-7, -88, 14, 88);
+  ctx.fillStyle = light ? '#202326' : '#050607';
+  ctx.beginPath(); ctx.ellipse(0, 0, 42, 17, -0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = cv.lineColor;
+  ctx.fillRect(-4, -8, 8, 3);
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.78)';
+  ctx.beginPath(); ctx.arc(w * 0.78, baseY - 30, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = cv.gridMid; ctx.stroke();
+
+  drawReportText(ctx, 'Dynamic Loft', metricDisplay(REPORT_METRICS.find(m => m.key === 'dyn_loft'), dynLoft), 16, 24);
+  drawReportText(ctx, 'Spin Rate', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_rate'), spin), w - 16, 24, 'right');
+  drawReportText(ctx, 'Attack Angle', metricDisplay(REPORT_METRICS.find(m => m.key === 'attack_angle'), attack), 16, h - 42);
+  drawReportText(ctx, 'Spin Loft', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_loft'), spinLoft), w - 16, h - 42, 'right');
+}
+
+function drawPathDiagram(shots) {
+  const p = prepReportCanvas('report-path-canvas');
+  if (!p) return;
+  const { ctx, w, h } = p;
+  const cv = _cv();
+  const light = document.body.classList.contains('light-theme');
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = light ? '#f4f1ea' : '#161a1d';
+  ctx.fillRect(0, 0, w, h);
+
+  const path = reportMedian(shots, 'club_path');
+  const face = reportMedian(shots, 'face_angle');
+  const ftp = reportMedian(shots, 'face_to_path');
+  const axis = reportMedian(shots, 'spin_axis');
+  const cx = w * 0.50;
+  const cy = h * 0.55;
+  const len = Math.min(150, w * 0.34);
+  const lineAt = (deg, color, width=2) => {
+    const r = (deg || 0) * Math.PI / 180;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(r) * len, cy + Math.sin(r) * len * 0.45);
+    ctx.lineTo(cx + Math.cos(r) * len, cy - Math.sin(r) * len * 0.45);
+    ctx.stroke();
+  };
+  lineAt(path, '#2f68ff', 2);
+  lineAt(face, '#ff4f3a', 2);
+  ctx.strokeStyle = cv.baseline;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath(); ctx.moveTo(cx - len, cy); ctx.lineTo(cx + len, cy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate((face || 0) * -Math.PI / 180 * 0.35);
+  ctx.fillStyle = light ? '#202326' : '#050607';
+  ctx.beginPath(); ctx.ellipse(0, 0, 28, 45, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = cv.titleTxt;
+  ctx.fillRect(-6, -106, 12, 92);
+  ctx.fillStyle = cv.lineColor;
+  ctx.fillRect(-6, -22, 12, 3);
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.78)';
+  ctx.beginPath(); ctx.arc(w * 0.76, cy - 8, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = cv.gridMid; ctx.stroke();
+
+  drawReportText(ctx, 'Club Path', metricDisplay(REPORT_METRICS.find(m => m.key === 'club_path'), path), 16, 24);
+  drawReportText(ctx, 'Face To Path', metricDisplay(REPORT_METRICS.find(m => m.key === 'face_to_path'), ftp), w - 16, 24, 'right');
+  drawReportText(ctx, 'Face Angle', metricDisplay(REPORT_METRICS.find(m => m.key === 'face_angle'), face), 16, h - 42);
+  drawReportText(ctx, 'Spin Axis', metricDisplay(REPORT_METRICS.find(m => m.key === 'spin_axis'), axis), w - 16, h - 42, 'right');
+}
+
 function _cv() {
   const light = document.body.classList.contains('light-theme');
   return {
@@ -986,12 +1267,17 @@ function isAnalysisWedgeClub() {
   return ['pw','58','sw','aw','gw','lw','60'].includes(analysisClub);
 }
 
+function normalizeWedgeWindowValue(value) {
+  return value === 'stock' ? 'full' : value;
+}
+
 function isWedgeWindowValue(value) {
-  return WEDGE_WINDOW_OPTIONS.some(o => o.value && o.value === value) || value === 'stock';
+  const normalized = normalizeWedgeWindowValue(value);
+  return WEDGE_WINDOW_OPTIONS.some(o => o.value && o.value === normalized);
 }
 
 function wedgeWindowLabelForShot(s) {
-  if (isWedgeWindowValue(s.shot_type)) return s.shot_type;
+  if (isWedgeWindowValue(s.shot_type)) return normalizeWedgeWindowValue(s.shot_type);
   const raw = String(s.shot_type || s.notes || '').toLowerCase();
   const clock = raw.match(/(?:^|\b)([7-9]|10|11)\s*(?:o'?clock|oclock|clock)\b/);
   if (clock) return `${clock[1]} o'clock`;
@@ -1008,7 +1294,7 @@ function wedgeWindowLabelForShot(s) {
 }
 
 function renderShotWindowSelect(s) {
-  const current = isWedgeWindowValue(s.shot_type) ? s.shot_type : '';
+  const current = isWedgeWindowValue(s.shot_type) ? normalizeWedgeWindowValue(s.shot_type) : '';
   return `<select id="edit-window-${s.id}" class="edit-select edit-window-select" title="Wedge shot window">
     ${WEDGE_WINDOW_OPTIONS.map(o => `<option value="${escapeHtml(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
   </select>`;
@@ -1018,9 +1304,10 @@ function renderShotWindowDisplay(s) {
   if (!isWedgeShot(s) || !isWedgeWindowValue(s.shot_type)) return '<span class="cell-dim">-</span>';
   const ca = CA();
   const resolvedKey = ca?.resolveClub ? ca.resolveClub(s.club) : null;
-  const target = resolvedKey && window.getWedgeTarget ? window.getWedgeTarget(resolvedKey, s.shot_type) : null;
+  const windowValue = normalizeWedgeWindowValue(s.shot_type);
+  const target = resolvedKey && window.getWedgeTarget ? window.getWedgeTarget(resolvedKey, windowValue) : null;
   const targetHtml = target != null ? `<span class="shot-window-target">${target}m</span>` : '';
-  return `<span class="shot-window-pill">${escapeHtml(s.shot_type)}</span>${targetHtml}`;
+  return `<span class="shot-window-pill">${escapeHtml(windowValue)}</span>${targetHtml}`;
 }
 
 function renderShotRows(shots, sessionCol) {
@@ -1753,6 +2040,8 @@ function showAliasMsg(m){const el=document.getElementById('alias-msg');if(el){el
 window.initAnalysisTab        = initAnalysisTab;
 window.setAnalysisClub        = setAnalysisClub;
 window.setAnalysisFilter      = setAnalysisFilter;
+window.setReportFilter        = setReportFilter;
+window.setReportWindow        = setReportWindow;
 window.switchProgChart        = switchProgChart;
 window.sortRawTable           = sortRawTable;
 window.startEditRow           = startEditRow;

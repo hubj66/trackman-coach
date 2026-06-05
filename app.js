@@ -761,7 +761,7 @@ async function renderWedgeWindowsSection(){
       }).join('')}
     </div>`).join('');
   el.innerHTML=`
-    ${_wedgeWindowsError?`<div class="ww-sync-note">Supabase sync not ready: ${escapeHtml(_wedgeWindowsError)}<br>Run the latest migration, then reload this panel.</div>`:''}
+    ${_wedgeWindowsError?`<div class="ww-sync-note">Supabase sync not ready: ${escapeHtml(_wedgeWindowsError)}<br>Check the wedge_windows table has club_key, window_label and target_carry. An empty table is OK.</div>`:''}
     <div class="ww-matrix-wrap">
       <div class="ww-matrix">
         <div class="ww-matrix-head">
