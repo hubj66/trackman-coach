@@ -1259,4 +1259,89 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
 
 
 
-/* Local test change */
+/* Mobile polish: keep the app dense, but easier to tap and scan. */
+@media (max-width: 560px) {
+  body{overflow-x:hidden}
+  input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],textarea,select{min-height:44px}
+
+  .app-header-top{gap:10px;padding-left:12px;padding-right:12px}
+  .header-title{font-size:19px;white-space:nowrap;min-width:0}
+  .header-actions{gap:6px;flex-shrink:0}
+  .auth-toggle-btn,.more-btn{min-height:40px;padding:8px 11px;border-radius:18px}
+  .auth-toggle-btn svg,.more-btn svg{flex-shrink:0}
+  .auth-inline-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .auth-inline-row input{grid-column:span 2;min-width:0}
+  .auth-email-label{grid-column:span 2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #saved-list-inline{grid-column:span 2;width:100%}
+  .saved-state-row{gap:6px}
+  .saved-state-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .top-nav{gap:3px;padding:5px 8px 7px}
+  .top-nav-btn{min-height:48px;padding:8px 2px 7px;border-radius:9px;font-size:10px;line-height:1.1;letter-spacing:.03em}
+  .top-nav-btn svg{width:15px;height:15px}
+
+  .club-scroll,.today-focus-bar,.analysis-club-tabs,.analysis-filter-tabs,.progress-chart-tabs,.drill-catalog-filters{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scroll-padding-left:12px;
+  }
+  .ctab,.today-focus-chip,.atab,.filter-tab,.prog-tab,.drill-cat-btn{min-height:34px;display:flex;align-items:center}
+
+  .acc-head{min-height:54px;padding:13px 12px}
+  .acc-title{min-width:0}
+  .acc-subtitle{max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sub-acc-head,.log-sub-head{min-height:48px;padding-left:12px;padding-right:12px}
+
+  .irow{padding:12px 12px 10px}
+  input[type=range]{height:34px}
+  input[type=range]::-webkit-slider-runnable-track{height:4px}
+  input[type=range]::-webkit-slider-thumb{width:28px;height:28px;margin-top:-12px}
+  input[type=range]::-moz-range-track{height:4px}
+  input[type=range]::-moz-range-thumb{width:28px;height:28px}
+  .irow-labels{gap:8px}
+  .ideal-lbl{text-align:center;line-height:1.25}
+
+  .kgrid,.analysis-kpi-grid,.today-stats-tiles,.today-health-grid{gap:6px}
+  .kcard,.analysis-kpi-card,.today-stat-tile,.today-health-tile{min-width:0}
+  .kcard-val,.analysis-kpi-value,.today-stat-value{overflow-wrap:anywhere}
+
+  .today-issue-card,.today-plan-card,.today-progress-card,.today-watch-card,.today-trend-card,
+  .today-improved-card,.today-pattern-card,.today-stats-card,.today-drill-card,
+  .today-focus-card,.today-focus-stats-card,.today-train-card{
+    border-radius:11px;
+  }
+  .today-plan-actions,.today-quick-log-row,.today-log-row{gap:8px}
+  .today-log-btn,.today-plan-start-btn,.today-plan-short-btn,.today-coach-practice-btn{
+    min-height:44px;
+    white-space:normal;
+    line-height:1.2;
+  }
+  .today-plan-short-btn{flex-shrink:0}
+  .today-coach-header,.today-pattern-header,.today-trend-header{gap:8px}
+
+  .stats-glance-strip,.stats-tournament,.stats-section-pad{padding-left:12px;padding-right:12px}
+  .stats-kpi-band,.round-kpi-band{scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .stats-kpi-tile,.round-kpi-item{scroll-snap-align:start}
+  .stats-table-wrap,.analysis-raw-wrap,.round-table-wrap{margin-left:-2px;margin-right:-2px;-webkit-overflow-scrolling:touch}
+
+  .more-panel,.manual-log-sheet,.glossary-sheet,.drill-catalog-sheet{overscroll-behavior:contain}
+  .more-item{min-height:64px;border-radius:10px}
+  .more-section-body{padding:14px 12px}
+  .drill-catalog-sheet,.manual-log-sheet,.glossary-sheet{max-height:92vh}
+}
+
+@media (max-width: 380px) {
+  .header-title{font-size:17px}
+  .auth-toggle-btn span{display:none}
+  .more-btn{font-size:0;gap:0;padding-left:10px;padding-right:10px}
+  .more-btn svg{margin:0}
+  .top-nav-btn{font-size:9px}
+  .acc-subtitle{display:none}
+  .analysis-kpi-grid,.kgrid,.today-stats-tiles{grid-template-columns:1fr 1fr}
+  .today-plan-actions,.today-quick-log-row{flex-direction:column}
+  .today-plan-short-btn,.today-log-btn{width:100%}
+  .progress-summary-strip{flex-wrap:wrap;gap:10px;padding:12px}
+  .progress-summary-item{min-width:42%}
+  .progress-summary-sep{display:none}
+}
