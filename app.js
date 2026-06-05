@@ -705,61 +705,103 @@ const _WW_WINDOWS = [
   'half swing','3/4 swing','stock'
 ];
 
-function _getWedgeWindows(){try{return JSON.parse(localStorage.getItem('tc_wedge_windows')||'[]');}catch{return[];}}
-function _setWedgeWindows(arr){localStorage.setItem('tc_wedge_windows',JSON.stringify(arr));}
-function getWedgeTarget(clubKey,winVal){const r=_getWedgeWindows().find(x=>x.club===clubKey&&x.window===winVal);return r?r.targetCarry:null;}
+let _wedgeWindowsCache = [];
+let _wedgeWindowsLoaded = false;
+let _wedgeWindowsError = null;
+
+function _getLocalWedgeWindows(){try{return JSON.parse(localStorage.getItem('tc_wedge_windows')||'[]');}catch{return[];}}
+function _setLocalWedgeWindows(arr){localStorage.setItem('tc_wedge_windows',JSON.stringify(arr));}
+function _normWedgeWindow(r){return{id:r.id||null,club:r.club_key||r.club,window:r.window,targetCarry:Number(r.target_carry??r.targetCarry),notes:r.notes||''};}
+function _cacheWedgeWindows(rows){_wedgeWindowsCache=(rows||[]).map(_normWedgeWindow).filter(r=>r.club&&r.window&&!isNaN(r.targetCarry));_setLocalWedgeWindows(_wedgeWindowsCache);}
+async function loadWedgeWindows(force=false){
+  if(_wedgeWindowsLoaded&&!force)return _wedgeWindowsCache;
+  _wedgeWindowsError=null;
+  const {user}=await window.TCData.getCurrentUser();
+  if(!user){_wedgeWindowsError='Sign in to sync wedge windows.';_cacheWedgeWindows(_getLocalWedgeWindows());_wedgeWindowsLoaded=true;return _wedgeWindowsCache;}
+  const {data,error}=await window.TCData.fetchWedgeWindows(user.id);
+  if(error){_wedgeWindowsError=error.message||'Wedge windows table is not available yet.';_cacheWedgeWindows(_getLocalWedgeWindows());_wedgeWindowsLoaded=true;return _wedgeWindowsCache;}
+  let rows=(data||[]).map(_normWedgeWindow);
+  const localRows=_getLocalWedgeWindows().map(_normWedgeWindow);
+  const missingLocal=localRows.filter(l=>!rows.some(r=>r.club===l.club&&r.window===l.window));
+  if(missingLocal.length){
+    for(const r of missingLocal){
+      await window.TCData.upsertWedgeWindow(user.id,{club_key:r.club,window:r.window,target_carry:r.targetCarry,notes:r.notes||null});
+    }
+    const refreshed=await window.TCData.fetchWedgeWindows(user.id);
+    rows=refreshed.error?rows:(refreshed.data||[]).map(_normWedgeWindow);
+  }
+  _cacheWedgeWindows(rows);_wedgeWindowsLoaded=true;return _wedgeWindowsCache;
+}
+window.loadWedgeWindows=loadWedgeWindows;
+
+function getWedgeTarget(clubKey,winVal){const r=_wedgeWindowsCache.find(x=>x.club===clubKey&&x.window===winVal)||_getLocalWedgeWindows().map(_normWedgeWindow).find(x=>x.club===clubKey&&x.window===winVal);return r?r.targetCarry:null;}
 window.getWedgeTarget=getWedgeTarget;
 
-function renderWedgeWindowsSection(){
+function _wwByKey(rows){const m={};(rows||[]).forEach(r=>{m[`${r.club}|${r.window}`]=r;});return m;}
+function _wwInputId(club,win){return`ww-${club}-${win.replace(/[^a-z0-9]/gi,'_')}`;}
+
+async function renderWedgeWindowsSection(){
   const el=document.getElementById('more-section-body');if(!el)return;
-  const rows=_getWedgeWindows();
-  const tableHtml=rows.length
-    ?`<div class="ww-table">
-        <div class="ww-table-head"><span>Club</span><span>Window</span><span>Target</span><span>Feel / cue</span><span></span></div>
-        ${rows.map((r,i)=>`<div class="ww-table-row">
-          <span class="ww-cell-club">${escapeHtml((_WW_CLUBS.find(c=>c.v===r.club)||{l:r.club}).l)}</span>
-          <span class="ww-cell-win">${escapeHtml(r.window)}</span>
-          <span class="ww-cell-carry">${r.targetCarry}m</span>
-          <span class="ww-cell-notes">${escapeHtml(r.notes||'')}</span>
-          <button class="ww-del-btn" onclick="deleteWedgeWindow(${i})">✕</button>
-        </div>`).join('')}
-      </div>`
-    :'<div class="stats-empty" style="margin:0 0 14px">No targets set yet.</div>';
-  el.innerHTML=`${tableHtml}
-    <div class="ww-add-form">
-      <div class="ww-add-title">Add target</div>
-      <div class="ww-form-row">
-        <select id="ww-club">${_WW_CLUBS.map(c=>`<option value="${c.v}">${c.l}</option>`).join('')}</select>
-        <select id="ww-window">${_WW_WINDOWS.map(w=>`<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join('')}</select>
+  el.innerHTML='<div class="stats-loading">Loading wedge windows...</div>';
+  const rows=await loadWedgeWindows(true);
+  const byKey=_wwByKey(rows);
+  const matrixRows=_WW_CLUBS.map(c=>`
+    <div class="ww-matrix-row">
+      <div class="ww-matrix-club">${escapeHtml(c.l)}</div>
+      ${_WW_WINDOWS.map(w=>{
+        const r=byKey[`${c.v}|${w}`];
+        return `<div class="ww-matrix-cell">
+          <input id="${_wwInputId(c.v,w)}" class="ww-target-input" type="number" min="1" max="150" step="1"
+            value="${r?.targetCarry??''}" data-id="${escapeHtml(r?.id||'')}" data-club="${escapeHtml(c.v)}" data-window="${escapeHtml(w)}"
+            placeholder="-" inputmode="numeric" aria-label="${escapeHtml(c.l)} ${escapeHtml(w)} target">
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  el.innerHTML=`
+    ${_wedgeWindowsError?`<div class="ww-sync-note">Supabase sync not ready: ${escapeHtml(_wedgeWindowsError)}<br>Run the latest migration, then reload this panel.</div>`:''}
+    <div class="ww-matrix-wrap">
+      <div class="ww-matrix">
+        <div class="ww-matrix-head">
+          <div class="ww-matrix-corner">Club</div>
+          ${_WW_WINDOWS.map(w=>`<div class="ww-matrix-window">${escapeHtml(w)}</div>`).join('')}
+        </div>
+        ${matrixRows}
       </div>
-      <div class="ww-form-row">
-        <input id="ww-carry" type="number" min="5" max="150" placeholder="Target carry (m)" inputmode="numeric">
-        <input id="ww-notes" type="text" placeholder="Feel / cue (optional)" autocorrect="off" spellcheck="false">
-      </div>
-      <button class="ww-save-btn" onclick="addWedgeWindow()">Add target</button>
-    </div>`;
+    </div>
+    <div class="ww-actions">
+      <button class="ww-save-btn" onclick="saveWedgeWindowMatrix()">Save targets</button>
+      <button class="ww-secondary-btn" onclick="renderWedgeWindowsSection()">Reload</button>
+    </div>
+    <div class="ww-help">Blank cells mean no target yet. Existing local targets sync to your account after the Supabase table exists.</div>`;
 }
 window.renderWedgeWindowsSection=renderWedgeWindowsSection;
 
-function addWedgeWindow(){
-  const club=document.getElementById('ww-club')?.value;
-  const win=document.getElementById('ww-window')?.value;
-  const carry=parseInt(document.getElementById('ww-carry')?.value||'0');
-  const notes=document.getElementById('ww-notes')?.value?.trim()||'';
-  if(!club||!win||!carry||carry<1)return;
-  const rows=_getWedgeWindows();
-  const idx=rows.findIndex(r=>r.club===club&&r.window===win);
-  const entry={club,window:win,targetCarry:carry,notes};
-  if(idx>=0)rows[idx]=entry;else rows.push(entry);
-  const co=_WW_CLUBS.map(c=>c.v);
-  rows.sort((a,b)=>{const ci=co.indexOf(a.club)-co.indexOf(b.club);return ci||_WW_WINDOWS.indexOf(a.window)-_WW_WINDOWS.indexOf(b.window);});
-  _setWedgeWindows(rows);
+async function saveWedgeWindowMatrix(){
+  const inputs=[...document.querySelectorAll('.ww-target-input')];
+  const { user } = await window.TCData.getCurrentUser();
+  if(!user){showToast('Sign in to save wedge windows');return;}
+  let changed=0;
+  for(const input of inputs){
+    const club=input.dataset.club, win=input.dataset.window, id=input.dataset.id;
+    const raw=input.value.trim();
+    if(raw){
+      const target=Number(raw);
+      if(isNaN(target)||target<=0)continue;
+      const { error } = await window.TCData.upsertWedgeWindow(user.id,{club_key:club,window:win,target_carry:target});
+      if(error){showToast('Save failed: '+error.message);return;}
+      changed++;
+    } else if(id) {
+      const { error } = await window.TCData.deleteWedgeWindow(user.id,id);
+      if(error){showToast('Delete failed: '+error.message);return;}
+      changed++;
+    }
+  }
+  _wedgeWindowsLoaded=false;
+  await loadWedgeWindows(true);
+  showToast(changed?'Wedge targets saved':'No changes');
   renderWedgeWindowsSection();
 }
-window.addWedgeWindow=addWedgeWindow;
-
-function deleteWedgeWindow(i){const rows=_getWedgeWindows();rows.splice(i,1);_setWedgeWindows(rows);renderWedgeWindowsSection();}
-window.deleteWedgeWindow=deleteWedgeWindow;
+window.saveWedgeWindowMatrix=saveWedgeWindowMatrix;
 
 window.addEventListener('load', () => {
   loadGolfDict();

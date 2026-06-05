@@ -171,6 +171,29 @@ CREATE POLICY "own_profile" ON profiles
 CREATE INDEX IF NOT EXISTS idx_profiles_user
   ON profiles (user_id);
 
+-- Wedge windows: target carry matrix per user
+CREATE TABLE IF NOT EXISTS wedge_windows (
+  id           uuid         DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id      uuid         NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  club_key     text         NOT NULL,
+  window       text         NOT NULL,
+  target_carry numeric(5,1) NOT NULL,
+  notes        text,
+  created_at   timestamptz  DEFAULT now(),
+  updated_at   timestamptz  DEFAULT now(),
+  UNIQUE (user_id, club_key, window)
+);
+
+ALTER TABLE wedge_windows ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own_wedge_windows" ON wedge_windows;
+CREATE POLICY "own_wedge_windows" ON wedge_windows
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_wedge_windows_user_club
+  ON wedge_windows (user_id, club_key);
+
 -- ── Round tracking: rounds and round_shots tables ────────────────────────────
 
 CREATE TABLE IF NOT EXISTS rounds (
