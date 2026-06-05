@@ -57,7 +57,7 @@
     return fetchOwnRows(
       'wedge_windows',
       userId,
-      'id,user_id,club_key,window,target_carry,notes,updated_at',
+      'id,user_id,club_key,window_label,target_carry,notes,updated_at',
       query => query.order('club_key', { ascending: true }).order('window', { ascending: true })
     );
   }
@@ -68,12 +68,12 @@
       .upsert({
         user_id: userId,
         club_key: row.club_key,
-        window: row.window,
+        window_label: row.window,
         target_carry: row.target_carry,
         notes: row.notes || null,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,club_key,window' })
-      .select('id,user_id,club_key,window,target_carry,notes,updated_at')
+      }, { onConflict: 'user_id,club_key,window_label' })
+      .select('id,user_id,club_key,window_label,target_carry,notes,updated_at')
       .single();
   }
 

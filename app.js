@@ -711,7 +711,7 @@ let _wedgeWindowsError = null;
 
 function _getLocalWedgeWindows(){try{return JSON.parse(localStorage.getItem('tc_wedge_windows')||'[]');}catch{return[];}}
 function _setLocalWedgeWindows(arr){localStorage.setItem('tc_wedge_windows',JSON.stringify(arr));}
-function _normWedgeWindow(r){return{id:r.id||null,club:r.club_key||r.club,window:r.window,targetCarry:Number(r.target_carry??r.targetCarry),notes:r.notes||''};}
+function _normWedgeWindow(r){return{id:r.id||null,club:r.club_key||r.club,window:r.window_label||r.window,targetCarry:Number(r.target_carry??r.targetCarry),notes:r.notes||''};}
 function _cacheWedgeWindows(rows){_wedgeWindowsCache=(rows||[]).map(_normWedgeWindow).filter(r=>r.club&&r.window&&!isNaN(r.targetCarry));_setLocalWedgeWindows(_wedgeWindowsCache);}
 async function loadWedgeWindows(force=false){
   if(_wedgeWindowsLoaded&&!force)return _wedgeWindowsCache;

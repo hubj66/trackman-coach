@@ -176,12 +176,12 @@ CREATE TABLE IF NOT EXISTS wedge_windows (
   id           uuid         DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id      uuid         NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   club_key     text         NOT NULL,
-  window       text         NOT NULL,
+  window_label text         NOT NULL,
   target_carry numeric(5,1) NOT NULL,
   notes        text,
   created_at   timestamptz  DEFAULT now(),
   updated_at   timestamptz  DEFAULT now(),
-  UNIQUE (user_id, club_key, window)
+  UNIQUE (user_id, club_key, window_label)
 );
 
 ALTER TABLE wedge_windows ENABLE ROW LEVEL SECURITY;
