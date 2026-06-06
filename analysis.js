@@ -649,6 +649,71 @@ function renderRoundComparisonCard(allShots) {
   </div>`;
 }
 
+function explainSignedMetric(value, deadband, positive, negative, neutral='neutral') {
+  if (value == null || isNaN(value)) return 'No data yet.';
+  if (Math.abs(value) <= deadband) return `${neutral} (${fSign(value,1)} deg)`;
+  return `${value > 0 ? positive : negative} (${fSign(value,1)} deg)`;
+}
+
+function renderTrackmanNumberExplainer(shots) {
+  if (!shots?.length) return '';
+  const face = reportMedian(shots, 'face_angle');
+  const path = reportMedian(shots, 'club_path');
+  const ftp = reportMedian(shots, 'face_to_path');
+  const attack = reportMedian(shots, 'attack_angle');
+  const items = [
+    {
+      label:'Face',
+      value:face,
+      text:`${explainSignedMetric(face, 2, 'open to target', 'closed to target')}. Face mostly controls start direction.`,
+    },
+    {
+      label:'Path',
+      value:path,
+      text:`${explainSignedMetric(path, 2, 'inside-out', 'outside-in')}. Path shapes the swing direction through the ball.`,
+    },
+    {
+      label:'Face-to-path',
+      value:ftp,
+      text:`${explainSignedMetric(ftp, 3, 'fade/slice curve risk', 'draw/hook curve risk', 'curve playable')}. This mostly explains curve.`,
+    },
+    {
+      label:'Attack',
+      value:attack,
+      text:`${explainSignedMetric(attack, 1, 'upward/sweeping', 'downward strike')}. Irons usually want some downward strike; driver can be more level or upward.`,
+    },
+  ].filter(i => i.value != null && !isNaN(i.value));
+
+  let pattern = '';
+  if (face != null && path != null && ftp != null) {
+    if (face > 2 && path > 2 && Math.abs(ftp) <= 3) {
+      pattern = 'Pattern read: path is not the main problem. The club travels inside-out, but the face is open to the target, so pushes/right misses are likely face timing.';
+    } else if (ftp > 3) {
+      pattern = 'Pattern read: face is open relative to path, so the ball has fade/slice curve risk.';
+    } else if (ftp < -3) {
+      pattern = 'Pattern read: face is closed relative to path, so the ball has draw/hook curve risk.';
+    } else if (Math.abs(face) <= 2 && Math.abs(path) <= 2) {
+      pattern = 'Pattern read: face and path are close to neutral. If misses remain, check strike, low point and distance control.';
+    }
+  }
+
+  if (!items.length) return '';
+  return `<div class="trackman-explainer-card">
+    <div class="trackman-explainer-head">
+      <div class="trackman-explainer-title">Number Explainer</div>
+      <div class="trackman-explainer-sub">Plain English from the selected report data.</div>
+    </div>
+    <div class="trackman-explainer-grid">
+      ${items.map(i => `<div class="trackman-explainer-item">
+        <span>${escapeHtml(i.label)}</span>
+        <strong>${escapeHtml(fSign(i.value,1))} deg</strong>
+        <p>${escapeHtml(i.text)}</p>
+      </div>`).join('')}
+    </div>
+    ${pattern ? `<div class="trackman-explainer-pattern">${escapeHtml(pattern)}</div>` : ''}
+  </div>`;
+}
+
 function renderTrackmanInsights(shots, allShots) {
   const reportShots = getClubReportShots(allShots);
   const insights = [];
@@ -971,7 +1036,8 @@ function renderClubReport(allShots) {
     <div class="report-diagram-grid">
       <canvas id="report-delivery-canvas" height="260"></canvas>
       <canvas id="report-path-canvas" height="260"></canvas>
-    </div>`;
+    </div>
+    ${renderTrackmanNumberExplainer(reportShots)}`;
 }
 
 function prepReportCanvas(id) {

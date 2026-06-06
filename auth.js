@@ -537,7 +537,9 @@ function renderBagCards(){
     const shots=allShots.slice(0,BAG_ROLLING_WINDOW);
     const totalShots=allShots.length;
     const carries=shots.map(s=>s.carry).filter(Boolean);
+    const totals=shots.map(s=>s.total).filter(Boolean);
     const avgC=avg(carries),carrySD=stdDev(carries);
+    const avgT=avg(totals);
     // Trim top/bottom 10 % to remove outlier shanks from the range display
     const sortedC=[...carries].sort((a,b)=>a-b);
     const trimN=sortedC.length>=10?Math.round(sortedC.length*0.1):sortedC.length>=5?1:0;
@@ -574,13 +576,20 @@ function renderBagCards(){
     const ocLongCount=ocDistTagged.filter(s=>s.miss_direction.includes('long')).length;
     const ocDistTend=ocDistTagged.length>=3?(ocShortCount/ocDistTagged.length>=0.6?'Short':ocLongCount/ocDistTagged.length>=0.6?'Long':'On target'):null;
     const missChip=miss==='Straight'?'chip-ok':(miss==='–'?'chip-neutral':'chip-warn');
+    const distRef=/^[4-9]$/.test(row.club_key||'')?`${row.club_key}i`:row.club_key;
+    const stock=typeof getDistanceRow==='function'?getDistanceRow(distRef):null;
+    const playTotal=ocAvgDist??(avgT!=null?Math.round(avgT):stock?.total??null);
+    const playSource=ocAvgDist!=null?'course total':avgT!=null?'TrackMan total':stock?.total?'stock total':'';
+    const causeNote=(avgFace!=null||avgPath!=null||f2p!=null)
+      ? `${avgFace!=null?(avgFace>2?'Face open':avgFace<-2?'Face closed':'Face neutral'):'Face n/a'}${avgPath!=null?` / ${avgPath>2?'path inside-out':avgPath<-2?'path outside-in':'path neutral'}`:''}${f2p!=null?` / ${Math.abs(f2p)<=3?'curve playable':f2p>0?'fade/slice risk':'draw/hook risk'}`:''}`
+      : null;
     const k=escapeHtml(row.club_key||'');
     return`<div class="bag-card${row.is_active?'':' bag-card-inactive'}${expanded?' bag-card-open':''}">
 <div class="bag-card-head" onclick="toggleBagCard('${k}')">
   <div class="bag-card-info">
     <span class="bag-card-name">${escapeHtml(row.club_name)}${row.is_active?'':' <span class="bag-inactive-badge">Inactive</span>'}</span>
     <div class="bag-card-meta">${n>0
-      ?`<span class="bag-card-carry">${Math.round(avgC)}m</span>${miss!=='–'?`<span class="bag-miss-chip ${missChip}">${miss}</span>`:''}<span class="bag-card-conf">${conf}</span>`
+      ?`<span class="bag-card-carry">${Math.round(avgC)}m carry</span>${playTotal!=null?`<span class="bag-card-total">${playTotal}m total</span>`:''}${miss!=='–'?`<span class="bag-miss-chip ${missChip}">${miss}</span>`:''}<span class="bag-card-conf">${conf}</span>`
       :'<span class="bag-nodata-chip">No data</span>'
     }</div>
   </div>
@@ -599,9 +608,12 @@ ${expanded?`<div class="bag-card-body">
   ${n>0?`<div class="bag-sections">
     <div class="bag-section"><div class="bag-sec-title">Distance</div>
       <div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>
+      ${avgT!=null?`<div class="bag-stat-row"><span>TrackMan total</span><strong>${Math.round(avgT)}m</strong></div>`:''}
+      ${stock?.total?`<div class="bag-stat-row"><span>Stock total</span><strong>${stock.total}m</strong></div>`:''}
+      ${playTotal!=null?`<div class="bag-stat-row bag-stat-play"><span>Play number</span><strong>${playTotal}m ${escapeHtml(playSource)}</strong></div>`:''}
       ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
       ${(carryMin!=null&&carryMax!=null&&carryMin!==carryMax)?`<div class="bag-stat-row"><span>Typical range</span><strong>${carryMin}–${carryMax}m</strong></div>`:''}
-      ${ocAvgDist!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>On course avg</span><strong>${ocAvgDist}m${ocGap!=null&&Math.abs(ocGap)>=5?` <span class="bag-oc-gap">(${ocGap>0?'+':''}${Math.round(ocGap)}m vs range)</span>`:''}</strong></div>`:''}
+      ${ocAvgDist!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>Course total avg</span><strong>${ocAvgDist}m${ocGap!=null&&Math.abs(ocGap)>=5?` <span class="bag-oc-gap">(${ocGap>0?'+':''}${Math.round(ocGap)}m vs carry)</span>`:''}</strong></div>`:''}
       ${ocMishitRate!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>Mishit rate</span><strong>${ocMishitRate}% (${ocMishitCount}/${ocDists.length})</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Direction</div>
@@ -620,6 +632,7 @@ ${expanded?`<div class="bag-card-body">
       ${avgFace!=null?`<div class="bag-stat-row"><span>Face angle</span><strong>${fmt(avgFace,1)}°</strong></div>`:''}
       ${avgPath!=null?`<div class="bag-stat-row"><span>Club path</span><strong>${fmt(avgPath,1)}°</strong></div>`:''}
       ${f2p!=null?`<div class="bag-stat-row"><span>Face-to-path</span><strong>${fmt(f2p,1)}°</strong></div>`:''}
+      ${causeNote?`<div class="bag-stat-note">${escapeHtml(causeNote)}</div>`:''}
     </div>`:''}
   </div>`:`<div class="bag-nodata-msg">No shots yet. Import TrackMan data or log practice.</div>`}
   <div class="bag-actions">
@@ -853,7 +866,7 @@ async function loadClubsOverview(){
   const CA=window.clubAliases;await CA.loadAliases();
   const[clubsRes,shotsRes,roundShotsRes]=await Promise.all([
     sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('user_id',_currentUserId).order('club_name'),
-    sb.from('trackman_shots').select('club,carry,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).order('shot_time',{ascending:false,nullsFirst:false}).limit(2000),
+    sb.from('trackman_shots').select('club,carry,total,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).order('shot_time',{ascending:false,nullsFirst:false}).limit(2000),
     sb.from('round_shots').select('club,distance_m,miss_direction').eq('user_id',_currentUserId).limit(2000)
   ]);
   const hasAliases=CA.CLUB_DEFINITIONS.some(d=>CA.getRawNamesForKey(d.key).length>0);
