@@ -2,10 +2,25 @@
 // Import parsers and normalizers. Keep these pure and browser-global for now.
 
 const ROUND_CLUB_MAP = {
-  '1':'driver','2':'2i','3':'3w','4':'4','5':'5','6':'6','7':'7',
-  '8':'8','9':'9','pw':'pw','pitching wedge':'pw',
-  'sw':'sw','sand wedge':'sw','58':'58','lw':'lw','aw':'aw',
-  '3w':'3w','5w':'5w','7w':'7w','hybrid':'hybrid','putter':'putter',
+  '1':'driver','driver':'driver',
+  '2':'2i','2 iron':'2i',
+  '3':'3','3 iron':'3',
+  '4':'4','4 iron':'4',
+  '5':'5','5 iron':'5',
+  '6':'6','6 iron':'6',
+  '7':'7','7 iron':'7',
+  '8':'8','8 iron':'8',
+  '9':'9','9 iron':'9',
+  'pw':'pw','pitching wedge':'pw',
+  'gw':'aw','gap wedge':'aw','approach wedge':'aw','aw':'aw',
+  'sw':'sw','sand wedge':'sw',
+  '58':'58','56':'56','52':'52','60':'60',
+  'lw':'lw','lob wedge':'lw',
+  '3w':'3w','3 wood':'3w','3wood':'3w',
+  '5w':'5w','5 wood':'5w','5wood':'5w',
+  '7w':'7w','7 wood':'7w','7wood':'7w',
+  'hybrid':'hybrid','4h':'hybrid','5h':'hybrid','3h':'hybrid',
+  'putter':'putter',
 };
 
 function normaliseRoundClub(raw) {
@@ -90,9 +105,10 @@ function parseGolfPadTSV(text) {
     const club = (cols[5] || '').trim() || null;
     const distance_m = parseRoundDist(cols[6]);
     const comment = (cols[7] || '').trim() || null;
-    const lie = (cols[8] || '').trim() || null;
+    const lieRaw = (cols[8] || '').trim() || null;
+    const lie = lieRaw && lieRaw.toLowerCase() === 'sand' ? 'Bunker' : lieRaw;
     const miss_direction = parseMissDir(cols[9]);
-    const is_penalty = comment ? PENALTY_RE.test(comment) : false;
+    const is_penalty = club?.toLowerCase() === 'penalty' || (comment ? PENALTY_RE.test(comment) : false);
 
     holeCounters[hole] = (holeCounters[hole] || 0) + 1;
     return { hole, par, hcp, shot_number: holeCounters[hole], club, distance_m, lie, comment, is_penalty, miss_direction };

@@ -1873,7 +1873,7 @@ window._mrFinish=async function(){
         club:s.club||null,distance_m:s.distance_m??null,
         lie:s.lie||null,comment:s.comment||null,
         miss_direction:s.miss_direction||null,
-        is_penalty:s.comment?/penalty|out on the|stroke and distance|\bOB\b/i.test(s.comment):false,
+        is_penalty:s.club?.toLowerCase()==='penalty'||(s.comment?/penalty|out on the|stroke and distance|\bOB\b/i.test(s.comment):false),
       });
     });
   }
