@@ -1345,65 +1345,43 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       <div class="today-empty-state">
         <div class="today-empty-icon">🏌️</div>
         <div class="today-empty-title">Start logging to get coaching</div>
-        <div class="today-empty-text">After 15+ shots in the TrackMan tab, you'll see your biggest issue and a personalised practice plan here.</div>
+        <div class="today-empty-text">After 15+ shots in the Statistics tab, you'll see your biggest issue and a practice plan here.</div>
         <div class="today-quick-log-row" style="justify-content:center">
-          <button class="today-log-btn" onclick="showPage('analysis')">Log TrackMan</button>
-          <button class="today-log-btn" onclick="showPage('stats')">Log short game</button>
+          <button class="today-log-btn" onclick="showPage('analysis')">Statistics →</button>
+          <button class="today-log-btn" onclick="showPage('stats')">Log short game →</button>
         </div>
       </div>`;
   }
 
   const manualClubArg = mainIssue ? `'${mainIssue.club}'` : 'null';
   return `
-    <div class="today-layer-toggle">
-      <button class="today-layer-btn today-layer-coach active" onclick="toggleTodayLayer('coach')">Coach</button>
-      <button class="today-layer-btn today-layer-stats" onclick="toggleTodayLayer('stats')">Stats</button>
+    ${_renderCoachSummaryCard(mainIssue, watchItem)}
+    <div id="today-plan-section">
+      ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
     </div>
-    <div class="today-coach-layer">
-      ${_renderCoachSummaryCard(mainIssue, watchItem)}
-      <div id="today-plan-section">
-        ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
-      </div>
-      ${_renderRecommendationOptions(issues, mainIssue)}
-      ${_renderAnythingElseChooser(mainIssue?.club || null)}
-      <div class="today-section-label" style="margin-top:4px;">Quick log</div>
-      <div class="today-quick-log-row" style="margin-bottom:20px;">
-        <button class="today-log-btn" onclick="showPage('analysis')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          TrackMan
-        </button>
-        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
-          Chipping
-        </button>
-        <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
-          Putting
-        </button>
-        <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Manual
-        </button>
-      </div>
-      ${_renderWhatImprovedCard(improved, fixedIssues)}
-      ${health.length ? _renderHealthTiles(health) : ''}
-      ${mainIssue ? _renderMainIssueCard(mainIssue) : _renderNoIssueCard()}
-      ${_renderDrillHistoryCard()}
+    <div class="today-section-label" style="margin-top:4px;">Quick log</div>
+    <div class="today-quick-log-row" style="margin-bottom:12px;">
+      <button class="today-log-btn" onclick="showPage('analysis')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Statistics
+      </button>
+      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
+        Chipping
+      </button>
+      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
+        Putting
+      </button>
+      <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Manual
+      </button>
     </div>
-    <div class="today-stats-layer">
-      ${mainIssue ? _renderShotPatternCard(mainIssue) : ''}
-      ${mainIssue ? _renderStatsProgressCard(mainIssue) : ''}
-      ${mainIssue ? _renderTrendCard(mainIssue) : ''}
-      ${_renderClubPicker(mainIssue?.club || null)}
-      ${regression ? _renderRegressionCard(regression) : ''}
-      ${watchItem ? _renderWatchCard(watchItem) : ''}
-      <div class="today-drill-library-row">
-        <button class="today-drill-library-btn" onclick="openGlossaryLibrary()">Open lexikon →</button>
-      </div>
-      <div class="today-drill-library-row">
-        <button class="today-drill-library-btn" onclick="openDrillCatalog('${mainIssue ? _issueToDrillCategory(mainIssue) : ''}')">Browse drill library →</button>
-      </div>
-    </div>`;
+    <div class="today-pick-club-row">
+      <button class="today-pick-club-btn" onclick="openClubOverlay()">Pick a club to focus on →</button>
+    </div>
+    ${_renderWhatImprovedCard(improved, fixedIssues)}`;
 }
 
 function _renderRecommendationOptions(issues, mainIssue) {
@@ -1509,7 +1487,7 @@ function _renderTrainTodayCard(issue) {
           </div>`).join('')}
       </div>
       <div class="today-plan-cta-row">
-        <button class="today-plan-start-btn" onclick="showPage('analysis')">Start on TrackMan tab →</button>
+        <button class="today-plan-start-btn" onclick="showPage('analysis')">Start on Statistics tab →</button>
         <button class="today-plan-short-btn" onclick="shrinkTodayPlan(${short})">Make it ${short} min</button>
       </div>
     </div>
@@ -1841,6 +1819,105 @@ function _renderWhatImprovedCard(improved, fixedIssues) {
       </div>
     </div>`;
 }
+
+// ── Club overview overlay ────────────────────────────────────────────────
+
+function _buildClubOverviewRows(allShots) {
+  const CA = window.clubAliases;
+  if (!CA || !allShots || !allShots.length) return [];
+
+  const byCk = {};
+  allShots.forEach(s => {
+    if (s._isManual) return;
+    const ck = CA.resolveClub ? CA.resolveClub(s.club) : null;
+    if (!ck) return;
+    if (!byCk[ck]) byCk[ck] = [];
+    byCk[ck].push(s);
+  });
+
+  const rows = [];
+  for (const [ck, shots] of Object.entries(byCk)) {
+    if (shots.length < 5) continue;
+
+    // Miss direction from average side offset
+    const sides = shots.map(s => s.side).filter(v => v != null);
+    const avgSide = sides.length ? sides.reduce((a, b) => a + b, 0) / sides.length : null;
+    let missDir = '—';
+    if (avgSide != null) {
+      if (avgSide > 3)       missDir = 'Right';
+      else if (avgSide < -3) missDir = 'Left';
+      else                   missDir = 'Straight';
+    }
+
+    // Mishit rate: smash_factor < 1.30 (TrackMan shots only)
+    const smashes = shots.map(s => s.smash_factor).filter(v => v != null);
+    const mishitPct = smashes.length >= 3
+      ? Math.round(smashes.filter(v => v < 1.30).length / smashes.length * 100)
+      : null;
+
+    // Carry spread ±SD
+    const carries = shots.map(s => s.carry).filter(v => v != null);
+    let carrySD = null;
+    if (carries.length >= 3) {
+      const mean = carries.reduce((a, b) => a + b, 0) / carries.length;
+      carrySD = Math.round(Math.sqrt(carries.reduce((a, b) => a + (b - mean) ** 2, 0) / carries.length));
+    }
+
+    rows.push({ ck, label: CA.clubLabel ? CA.clubLabel(ck) : ck, n: shots.length, missDir, mishitPct, carrySD });
+  }
+
+  const ORDER = ['driver','3w','5w','3h','4h','5h','3i','4i','5i','6i','7i','8i','9i','pw','gw','aw','sw','60','58','lw'];
+  rows.sort((a, b) => {
+    const ai = ORDER.indexOf(a.ck), bi = ORDER.indexOf(b.ck);
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1;
+    if (bi >= 0) return 1;
+    return b.n - a.n;
+  });
+
+  return rows;
+}
+
+window.openClubOverlay = function() {
+  const overlay = document.getElementById('club-overview-overlay');
+  if (!overlay) return;
+  const rows = _buildClubOverviewRows(_todayAllShots);
+  const body = overlay.querySelector('.club-ov-body');
+  if (body) {
+    if (!rows.length) {
+      body.innerHTML = '<div class="club-ov-empty">No club data yet.<br>Log shots in the Statistics tab first.</div>';
+    } else {
+      body.innerHTML =
+        `<div class="club-ov-header-row">
+          <span class="club-ov-col-name">Club</span>
+          <span class="club-ov-col">Miss</span>
+          <span class="club-ov-col">Mishit</span>
+          <span class="club-ov-col">Spread</span>
+        </div>` +
+        rows.map(r => {
+          const missClass = r.missDir === 'Left' ? 'miss-left' : r.missDir === 'Right' ? 'miss-right' : 'miss-straight';
+          return `<button class="club-ov-row" onclick="window._selectClubFromOverlay('${r.ck}')">
+            <span class="club-ov-name">${escapeHtml(r.label)}</span>
+            <span class="club-ov-miss ${missClass}">${escapeHtml(r.missDir)}</span>
+            <span class="club-ov-stat">${r.mishitPct != null ? r.mishitPct + '%' : '—'}</span>
+            <span class="club-ov-stat">${r.carrySD != null ? '±' + r.carrySD + 'm' : '—'}</span>
+          </button>`;
+        }).join('');
+    }
+  }
+  overlay.classList.add('open');
+};
+
+window.closeClubOverlay = function() {
+  const overlay = document.getElementById('club-overview-overlay');
+  if (overlay) overlay.classList.remove('open');
+};
+
+window._selectClubFromOverlay = function(ck) {
+  closeClubOverlay();
+  if (typeof openClubInAnalysis === 'function') openClubInAnalysis(ck);
+  else showPage('analysis');
+};
 
 // ── Pre-practice mode (Feature 5) ────────────────────────────────────────
 

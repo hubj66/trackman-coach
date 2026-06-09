@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0e1012">
   <title>TrackMan Coach</title>
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -68,7 +68,7 @@
       </button>
       <button class="top-nav-btn" id="nav-analysis-btn" onclick="showPage('analysis')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        TrackMan
+        Statistics
       </button>
     </nav>
   </div>
@@ -566,6 +566,21 @@
   <div id="manual-log-overlay" class="manual-log-overlay" style="display:none;"></div>
   <div id="glossary-overlay" class="glossary-overlay" style="display:none;"></div>
   <div id="drill-catalog-overlay" class="drill-catalog-overlay" style="display:none;"></div>
+
+  <!-- Club overview overlay (Today → Pick a club) -->
+  <div id="club-overview-overlay" class="club-ov-overlay">
+    <div class="club-ov-backdrop" onclick="closeClubOverlay()"></div>
+    <div class="club-ov-sheet">
+      <div class="club-ov-topbar">
+        <div class="club-ov-title">Pick a club</div>
+        <button class="club-ov-close" onclick="closeClubOverlay()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="club-ov-sub">Tap a club to open Statistics filtered for it</div>
+      <div class="club-ov-body"></div>
+    </div>
+  </div>
 
   <!-- ══ MORE PANEL ════════════════════════════════════════════════════════════ -->
   <div id="more-panel" class="more-panel" style="display:none;" role="dialog" aria-label="More">
