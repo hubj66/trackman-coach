@@ -554,7 +554,7 @@ async function loadLastSessionBanner() {
     const fmtN = (v, dp=1) => v != null ? Number(v).toFixed(dp) : '–';
     const fmtS = (v, dp=1) => v != null ? (v>0?'+':'')+Number(v).toFixed(dp) : '–';
 
-    text.innerHTML = `<strong>${lastDate}</strong> · ${n} shots · carry ${fmtN(s.carry)}m · face ${fmtS(s.face)}° · smash ${fmtN(s.smash,2)}`;
+    text.innerHTML = `<strong>${s.date}</strong> · ${s.n} shots · carry ${fmtN(s.carry)}m · face ${fmtS(s.face)}° · smash ${fmtN(s.smash,2)}`;
     banner.style.display = 'flex';
   } catch(e) {
     banner.style.display = 'none';
