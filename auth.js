@@ -1514,16 +1514,29 @@ function _renderRoundBody(shots,summary,roundId){
   const holeNums=Object.keys(byHole).map(Number).sort((a,b)=>a-b);
   const rows=holeNums.map(h=>{
     const hs=byHole[h];
-    const par=hs[0]?.par??'–';
+    const par=hs[0]?.par??null;
     const strokes=hs.length;
     const putts=hs.filter(s=>(s.club||'').toLowerCase()==='putter').length;
-    const clubs=[...new Set(hs.map(s=>s.club).filter(Boolean))].join(', ');
+    const rel=par!=null?strokes-par:null;
+    const relStr=rel===null?'–':rel===0?'E':rel>0?`+${rel}`:`${rel}`;
+    const relColor=rel===null?'var(--text3)':rel>0?'var(--amber)':rel<0?'var(--green)':'var(--text2)';
+    const clubs=[...new Set(hs.map(s=>s.club).filter(Boolean).filter(c=>c.toLowerCase()!=='penalty'))].join(', ');
     const notes=hs.map(s=>s.comment).filter(Boolean).join('; ');
-    return`<tr><td>${h}</td><td>${par}</td><td>${strokes}</td><td>${putts}</td><td>${escapeHtml(clubs)}</td><td style="max-width:120px;word-break:break-word">${escapeHtml(notes)}</td></tr>`;
+    return`<tr>
+      <td>${h}</td>
+      <td>${par??'–'}</td>
+      <td style="font-weight:600;color:${relColor}">${relStr}</td>
+      <td>${strokes}</td>
+      <td>${putts}</td>
+      <td style="max-width:110px;word-break:break-word;font-size:11px;">${escapeHtml(clubs)}</td>
+      <td style="max-width:120px;word-break:break-word">${escapeHtml(notes)}</td>
+    </tr>`;
   }).join('');
-  const totRow=`<tr class="round-table-total"><td colspan="2">Total</td><td>${summary.totalStrokes}</td><td>${summary.totalPutts}</td><td colspan="2"></td></tr>`;
+  const totalRel=summary.totalPar?(summary.totalStrokes-summary.totalPar):null;
+  const totalRelStr=totalRel===null?'':totalRel===0?' (E)':totalRel>0?` (+${totalRel})`:(` (${totalRel})`);
+  const totRow=`<tr class="round-table-total"><td colspan="2">Total</td><td colspan="2">${summary.totalStrokes}${totalRelStr}</td><td>${summary.totalPutts}</td><td colspan="2"></td></tr>`;
   return`<div class="round-table-wrap"><table class="round-table">
-    <thead><tr><th>Hole</th><th>Par</th><th>Shots</th><th>Putts</th><th>Clubs</th><th>Notes</th></tr></thead>
+    <thead><tr><th>H</th><th>Par</th><th>Score</th><th>Shots</th><th>Putts</th><th>Clubs</th><th>Notes</th></tr></thead>
     <tbody>${rows}${totRow}</tbody>
   </table></div>
   <div class="round-body-actions">
@@ -1555,9 +1568,19 @@ function previewRoundImport(){
     const holeSummary=parsed.holes.map(h=>{
       const diff=h.par?h.strokes-h.par:null;
       const vs=diff===null?'':diff===0?' (par)':diff>0?` (+${diff})`:(` (${diff})`);
-      return`H${h.hole}: ${h.strokes} shots${vs}`;
+      return`H${h.hole}: ${h.strokes}${vs}`;
     }).join(' · ');
-    if(preEl)preEl.innerHTML=`<div><strong>Found:</strong> ${parsed.holes.length} holes · ${parsed.shots.length} shots · ${escapeHtml(parsed.courseName)} · ${escapeHtml(parsed.roundDate)}</div><div style="margin-top:6px;color:var(--text3);font-size:11px;">${escapeHtml(holeSummary)}</div>`;
+    if(preEl)preEl.innerHTML=`
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:600;">${escapeHtml(parsed.courseName)}</span>
+        <span style="color:var(--text3);">${parsed.holes.length}h · ${parsed.shots.length} shots</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <label style="font-size:12px;color:var(--text3);white-space:nowrap;">Date</label>
+        <input type="date" id="rounds-import-date" value="${escapeHtml(parsed.roundDate)}"
+          style="flex:1;font-size:13px;background:var(--surface);border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;color:var(--text);">
+      </div>
+      <div style="color:var(--text3);font-size:11px;line-height:1.6;">${escapeHtml(holeSummary)}</div>`;
     if(impBtn)impBtn.style.display='inline-block';
   }catch(e){
     _pendingRoundImport=null;
@@ -1568,6 +1591,9 @@ function previewRoundImport(){
 
 async function confirmRoundImport(){
   if(!_pendingRoundImport){previewRoundImport();return;}
+  // Allow the user to override the parsed date from the preview input
+  const dateInput=document.getElementById('rounds-import-date');
+  if(dateInput?.value)_pendingRoundImport.roundDate=dateInput.value;
   const msgEl=document.getElementById('rounds-import-msg');
   const impBtn=document.getElementById('rounds-import-btn');
   if(impBtn)impBtn.disabled=true;
@@ -1682,7 +1708,10 @@ window._mrShotField=function(holeNum,shotIdx,field,val){
   if(!_mr||!_mr.holes[holeNum])return;
   if(!_mr.holes[holeNum].shots[shotIdx])_mr.holes[holeNum].shots[shotIdx]={};
   _mr.holes[holeNum].shots[shotIdx][field]=val;
-  if(field==='club')_mrRender(); // update slider max when club changes
+  if(field==='club'){
+    if(val==='putter')_mr.holes[holeNum].shots[shotIdx].lie='Green';
+    _mrRender(); // update card layout when club changes
+  }
 };
 window._mrHoleField=function(holeNum,field,val){
   if(!_mr)return;
@@ -1760,9 +1789,27 @@ function _mrRender(){
       <div class="mr-shots-label">Shots</div>
       ${shots.length===0?`<div class="mr-empty-shots">No shots yet — tap + Add shot</div>`:''}
       ${shots.map((s,i)=>{
+        const isPutter=(s.club||'')==='putter';
         const dmax=_mrDistMax(s.club||'');
         const dval=s.distance_m??0;
         const dpct=Math.round(Math.min(dmax,dval)/dmax*100);
+        if(isPutter){
+          return`<div class="mr-shot-card">
+          <div class="mr-shot-header">
+            <span class="mr-shot-num">SHOT ${i+1}</span>
+            <button class="mr-shot-del" onclick="_mrRemoveShot(${i})">✕ Remove</button>
+          </div>
+          <div class="mr-shot-row">
+            ${_mrClubSel(i)}
+            <input type="number" min="0" max="50" value="${dval||''}" placeholder="Distance (m)"
+              style="width:90px;flex:none;" oninput="_mrDistField(${_mr.cur},${i},this.value)">
+          </div>
+          <div class="mr-shot-row">
+            <input type="text" placeholder="Comment (optional)" value="${escapeHtml(s.comment||'')}"
+              style="flex:1;" onchange="_mrCommentField(${_mr.cur},${i},this.value)">
+          </div>
+        </div>`;
+        }
         return`<div class="mr-shot-card">
         <div class="mr-shot-header">
           <span class="mr-shot-num">SHOT ${i+1}</span>
