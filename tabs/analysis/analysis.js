@@ -182,15 +182,26 @@ function renderAnalysis(allShots) {
       ${renderClubHealthStrip(_allFetchedShots)}
       ${renderTrackmanInsights(shots, allShots)}
       ${renderPlayDecisionCard(shots)}
-      ${renderSwingCauseCheck(shots)}
-      ${renderRoundComparisonCard(allShots)}
-      ${renderClubReport(allShots)}
-      <div class="trackman-subgrid">
-        <div class="trackman-subpanel">${renderOverviewKPIs(shots)}</div>
-        <div class="trackman-subpanel">${renderConsistency(shots)}</div>
-        <div class="trackman-subpanel">${renderDirection(shots)}</div>
-        <div class="trackman-subpanel">${renderDistanceControl(shots)}</div>
-      </div>
+      ${renderClubReportMetrics(allShots)}
+      ${renderAnalysisAcc('cause-check', 'Cause Check',
+        renderSwingCauseCheck(shots) + renderTrackmanNumberExplainer(getClubReportShots(allShots)),
+        false)}
+      ${renderAnalysisAcc('details-diagrams', 'Details & Diagrams',
+        `<div class="trackman-subgrid">
+          <div class="trackman-subpanel">${renderOverviewKPIs(shots)}</div>
+          <div class="trackman-subpanel">${renderConsistency(shots)}</div>
+          <div class="trackman-subpanel">${renderDirection(shots)}</div>
+          <div class="trackman-subpanel">${renderDistanceControl(shots)}</div>
+        </div>
+        <div class="report-diagram-note">Blue = club/attack path, red = face/launch, dashed grey = neutral reference. Quality labels are simple checkpoints, not fixed swing laws.</div>
+        <div class="report-diagram-grid">
+          <canvas id="report-delivery-canvas" height="260"></canvas>
+          <canvas id="report-path-canvas" height="260"></canvas>
+        </div>`,
+        false)}
+      ${renderAnalysisAcc('range-course', 'Range vs Course',
+        renderRoundComparisonCard(allShots),
+        false)}
     </section>
     <section class="trackman-section" id="trackman-section-charts">
       <div class="trackman-section-head">
@@ -1016,7 +1027,7 @@ function renderSwingCauseCheck(shots) {
   </div>`;
 }
 
-function renderClubReport(allShots) {
+function renderClubReportMetrics(allShots) {
   const reportShots = getClubReportShots(allShots);
   const clubLabel = CA().clubLabel(analysisClub);
   const filters = renderReportFilters(allShots);
@@ -1036,27 +1047,21 @@ function renderClubReport(allShots) {
   return `${filters}
     <div class="report-summary-line">${escapeHtml(clubLabel)} / ${reportFilterLabel()} / ${reportShots.length} shots / medians</div>
     ${renderWedgeTargetReport(reportShots)}
-    <div class="report-metric-grid">${cards}</div>
-    <div class="report-diagram-note">Blue = club/attack path, red = face/launch, dashed grey = neutral reference. Quality labels are simple checkpoints, not fixed swing laws.</div>
-    <div class="report-diagram-grid">
-      <canvas id="report-delivery-canvas" height="260"></canvas>
-      <canvas id="report-path-canvas" height="260"></canvas>
-    </div>
-    ${renderTrackmanNumberExplainer(reportShots)}`;
+    <div class="report-metric-grid">${cards}</div>`;
 }
 
 function prepReportCanvas(id) {
   const canvas = document.getElementById(id);
   if (!canvas) return null;
-  const rect = canvas.getBoundingClientRect();
+  const w = canvas.parentElement?.clientWidth || 340;
   const dpr = window.devicePixelRatio || 1;
-  const dynamicHeight = Math.round(Math.max(260, Math.min(340, rect.width * 0.62)));
+  const dynamicHeight = Math.round(Math.max(260, Math.min(340, w * 0.62)));
   canvas.style.height = dynamicHeight + 'px';
-  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.width = Math.max(1, Math.round(w * dpr));
   canvas.height = Math.max(1, Math.round(dynamicHeight * dpr));
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return { canvas, ctx, w:rect.width, h:dynamicHeight };
+  return { canvas, ctx, w, h:dynamicHeight };
 }
 
 function reportMedian(shots, key) {
