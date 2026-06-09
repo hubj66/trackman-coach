@@ -270,3 +270,9 @@ CREATE POLICY "own_handicap_history" ON handicap_history
 CREATE INDEX IF NOT EXISTS idx_handicap_history_user_date
   ON handicap_history (user_id, recorded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_round_shots_user     ON round_shots (user_id, hole);
+
+-- ── Device tracking for trackman_shots ──────────────────────────────────────
+-- 'trackman' = TrackMan / TM unit, 'garmin_r10' = Garmin R10 / Garmin Golf app
+-- Existing rows get device = 'trackman' via the DEFAULT.
+ALTER TABLE trackman_shots ADD COLUMN IF NOT EXISTS device text DEFAULT 'trackman';
+CREATE INDEX IF NOT EXISTS idx_tm_shots_device ON trackman_shots (user_id, device);

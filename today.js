@@ -2100,17 +2100,21 @@ function _mergeManualShots(trackmanShots) {
     const manual  = JSON.parse(localStorage.getItem('manual_shots') || '[]');
     const cutoff  = new Date(Date.now() - 14 * 86400000).toISOString();
     const recent  = manual.filter(m => m.ts >= cutoff);
-    const faceMap  = { open: 3.5, closed: -3.5, square: 0 };
-    const smashMap = { pure: 1.38, ok: 1.25, miss: 1.10 };
+    // Qualitative logs do NOT inject synthetic numeric values.
+    // They carry descriptive labels only (_face_qual, _contact_qual).
+    // This prevents invented numbers from contaminating real TrackMan averages.
     const synthetic = recent.map(m => ({
       club: m.club,
-      face_angle:   faceMap[m.face]    ?? 0,
-      smash_factor: smashMap[m.contact] ?? 1.20,
+      face_angle: null,    // qualitative only — not a measured value
+      smash_factor: null,  // qualitative only — not a measured value
       carry: null, side: null, attack_angle: null,
       launch_angle: null, spin_rate: null, ball_speed: null,
       club_path: null, face_to_path: null,
       is_full_shot: true, exclude_from_progress: false,
-      shot_time: m.ts, _isManual: true,
+      shot_time: m.ts,
+      _isManual: true,
+      _face_qual: m.face || null,       // 'open' | 'closed' | 'square'
+      _contact_qual: m.contact || null, // 'pure' | 'ok' | 'miss'
     }));
     return [...trackmanShots, ...synthetic];
   } catch(e) {

@@ -536,9 +536,16 @@ function renderBagCards(){
     const allShots=_getRecentClubShots(row.club_key);
     const shots=allShots.slice(0,BAG_ROLLING_WINDOW);
     const totalShots=allShots.length;
+    // Device split: TrackMan shots vs Garmin R10 shots
+    const tmShotsArr=shots.filter(s=>!s.device||s.device==='trackman');
+    const garminShotsArr=shots.filter(s=>s.device==='garmin_r10');
     const carries=shots.map(s=>s.carry).filter(Boolean);
     const totals=shots.map(s=>s.total).filter(Boolean);
-    const avgC=avg(carries),carrySD=stdDev(carries);
+    const avgTmCarry=avg(tmShotsArr.map(s=>s.carry).filter(Boolean));
+    const avgGarminCarry=garminShotsArr.length?avg(garminShotsArr.map(s=>s.carry).filter(Boolean)):null;
+    const avgGarminTotal=garminShotsArr.length?avg(garminShotsArr.map(s=>s.total).filter(Boolean)):null;
+    const avgC=avgTmCarry??avg(carries); // prefer TM carry; fall back to all
+    const carrySD=stdDev(carries);
     const avgT=avg(totals);
     // Trim top/bottom 10 % to remove outlier shanks from the range display
     const sortedC=[...carries].sort((a,b)=>a-b);
@@ -553,8 +560,9 @@ function renderBagCards(){
     const playable=sides.length?Math.round(sides.filter(x=>Math.abs(x)<=15).length/sides.length*100)+'%':'–';
     const avgSmash=avg(shots.map(s=>s.smash_factor).filter(Boolean));
     const avgBall=avg(shots.map(s=>s.ball_speed).filter(Boolean));
-    const avgFace=avg(shots.map(s=>s.face_angle).filter(Boolean));
-    const avgPath=avg(shots.map(s=>s.club_path).filter(Boolean));
+    // Face angle and club path: TrackMan-only measurements
+    const avgFace=avg(tmShotsArr.map(s=>s.face_angle).filter(s=>s!=null));
+    const avgPath=avg(tmShotsArr.map(s=>s.club_path).filter(s=>s!=null));
     const f2p=(avgFace!=null&&avgPath!=null)?avgFace-avgPath:null;
     const expanded=_bagExpandedKeys.has(row.club_key);
     const ocShots=_bagOnCourseGrouped[row.club_key]||[];
@@ -608,8 +616,10 @@ ${expanded?`<div class="bag-card-body">
   
   ${n>0?`<div class="bag-sections">
     <div class="bag-section"><div class="bag-sec-title">Distance</div>
-      <div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>
-      ${avgT!=null?`<div class="bag-stat-row"><span>TrackMan total</span><strong>${Math.round(avgT)}m</strong></div>`:''}
+      ${avgTmCarry!=null?`<div class="bag-stat-row"><span>TM avg carry</span><strong>${Math.round(avgTmCarry)}m</strong></div>`:avgC!=null&&!avgGarminCarry?`<div class="bag-stat-row"><span>Avg carry</span><strong>${Math.round(avgC)}m</strong></div>`:''}
+      ${avgGarminCarry!=null?`<div class="bag-stat-row"><span>Garmin avg carry</span><strong>${Math.round(avgGarminCarry)}m</strong></div>`:''}
+      ${avgGarminTotal!=null?`<div class="bag-stat-row"><span>Garmin avg total</span><strong>${Math.round(avgGarminTotal)}m</strong></div>`:''}
+      ${avgT!=null&&!avgGarminTotal?`<div class="bag-stat-row"><span>TM avg total</span><strong>${Math.round(avgT)}m</strong></div>`:''}
       ${stock?.total?`<div class="bag-stat-row"><span>Stock total</span><strong>${stock.total}m</strong></div>`:''}
       ${playTotal!=null?`<div class="bag-stat-row bag-stat-play"><span>Play number</span><strong>${playTotal}m ${escapeHtml(playSource)}</strong></div>`:''}
       ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
@@ -867,7 +877,7 @@ async function loadClubsOverview(){
   const CA=window.clubAliases;await CA.loadAliases();
   const[clubsRes,shotsRes,roundShotsRes]=await Promise.all([
     sb.from('clubs').select('club_key,club_name,club_type,brand,model,loft,is_active').eq('user_id',_currentUserId).order('club_name'),
-    sb.from('trackman_shots').select('club,carry,total,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).order('shot_time',{ascending:false,nullsFirst:false}).limit(2000),
+    sb.from('trackman_shots').select('club,carry,total,smash_factor,ball_speed,spin_rate,launch_angle,face_angle,club_path,side,is_full_shot,exclude_from_progress,shot_time,created_at,device').eq('user_id',_currentUserId).order('shot_time',{ascending:false,nullsFirst:false}).limit(2000),
     sb.from('round_shots').select('club,distance_m,miss_direction').eq('user_id',_currentUserId).limit(2000)
   ]);
   const hasAliases=CA.CLUB_DEFINITIONS.some(d=>CA.getRawNamesForKey(d.key).length>0);
@@ -1020,12 +1030,12 @@ async function loadProgressSection(){
     const[tmRes,chipRes,puttRes,practiceRes,
           tmPrevRes,chipPrevRes,puttPrevRes,
           roundsRes,roundShotsDirRes]=await Promise.all([
-      sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress,shot_time,created_at').eq('user_id',_currentUserId).gte('shot_time',thirty+'T00:00:00').order('shot_time',{ascending:false}).limit(500),
+      sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,club_path,is_full_shot,exclude_from_progress,shot_time,created_at,club,device').eq('user_id',_currentUserId).gte('shot_time',thirty+'T00:00:00').order('shot_time',{ascending:false}).limit(500),
       sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
       sb.from('putting_sessions').select('session_date,distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
       sb.from('practice_sessions').select('session_date,practice_type').eq('user_id',_currentUserId).gte('session_date',thirty).order('session_date',{ascending:false}),
       // Previous period
-      sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress').eq('user_id',_currentUserId).gte('shot_time',sixty+'T00:00:00').lt('shot_time',thirty+'T00:00:00').limit(500),
+      sb.from('trackman_shots').select('carry,side,smash_factor,face_angle,is_full_shot,exclude_from_progress,club,device').eq('user_id',_currentUserId).gte('shot_time',sixty+'T00:00:00').lt('shot_time',thirty+'T00:00:00').limit(500),
       sb.from('chipping_sessions').select('attempts,inside_1m,between_1_2m,outside_3m').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       sb.from('putting_sessions').select('distance_m,holed,total').eq('user_id',_currentUserId).gte('session_date',sixty).lt('session_date',thirty),
       // Rounds (graceful: tables may not exist yet)
@@ -1095,6 +1105,12 @@ async function loadProgressSection(){
     const hasPrevChip=chipPrev.length>0;
     const hasPrevPutt=puttPrev.length>0;
 
+    // ── Per-club grouping ──
+    const byClubCurr={};
+    tmShots.forEach(s=>{const k=s.club||'?';if(!byClubCurr[k])byClubCurr[k]=[];byClubCurr[k].push(s);});
+    const byClubPrevG={};
+    tmPrev.forEach(s=>{const k=s.club||'?';if(!byClubPrevG[k])byClubPrevG[k]=[];byClubPrevG[k].push(s);});
+
     // ── Status helpers ──
     // Period-over-period: improveThr = delta needed for "Improved", stableThr = decline before "Needs attention"
     // hi=true means higher is better (carry, playable%), hi=false means lower is better (carrySD)
@@ -1134,11 +1150,36 @@ async function loadProgressSection(){
     </div>`;
 
     const periodNote=`<span class="progress-period-note">vs prev 30d</span>`;
+    // Per-club rows (sorted by shot count, top 6)
+    const clubRowsHtml=Object.keys(byClubCurr)
+      .sort((a,b)=>byClubCurr[b].length-byClubCurr[a].length)
+      .slice(0,6)
+      .map(k=>{
+        const cs=byClubCurr[k];
+        const gOnly=cs.filter(s=>s.device==='garmin_r10');
+        const tmOnly=cs.filter(s=>!s.device||s.device==='trackman');
+        const devTag=tmOnly.length&&gOnly.length?' (TM+G)':gOnly.length?' (G)':'';
+        const cCarries=cs.map(s=>s.carry).filter(Boolean);
+        const cSides=cs.map(s=>s.side).filter(s=>s!=null);
+        const cAvgCarry=avg(cCarries),cCarrySD=stdDev(cCarries);
+        const cPlayable=cSides.length?cSides.filter(s=>Math.abs(s)<=20).length/cSides.length*100:null;
+        const prevCs=byClubPrevG[k]||[];
+        const prevCarries=prevCs.map(s=>s.carry).filter(Boolean);
+        const prevAvg=avg(prevCarries);
+        const hasPrevC=prevCs.length>=3;
+        const carry_st=stDelta(cAvgCarry,prevAvg,hasPrevC,3,3);
+        const carry_ds=deltaStr(cAvgCarry,prevAvg,hasPrevC,'m',0);
+        const carry_str=cAvgCarry!=null?`${fmt(cAvgCarry,0)}m${carry_ds}`:'–';
+        const sd_str=cCarrySD!=null?` ±${fmt(cCarrySD,0)}m`:'';
+        const play_str=cPlayable!=null?` · ${fmt(cPlayable,0)}% play`:'';
+        return`<div class="progress-metric"><div class="progress-metric-left"><div class="progress-metric-label">${escapeHtml(k)}${escapeHtml(devTag)} <span style="font-weight:400;color:var(--text3)">${cs.length} shots</span></div><div class="progress-metric-val">${carry_str}${sd_str}${play_str}</div></div>${chip(carry_st)}</div>`;
+      }).join('');
     const tmHtml=tmShots.length>=5?`
-      <div class="progress-group-label">TrackMan — last 30 days ${hasPrevTm?periodNote:''}</div>
+      <div class="progress-group-label">Per-club — last 30 days ${hasPrevTm?periodNote:''}</div>
+      <div class="progress-card">${clubRowsHtml||'<div class="progress-empty">No club data.</div>'}</div>
+      <div class="progress-group-label">Overall TrackMan — last 30 days</div>
       <div class="progress-card">
-        ${row('Avg carry',avgCarry!=null?fmt(avgCarry,0)+'m':'–',stDelta(avgCarry,prevAvgCarry,hasPrevTm,3,3),deltaStr(avgCarry,prevAvgCarry,hasPrevTm,'m',0))}
-        ${carrySD!=null?row('Carry consistency','±'+fmt(carrySD,0)+'m SD',stDelta(carrySD,prevCarrySD,hasPrevTm,2,2,false),deltaStr(carrySD,prevCarrySD,hasPrevTm,'m',0,false)):''}
+        ${row('Shots logged',tmShots.length+' shots · '+tmDays.length+' sessions',null)}
         ${playablePct!=null?row('Playable shots',fmt(playablePct,0)+'%',stDelta(playablePct,prevPlayablePct,hasPrevTm,5,5),deltaStr(playablePct,prevPlayablePct,hasPrevTm,'%pts',0)):''}
         ${avgSmash!=null?row('Smash factor',fmt(avgSmash,2),stDelta(avgSmash,prevAvgSmash,hasPrevTm,0.02,0.02),deltaStr(avgSmash,prevAvgSmash,hasPrevTm,'',2)):''}
         ${avgFace!=null?row('Face angle avg',(avgFace>0?'+':'')+fmt(avgFace,1)+'°',st(Math.abs(avgFace),2,4,false)):''}
@@ -2080,6 +2121,106 @@ window.startManualRound=function(){
   if(formEl)formEl.style.display='';
   _mrRender();
 };
+
+// ── Garmin R10 import ─────────────────────────────────────────────────────
+let _garminPendingShots=null;
+
+async function loadImportSection(){
+  const el=document.getElementById('more-section-body');
+  if(!el)return;
+  _garminPendingShots=null;
+  el.innerHTML=`<div class="import-section">
+    <div class="import-block">
+      <div class="import-block-title">TrackMan data</div>
+      <p style="margin-bottom:8px;">TrackMan sessions are imported automatically via the session logger. Use Club aliases to map club names.</p>
+      <button onclick="closeMoreSection();openMoreSection('aliases')" class="import-link-btn">Open Club aliases →</button>
+    </div>
+    <div class="import-block">
+      <div class="import-block-title">Garmin R10</div>
+      <p style="margin-bottom:8px;">Export a session CSV from the Garmin Golf app, then pick it here.</p>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px;">Units in your CSV:</label>
+        <label style="margin-right:12px;font-size:13px;"><input type="radio" name="garmin-units" value="auto" checked> Auto-detect</label>
+        <label style="margin-right:12px;font-size:13px;"><input type="radio" name="garmin-units" value="yards"> Yards</label>
+        <label style="font-size:13px;"><input type="radio" name="garmin-units" value="meters"> Meters</label>
+      </div>
+      <label class="garmin-file-label">
+        <input type="file" id="garmin-file-input" accept=".csv,.txt" style="display:none" onchange="handleGarminFileSelect(event)">
+        <span class="garmin-file-btn">Choose CSV file…</span>
+      </label>
+      <div id="garmin-import-preview" style="margin-top:10px;"></div>
+      <div id="garmin-import-msg" style="margin-top:6px;font-size:12px;"></div>
+      <button id="garmin-confirm-btn" onclick="confirmGarminImport()" style="display:none;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;margin-top:10px;font-family:var(--sans);font-size:14px;">Import shots into Bag</button>
+    </div>
+  </div>`;
+  // Expose handler
+  window.handleGarminFileSelect=handleGarminFileSelect;
+  window.confirmGarminImport=confirmGarminImport;
+}
+window.loadImportSection=loadImportSection;
+
+function handleGarminFileSelect(event){
+  const file=event.target.files?.[0];
+  const previewEl=document.getElementById('garmin-import-preview');
+  const msgEl=document.getElementById('garmin-import-msg');
+  const confirmBtn=document.getElementById('garmin-confirm-btn');
+  if(!file){_garminPendingShots=null;if(confirmBtn)confirmBtn.style.display='none';return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const text=e.target.result;
+    const unitHint=document.querySelector('input[name="garmin-units"]:checked')?.value||'auto';
+    if(!window.GarminImport){if(msgEl)msgEl.textContent='Garmin import module not loaded.';return;}
+    const result=window.GarminImport.parseGarminCsv(text,unitHint);
+    if(result.error){
+      if(previewEl)previewEl.innerHTML=`<div style="color:var(--red);font-size:12px;">${escapeHtml(result.error)}</div>`;
+      _garminPendingShots=null;
+      if(confirmBtn)confirmBtn.style.display='none';
+      return;
+    }
+    _garminPendingShots=result.shots;
+    if(previewEl)previewEl.innerHTML=window.GarminImport.previewHtml(result.shots);
+    const warnHtml=result.warnings.map(w=>`<div style="color:var(--amber);">${escapeHtml(w)}</div>`).join('');
+    if(msgEl)msgEl.innerHTML=warnHtml||`<span style="color:var(--text3);">${result.shots.length} shots parsed.</span>`;
+    if(confirmBtn)confirmBtn.style.display=result.shots.length?'block':'none';
+  };
+  reader.readAsText(file);
+}
+
+async function confirmGarminImport(){
+  if(!_garminPendingShots?.length)return;
+  if(!_currentUserId){msg('Please log in first.',true);return;}
+  const confirmBtn=document.getElementById('garmin-confirm-btn');
+  const msgEl=document.getElementById('garmin-import-msg');
+  if(confirmBtn)confirmBtn.disabled=true;
+  if(msgEl)msgEl.innerHTML='<span style="color:var(--text3);">Importing…</span>';
+  const now=new Date().toISOString();
+  const rows=_garminPendingShots.map(s=>({
+    user_id:_currentUserId,
+    club:s.club||null,
+    carry:s.carry,
+    total:s.total,
+    side:s.side,
+    ball_speed:s.ball_speed,
+    smash_factor:s.smash_factor,
+    launch_angle:s.launch_angle,
+    spin_rate:s.spin_rate,
+    device:'garmin_r10',
+    is_full_shot:true,
+    exclude_from_progress:false,
+    shot_time:now,
+    created_at:now,
+  }));
+  const{error}=await sb.from('trackman_shots').insert(rows);
+  if(error){
+    if(msgEl)msgEl.innerHTML=`<span style="color:var(--red);">Import failed: ${escapeHtml(error.message)}</span>`;
+    if(confirmBtn)confirmBtn.disabled=false;
+    return;
+  }
+  const n=rows.length;
+  _garminPendingShots=null;
+  if(confirmBtn)confirmBtn.style.display='none';
+  if(msgEl)msgEl.innerHTML=`<span style="color:var(--green);">✓ ${n} shots imported. Go to Bag to see your clubs.</span>`;
+}
 
 // ── Exports ───────────────────────────────────────────────────────────────
 window.loadOneState=loadOneState;window.deleteOneState=deleteOneState;

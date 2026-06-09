@@ -86,6 +86,15 @@ function openMoreSection(name) {
     if (typeof window.loadProfileSection === 'function') window.loadProfileSection();
     return;
   }
+  if (name === 'import') {
+    document.getElementById('more-list').style.display = 'none';
+    document.getElementById('more-aliases-section').style.display = 'none';
+    document.getElementById('more-section-title').textContent = 'Import settings';
+    document.getElementById('more-section-body').innerHTML = '<div class="stats-loading">Loading…</div>';
+    document.getElementById('more-section').style.display = 'flex';
+    if (typeof window.loadImportSection === 'function') window.loadImportSection();
+    return;
+  }
   if (name === 'wedgewindows') {
     document.getElementById('more-list').style.display = 'none';
     document.getElementById('more-aliases-section').style.display = 'none';
