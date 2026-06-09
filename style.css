@@ -751,6 +751,73 @@ body.light-theme .today-club-btn.on{color:#fff}
 .today-pick-club-btn{flex:1;padding:12px 16px;background:var(--surface);border:0.5px solid var(--border);border-radius:12px;color:var(--text2);font-size:14px;text-align:left;cursor:pointer;transition:background .15s}
 .today-pick-club-btn:active{background:var(--surface2)}
 
+/* ── Today v2: Range/Sim toggle ─────────────────────────────────────────── */
+.today-ctx-toggle{display:flex;gap:6px;margin-bottom:10px}
+.today-ctx-btn{flex:1;padding:9px 0;background:var(--surface);border:0.5px solid var(--border);border-radius:10px;color:var(--text2);font-size:13px;font-weight:600;font-family:var(--cond);text-transform:uppercase;letter-spacing:.04em;cursor:pointer;transition:all .15s}
+.today-ctx-btn.active{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+
+/* ── Today v2: Reason card ──────────────────────────────────────────────── */
+.today-reason-card{background:var(--surface);border:0.5px solid rgba(0,214,143,.2);border-radius:14px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden}
+.today-reason-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--amber);border-radius:2px 0 0 2px}
+.today-reason-good::before{background:var(--green)}
+.today-reason-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.today-reason-eyebrow{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.today-reason-conf{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+.today-reason-conf-confirmed{background:var(--green-dim);color:var(--green)}
+.today-reason-conf-likely{background:var(--amber-dim);color:var(--amber)}
+.today-reason-conf-hint{background:var(--surface2);color:var(--text2)}
+.today-reason-headline{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.35}
+.today-reason-because{font-size:12px;color:var(--text2);line-height:1.55;margin-bottom:8px}
+.today-reason-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.today-reason-phase{font-size:11px;padding:2px 8px;border-radius:9px;font-weight:600}
+.today-reason-phase-technical{background:var(--amber-dim);color:var(--amber)}
+.today-reason-phase-transfer{background:var(--green-dim);color:var(--green)}
+.today-reason-shots{font-size:11px;color:var(--text3)}
+
+/* ── Today v2: Options list ─────────────────────────────────────────────── */
+.today-opts-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.today-opt-card{background:var(--surface);border:0.5px solid var(--border);border-radius:14px;padding:12px 14px 10px;position:relative}
+.today-opt-top{border-color:rgba(0,214,143,.25)}
+.today-opt-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:7px}
+.today-opt-rank{width:20px;min-width:20px;height:20px;border-radius:50%;background:var(--surface2);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;color:var(--text2);margin-top:2px}
+.today-opt-top .today-opt-rank{background:var(--green-dim);color:var(--green)}
+.today-opt-info{flex:1;min-width:0}
+.today-opt-club{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
+.today-opt-issue{font-size:12px;color:var(--text2);line-height:1.4}
+.today-opt-i-btn{background:none;border:0.5px solid var(--border);border-radius:50%;width:28px;min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text3);cursor:pointer;padding:0;transition:all .15s}
+.today-opt-i-btn:active{background:var(--surface2);color:var(--text)}
+.today-opt-data{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+.today-opt-pill{font-size:11px;padding:3px 8px;background:var(--surface2);border-radius:8px;color:var(--text2);white-space:nowrap}
+.today-opt-pill-warn{background:var(--amber-dim);color:var(--amber)}
+.today-opt-pill-bad{background:var(--red-dim);color:var(--red)}
+.today-opt-L{color:var(--amber);font-weight:600}
+.today-opt-S{color:var(--green);font-weight:600}
+.today-opt-R{color:var(--red);font-weight:600}
+.today-opt-train-btn{width:100%;padding:8px;background:none;border:0.5px solid var(--border);border-radius:9px;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
+.today-opt-train-btn:active{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.today-opt-top .today-opt-train-btn{border-color:rgba(0,214,143,.3);color:var(--green)}
+
+/* ── Today v2: Training sub-view ────────────────────────────────────────── */
+.today-training-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.today-training-back-btn{display:flex;align-items:center;gap:4px;background:none;border:none;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:4px 0}
+.today-training-back-btn:active{color:var(--text)}
+.today-training-label{font-size:14px;font-weight:600;color:var(--text)}
+
+/* ── Today v2: Club stats card ──────────────────────────────────────────── */
+.today-club-stats-card{background:var(--surface);border:0.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.today-cs-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px}
+.today-cs-n{font-size:11px;color:var(--text3);font-weight:400}
+.today-cs-rows{display:flex;flex-direction:column;gap:0}
+.today-cs-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:0.5px solid var(--border)}
+.today-cs-row:last-child{border-bottom:none}
+.today-cs-lbl{font-size:12px;color:var(--text3)}
+.today-cs-val{font-size:13px;font-weight:500;color:var(--text);text-align:right}
+.today-cs-val-good{color:var(--green)}
+.today-cs-val-bad{color:var(--red)}
+.today-cs-link{margin-top:10px;width:100%;padding:8px;background:none;border:0.5px solid var(--border);border-radius:9px;color:var(--text2);font-size:13px;cursor:pointer;transition:all .15s}
+.today-cs-link:active{color:var(--text)}
+.today-cs-empty{font-size:13px;color:var(--text3);padding:8px 0}
+
 /* Empty / loading */
 .today-empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 24px 40px;gap:12px}
 .today-empty-icon{font-size:48px}

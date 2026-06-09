@@ -8,6 +8,7 @@ let _todayFocus    = 'overall';
 let _todayChipSessions = [];
 let _todayPuttSessions = [];
 let _todayPracticeContext = 'range';
+let _todayTrainingIssue   = null;   // set when user selects a club to train
 
 const TODAY_PRACTICE_CONTEXTS = [
   { key:'range',     label:'Range',     desc:'All practice options' },
@@ -210,6 +211,7 @@ function _renderFocusChips() {
 window.setTodayFocus = function(key) {
   if (!_todayAllShots) return;
   _todayFocus = key;
+  _todayTrainingIssue = null;       // exit training view when focus changes
   _renderTodayPage();
 };
 
@@ -287,21 +289,20 @@ function _renderTodayPage() {
     return;
   }
 
-  // Overall: read fixedIssues from localStorage (written by initTodayTab after fresh load)
-  const sevenDaysAgo = new Date(Date.now()-7*24*3600*1000).toISOString().slice(0,10);
-  let fi = [];
-  try {
-    const prev = JSON.parse(localStorage.getItem('today_prev_issues')||'[]');
-    fi = prev.filter(pi=>pi.date>=sevenDaysAgo && !_todayIssues.find(ci=>ci.key===pi.key)).slice(0,1);
-  } catch(e) {}
-
-  const health     = _buildHealthTiles(_todayAllShots, _todayChipSessions, _todayPuttSessions);
-  const improved   = _detectImprovement(_todayAllShots);
-  const regression = _detectRegression(_todayAllShots);
   const contextIssues = _filterIssuesForContext(_todayIssues);
 
+  // Overall: training sub-view when a club is selected
+  if (_todayTrainingIssue) {
+    requestAnimationFrame(() => {
+      el.innerHTML = chips + _renderTodayTrainingView(_todayTrainingIssue, _todayAllShots);
+    });
+    return;
+  }
+
+  const health = _buildHealthTiles(_todayAllShots, _todayChipSessions, _todayPuttSessions);
+
   requestAnimationFrame(() => {
-    el.innerHTML = chips + _renderPracticeContextBar() + _renderTodayContent(contextIssues, health, improved, regression, _todayAllShots.length, fi);
+    el.innerHTML = chips + _renderTodayContent(contextIssues, health, _todayAllShots.length);
   });
 }
 
@@ -1336,10 +1337,7 @@ function _detectRegression(allShots) {
 
 // ── Render ────────────────────────────────────────────────────────────────
 
-function _renderTodayContent(issues, health, improved, regression, shotCount, fixedIssues=[]) {
-  const mainIssue = issues[0] || null;
-  const watchItem = issues[1] || null;
-
+function _renderTodayContent(issues, health, shotCount) {
   if (shotCount < 15 && health.length === 0) {
     return `
       <div class="today-empty-state">
@@ -1353,35 +1351,12 @@ function _renderTodayContent(issues, health, improved, regression, shotCount, fi
       </div>`;
   }
 
-  const manualClubArg = mainIssue ? `'${mainIssue.club}'` : 'null';
+  const mainIssue = issues[0] || null;
   return `
-    ${_renderCoachSummaryCard(mainIssue, watchItem)}
-    <div id="today-plan-section">
-      ${mainIssue ? _renderTrainTodayCard(mainIssue) : ''}
-    </div>
-    <div class="today-section-label" style="margin-top:4px;">Quick log</div>
-    <div class="today-quick-log-row" style="margin-bottom:12px;">
-      <button class="today-log-btn" onclick="showPage('analysis')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        Statistics
-      </button>
-      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
-        Chipping
-      </button>
-      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-putt-form')?.click(),350)">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="2"/><path d="M19 12H7"/></svg>
-        Putting
-      </button>
-      <button class="today-log-btn" onclick="openManualLogPanel(${manualClubArg})">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Manual
-      </button>
-    </div>
-    <div class="today-pick-club-row">
-      <button class="today-pick-club-btn" onclick="openClubOverlay()">Pick a club to focus on →</button>
-    </div>
-    ${_renderWhatImprovedCard(improved, fixedIssues)}`;
+    ${health.length ? _renderHealthTiles(health) : ''}
+    ${_renderRangeSimToggle()}
+    ${_renderReasonCard(mainIssue)}
+    ${issues.length ? _renderTodayOptionsList(issues) : ''}`;
 }
 
 function _renderRecommendationOptions(issues, mainIssue) {
@@ -1918,6 +1893,249 @@ window._selectClubFromOverlay = function(ck) {
   if (typeof openClubInAnalysis === 'function') openClubInAnalysis(ck);
   else showPage('analysis');
 };
+
+// ── Today v2: Range/Sim toggle, reason card, options list, training view ──
+
+function _renderRangeSimToggle() {
+  const isSim = _todayPracticeContext === 'simulator';
+  return `
+    <div class="today-ctx-toggle">
+      <button class="today-ctx-btn${!isSim ? ' active' : ''}" onclick="setTodayPracticeContext('range')">Range</button>
+      <button class="today-ctx-btn${isSim ? ' active' : ''}" onclick="setTodayPracticeContext('simulator')">Sim</button>
+    </div>`;
+}
+
+function _renderReasonCard(issue) {
+  if (!issue) {
+    return `
+      <div class="today-reason-card today-reason-good">
+        <div class="today-reason-eyebrow">Coach</div>
+        <div class="today-reason-headline">Looking solid right now</div>
+        <div class="today-reason-body">No major issue stands out. Keep logging to build your baseline.</div>
+      </div>`;
+  }
+  const phase = _detectPracticePhase(issue);
+  const isTransfer = phase === 'transfer';
+  const phaseLabel = isTransfer ? 'Transfer phase' : 'Technical phase';
+  const confCls = issue.conf < 0.4 ? 'hint' : issue.conf < 0.7 ? 'likely' : 'confirmed';
+  return `
+    <div class="today-reason-card">
+      <div class="today-reason-top">
+        <span class="today-reason-eyebrow">Train this next</span>
+        <span class="today-reason-conf today-reason-conf-${confCls}">${issue.confLabel || ''}</span>
+      </div>
+      <div class="today-reason-headline">${escapeHtml(issue.simple)}</div>
+      <div class="today-reason-because">${escapeHtml(issue.deeper || issue.support || '')}</div>
+      <div class="today-reason-meta">
+        <span class="today-reason-phase today-reason-phase-${phase}">${phaseLabel}</span>
+        ${issue.n ? `<span class="today-reason-shots">${issue.n} shots</span>` : ''}
+      </div>
+    </div>`;
+}
+
+function _computeClubMiniStats(ck) {
+  const CA = window.clubAliases;
+  if (!CA || !_todayAllShots.length) return null;
+  const shots = _todayAllShots.filter(s => CA.shotMatchesClub(s, ck) && !s._isManual).slice(0, 40);
+  if (!shots.length) return null;
+
+  const sides = shots.map(s => s.side).filter(v => v != null);
+  const leftN     = sides.filter(v => v < -7).length;
+  const rightN    = sides.filter(v => v > 7).length;
+  const straightN = sides.length - leftN - rightN;
+
+  const carries = shots.map(s => s.carry).filter(Boolean);
+  const avgCarry = carries.length ? Math.round(carries.reduce((a,b)=>a+b,0)/carries.length) : null;
+  let carrySD = null;
+  if (carries.length >= 3 && avgCarry != null) {
+    carrySD = Math.round(Math.sqrt(carries.reduce((a,b)=>a+(b-avgCarry)**2,0)/carries.length));
+  }
+
+  const smashes = shots.map(s => s.smash_factor).filter(v => v != null);
+  const mishitPct = smashes.length >= 3
+    ? Math.round(smashes.filter(v => v < 1.30).length / smashes.length * 100)
+    : null;
+
+  return { leftN, straightN, rightN, totalSides: sides.length, avgCarry, carrySD, mishitPct, n: shots.length };
+}
+
+function _renderTodayOptionsList(issues) {
+  const top5 = issues.slice(0, 5);
+  if (!top5.length) return '';
+  return `
+    <div class="today-section-label" style="margin:12px 0 6px;">Options</div>
+    <div class="today-opts-list">
+      ${top5.map((issue, idx) => _renderTodayOptionCard(issue, idx + 1)).join('')}
+    </div>`;
+}
+
+function _renderTodayOptionCard(issue, rank) {
+  const stats = _computeClubMiniStats(issue.club);
+
+  let sideHtml = '';
+  if (stats && stats.totalSides >= 5) {
+    sideHtml = `<span class="today-opt-pill">` +
+      `<span class="today-opt-L">L${stats.leftN}</span>` +
+      ` <span class="today-opt-S">S${stats.straightN}</span>` +
+      ` <span class="today-opt-R">R${stats.rightN}</span>` +
+      `</span>`;
+  }
+  const carryHtml = (stats && stats.avgCarry != null)
+    ? `<span class="today-opt-pill">${stats.avgCarry}m${stats.carrySD != null ? ' ±'+stats.carrySD : ''}</span>`
+    : '';
+  let mishitHtml = '';
+  if (stats && stats.mishitPct != null) {
+    const cls = stats.mishitPct > 40 ? ' today-opt-pill-bad' : stats.mishitPct > 25 ? ' today-opt-pill-warn' : '';
+    mishitHtml = `<span class="today-opt-pill${cls}">${stats.mishitPct}% mishit</span>`;
+  }
+
+  const ckSafe  = issue.club.replace(/'/g, '');
+  const keySafe = issue.key.replace(/'/g, '');
+
+  return `
+    <div class="today-opt-card${rank === 1 ? ' today-opt-top' : ''}">
+      <div class="today-opt-head">
+        <div class="today-opt-rank">${rank}</div>
+        <div class="today-opt-info">
+          <div class="today-opt-club">${escapeHtml(issue.clubName)}</div>
+          <div class="today-opt-issue">${escapeHtml(issue.simple)}</div>
+        </div>
+        <button class="today-opt-i-btn" title="View in Statistics" onclick="openClubInAnalysis('${ckSafe}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </button>
+      </div>
+      ${(sideHtml || carryHtml || mishitHtml) ? `<div class="today-opt-data">${sideHtml}${carryHtml}${mishitHtml}</div>` : ''}
+      <button class="today-opt-train-btn" onclick="selectTodayTraining('${keySafe}')">Train this →</button>
+    </div>`;
+}
+
+window.selectTodayTraining = function(issueKey) {
+  // Check filtered issues first, then full list
+  const all = [..._filterIssuesForContext(_todayIssues), ..._todayIssues];
+  const issue = all.find(i => i.key === issueKey);
+  if (!issue) return;
+  _todayTrainingIssue = issue;
+  _renderTodayPage();
+};
+
+window.exitTodayTraining = function() {
+  _todayTrainingIssue = null;
+  _renderTodayPage();
+};
+
+function _renderTodayTrainingView(issue, allShots) {
+  return `
+    <div class="today-training-bar">
+      <button class="today-training-back-btn" onclick="exitTodayTraining()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Today
+      </button>
+      <span class="today-training-label">${escapeHtml(issue.clubName)}</span>
+    </div>
+    <div id="today-plan-section">
+      ${_renderTrainTodayCard(issue)}
+    </div>
+    ${_renderClubStatsForTraining(issue, allShots)}
+    <div class="today-section-label" style="margin-top:12px;">Quick log</div>
+    <div class="today-quick-log-row" style="margin-bottom:20px;">
+      <button class="today-log-btn" onclick="showPage('analysis')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Statistics
+      </button>
+      <button class="today-log-btn" onclick="showPage('stats');setTimeout(()=>document.getElementById('sub-head-chip-form')?.click(),350)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
+        Chipping
+      </button>
+      <button class="today-log-btn" onclick="openManualLogPanel('${issue.club.replace(/'/g,'')}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Manual
+      </button>
+    </div>`;
+}
+
+function _renderClubStatsForTraining(issue, allShots) {
+  const CA = window.clubAliases;
+  if (!CA) return '';
+  const shots = allShots.filter(s => CA.shotMatchesClub(s, issue.club) && !s._isManual).slice(0, 40);
+  if (shots.length < 5) return `
+    <div class="today-club-stats-card">
+      <div class="today-cs-title">${escapeHtml(issue.clubName)} · Club data</div>
+      <div class="today-cs-empty">Not enough shots yet to show club stats.</div>
+    </div>`;
+
+  const carries  = shots.map(s => s.carry).filter(Boolean);
+  const sides    = shots.map(s => s.side).filter(v => v != null);
+  const faces    = shots.map(s => s.face_angle).filter(v => v != null);
+  const paths    = shots.map(s => s.club_path).filter(v => v != null);
+  const ftps     = shots.map(s => s.face_to_path).filter(v => v != null);
+  const smashes  = shots.map(s => s.smash_factor).filter(v => v != null);
+  const attacks  = shots.map(s => s.attack_angle).filter(v => v != null);
+
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  const sdv = arr => { if(arr.length<2)return null; const m=avg(arr); return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length); };
+  const r0  = v => v==null?'—':Math.round(v).toString();
+  const r1  = v => v==null?'—':v.toFixed(1);
+  const sgn = v => v==null?'—':(v>=0?'+':'')+v.toFixed(1);
+
+  const avgCarry=avg(carries), sdCarry=sdv(carries);
+  const avgSide=avg(sides);
+  const avgFace=avg(faces), sdFace=sdv(faces);
+  const avgPath=avg(paths);
+  const avgFTP=avg(ftps);
+  const avgSmash=avg(smashes);
+  const avgAttack=avg(attacks);
+
+  const leftN    = sides.filter(v=>v<-7).length;
+  const rightN   = sides.filter(v=>v>7).length;
+  const strtN    = sides.length - leftN - rightN;
+
+  let rows = '';
+
+  if (avgCarry != null) {
+    const minC = Math.round(Math.min(...carries));
+    const maxC = Math.round(Math.max(...carries));
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Carry avg</span><span class="today-cs-val">${r0(avgCarry)}m${sdCarry!=null?' ±'+r0(sdCarry)+'m':''}</span></div>`;
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Carry range</span><span class="today-cs-val">${minC}–${maxC}m</span></div>`;
+  }
+
+  if (sides.length >= 5) {
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Direction</span><span class="today-cs-val"><span class="today-opt-L">L${leftN}</span> <span class="today-opt-S">S${strtN}</span> <span class="today-opt-R">R${rightN}</span>${avgSide!=null?' · avg '+sgn(avgSide)+'m':''}</span></div>`;
+  }
+
+  if (faces.length >= 5) {
+    const faceCls = Math.abs(avgFace||0)>2 ? 'today-cs-val-bad' : 'today-cs-val-good';
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Face angle</span><span class="today-cs-val ${faceCls}">${sgn(avgFace)}°${sdFace!=null?' ±'+r1(sdFace)+'°':''}</span></div>`;
+  }
+  if (ftps.length >= 5) {
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Face-to-path</span><span class="today-cs-val">${sgn(avgFTP)}°</span></div>`;
+  }
+  if (paths.length >= 5) {
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Club path</span><span class="today-cs-val">${sgn(avgPath)}°</span></div>`;
+  }
+  if (avgSmash != null) {
+    const tgt = issue.club==='driver' ? 1.42 : 1.28;
+    const sCls = avgSmash < tgt-0.03 ? 'today-cs-val-bad' : avgSmash >= tgt ? 'today-cs-val-good' : '';
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Smash factor</span><span class="today-cs-val ${sCls}">${r1(avgSmash)}</span></div>`;
+  }
+  if (avgAttack != null && ['6','7','8','9','pw'].includes(issue.club)) {
+    const aCls = (avgAttack||0) > -2 ? 'today-cs-val-bad' : 'today-cs-val-good';
+    rows += `<div class="today-cs-row"><span class="today-cs-lbl">Attack angle</span><span class="today-cs-val ${aCls}">${sgn(avgAttack)}°</span></div>`;
+  }
+
+  const ckSafe = issue.club.replace(/'/g,'');
+  return `
+    <div class="today-club-stats-card">
+      <div class="today-cs-title">${escapeHtml(issue.clubName)} · Club data <span class="today-cs-n">(${shots.length} shots)</span></div>
+      <div class="today-cs-rows">${rows}</div>
+      <button class="today-cs-link" onclick="openClubInAnalysis('${ckSafe}')">
+        Full data in Statistics →
+      </button>
+    </div>`;
+}
 
 // ── Pre-practice mode (Feature 5) ────────────────────────────────────────
 
