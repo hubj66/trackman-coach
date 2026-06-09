@@ -1406,6 +1406,11 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
 .profile-msg.error{color:var(--red)}
 
 /* ── Round tracking ────────────────────────────────────────────────────────── */
+.hcp-chip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--text2);padding:8px 0 4px;border-bottom:0.5px solid var(--border);margin-bottom:8px}
+.hcp-chip strong{color:var(--text);font-size:15px}
+.hcp-chip-date{color:var(--text3);font-size:11px;font-family:var(--mono)}
+.hcp-chip-empty{color:var(--text3);font-style:italic}
+.hcp-chip-link{background:none;border:none;color:var(--accent);font-size:12px;font-family:var(--sans);cursor:pointer;padding:0;font-weight:600}
 .round-kpi-band{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;padding:10px 0 12px;border-bottom:0.5px solid var(--border);margin-bottom:8px}
 .round-kpi-band::-webkit-scrollbar{display:none}
 .round-kpi-item{flex:1;text-align:center;min-width:70px}

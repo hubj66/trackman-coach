@@ -602,7 +602,8 @@ function loadLastSessionIntoCoach() {
 }
 
 // ── Page navigation ────────────────────────────────────────────────────────
-const ALL_PAGES = ['today','coach','stats','clubs','analysis'];
+// coach and analysis kept in ALL_PAGES so showPage() hides them when navigating away
+const ALL_PAGES = ['today','rounds','stats','clubs','profile','coach','analysis'];
 
 function showPage(page) {
   ALL_PAGES.forEach(id => {
@@ -626,6 +627,12 @@ function showPage(page) {
     Object.keys(prevAngles).forEach(k => delete prevAngles[k]);
     render();
     loadLastSessionBanner();
+  }
+  if (page === 'rounds' && typeof window.loadRoundsPage === 'function') {
+    window.loadRoundsPage();
+  }
+  if (page === 'profile' && typeof window.loadProfilePage === 'function') {
+    window.loadProfilePage();
   }
   if ((page==='stats'||page==='clubs') && typeof window.loadStatsPage==='function') {
     window.loadStatsPage();

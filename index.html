@@ -54,21 +54,21 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Today
       </button>
-      <button class="top-nav-btn" id="nav-coach-btn"    onclick="showPage('coach')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        Coach
+      <button class="top-nav-btn" id="nav-rounds-btn"   onclick="showPage('rounds')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        Rounds
       </button>
       <button class="top-nav-btn" id="nav-stats-btn"    onclick="showPage('stats')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg>
-        Logbook
+        Practice
       </button>
       <button class="top-nav-btn" id="nav-clubs-btn"    onclick="showPage('clubs')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
         Bag
       </button>
-      <button class="top-nav-btn" id="nav-analysis-btn" onclick="showPage('analysis')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        TrackMan
+      <button class="top-nav-btn" id="nav-profile-btn"  onclick="showPage('profile')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profile
       </button>
     </nav>
   </div>
@@ -220,7 +220,7 @@
   <!-- ══ STATS (LOGBOOK) ══════════════════════════════════════════════════════ -->
   <div id="page-stats" class="page-section" style="display:none;">
     <div class="main">
-      <div class="page-intro">Your logbook</div>
+      <div class="page-intro">Practice</div>
 
       <!-- Quick-add bar -->
       <div class="logbook-quick-add">
@@ -228,7 +228,7 @@
         <button class="lqa-btn" onclick="document.getElementById('acc-stats-putting').classList.add('open');openLogForm('putt-form');setTimeout(()=>document.getElementById('sub-head-putt-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Putting</button>
         <button class="lqa-btn" onclick="document.getElementById('acc-stats-range').classList.add('open');openLogForm('range-form');setTimeout(()=>document.getElementById('sub-head-range-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Range</button>
         <button class="lqa-btn" onclick="document.getElementById('acc-stats-course').classList.add('open');openLogForm('course-form');setTimeout(()=>document.getElementById('sub-head-course-form')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Course note</button>
-        <button class="lqa-btn" onclick="document.getElementById('acc-stats-rounds').classList.add('open');setTimeout(()=>document.getElementById('acc-stats-rounds')?.scrollIntoView({behavior:'smooth',block:'nearest'}),120)">+ Round</button>
+        <button class="lqa-btn" onclick="showPage('analysis')">TrackMan →</button>
       </div>
 
       <!-- Tournament countdown -->
@@ -253,6 +253,10 @@
   <div class="acc-body">
     <div class="stats-section-pad">
       <div id="stats-trackman-summary"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="lqa-btn" onclick="showPage('analysis')" style="flex:1;">Full analysis →</button>
+        <button class="lqa-btn" onclick="showPage('coach')" style="flex:1;">Coach →</button>
+      </div>
     </div>
   </div>
 </div>
@@ -421,22 +425,34 @@
         </div>
       </div>
 
-      <!-- Rounds accordion -->
-      <div class="acc" id="acc-stats-rounds">
-        <div class="acc-head" onclick="toggleAccById('acc-stats-rounds')">
+    </div>
+  </div>
+
+  <!-- ══ ROUNDS ═══════════════════════════════════════════════════════════════ -->
+  <div id="page-rounds" class="page-section" style="display:none;">
+    <div class="main">
+      <div class="page-intro">Rounds</div>
+
+      <!-- KPI strip — filled by loadRoundsSummary() -->
+      <div id="stats-rounds-summary"></div>
+      <!-- Handicap chip — filled by loadRoundsPage() -->
+      <div id="rounds-handicap-chip"></div>
+
+      <!-- Import from GolfPad -->
+      <div class="acc" id="acc-rounds-import">
+        <div class="acc-head" onclick="toggleAccById('acc-rounds-import')">
           <div class="acc-icon">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
             </svg>
           </div>
-          <div class="acc-title">Rounds</div>
-          <div class="acc-subtitle">On-course shot data</div>
-          <button class="acc-info-btn" onclick="event.stopPropagation();showToast('Scored rounds imported from GolfPad: hole-by-hole strokes, putts and GIR stats')" aria-label="About">ⓘ</button>
+          <div class="acc-title">Import from GolfPad</div>
+          <div class="acc-subtitle">Paste tab-separated export</div>
           <div class="acc-arrow">›</div>
         </div>
         <div class="acc-body">
           <div class="stats-section-pad">
-            <div id="stats-rounds-summary"></div>
             <div class="log-sub-head" id="sub-head-rounds-import" onclick="toggleLogForm('rounds-import')">
               <span class="log-sub-label">+ Import from GolfPad</span>
               <span class="log-sub-arrow">›</span>
@@ -461,6 +477,25 @@
                 <div id="rounds-import-msg" class="alias-msg"></div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enter round manually -->
+      <div class="acc" id="acc-rounds-manual">
+        <div class="acc-head" onclick="toggleAccById('acc-rounds-manual')">
+          <div class="acc-icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </div>
+          <div class="acc-title">Enter round manually</div>
+          <div class="acc-subtitle">Hole by hole</div>
+          <div class="acc-arrow">›</div>
+        </div>
+        <div class="acc-body">
+          <div class="stats-section-pad">
             <div class="log-sub-head" id="sub-head-rounds-manual" onclick="toggleLogForm('rounds-manual')">
               <span class="log-sub-label">+ Enter round manually</span>
               <span class="log-sub-arrow">›</span>
@@ -489,11 +524,19 @@
               <div id="manual-round-hole-form" style="display:none;"></div>
               <div id="manual-round-msg" class="alias-msg" style="padding:0 12px 8px;"></div>
             </div>
-            <div id="stats-rounds-list"></div>
           </div>
         </div>
       </div>
 
+      <!-- Rounds list — filled by loadRoundsSummary() -->
+      <div id="stats-rounds-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ PROFILE ════════════════════════════════════════════════════════════════ -->
+  <div id="page-profile" class="page-section" style="display:none;">
+    <div class="main" id="profile-page-content">
+      <div class="stats-loading">Loading…</div>
     </div>
   </div>
 
@@ -533,6 +576,11 @@
       <span class="more-panel-title">More</span>
     </div>
     <div id="more-list" class="more-list">
+      <button class="more-item" onclick="showPage('coach');toggleMorePanel()">
+        <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
+        <span class="more-item-label">Coach</span>
+        <span class="more-item-arrow">›</span>
+      </button>
       <button class="more-item" onclick="openMoreSection('progress')">
         <span class="more-item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
         <span class="more-item-label">Progress</span>

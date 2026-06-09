@@ -247,4 +247,26 @@ ALTER TABLE rounds ADD COLUMN IF NOT EXISTS total_par    integer;
 
 CREATE INDEX IF NOT EXISTS idx_rounds_user_date     ON rounds      (user_id, round_date DESC);
 CREATE INDEX IF NOT EXISTS idx_round_shots_round    ON round_shots (round_id);
+
+-- ── Phase 10: Handicap history ─────────────────────────────────────────────────
+-- Stores each handicap entry as a timestamped row so you can track changes over time.
+
+CREATE TABLE IF NOT EXISTS handicap_history (
+  id            uuid         DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id       uuid         NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  handicap      numeric(4,1) NOT NULL,
+  recorded_at   date         NOT NULL,
+  notes         text,
+  created_at    timestamptz  DEFAULT now()
+);
+
+ALTER TABLE handicap_history ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own_handicap_history" ON handicap_history;
+CREATE POLICY "own_handicap_history" ON handicap_history
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_handicap_history_user_date
+  ON handicap_history (user_id, recorded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_round_shots_user     ON round_shots (user_id, hole);

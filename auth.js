@@ -90,7 +90,7 @@ async function loadStatsPage(){
     loadClubsOverview(),
     loadStatsGlance(),
     loadPracticeSessions(),
-    loadRoundsSummary()
+    // loadRoundsSummary() removed — Rounds has its own page now
   ]);
 }
 
@@ -2047,6 +2047,200 @@ window.startManualRound=function(){
 window.loadOneState=loadOneState;window.deleteOneState=deleteOneState;
 window.loadStatsPage=loadStatsPage;
 window.startEditChippingSession=startEditChippingSession;window.deleteChippingSession=deleteChippingSession;window.cancelEditChippingSession=cancelEditChippingSession;
+// ══ Rounds page ═══════════════════════════════════════════════════════════════
+
+async function loadRoundsPage(){
+  const{data:sd,error:se}=await sb.auth.getSession();
+  if(se||!sd.session?.user){
+    const el=document.getElementById('stats-rounds-summary');
+    if(el)el.innerHTML='<div class="stats-login-note">Log in to see rounds.</div>';
+    return;
+  }
+  _currentUserId=sd.session.user.id;
+  await loadRoundsSummary();
+
+  // Show current handicap chip
+  const chipEl=document.getElementById('rounds-handicap-chip');
+  if(chipEl){
+    try{
+      const{data}=await sb.from('handicap_history').select('handicap,recorded_at').eq('user_id',_currentUserId).order('recorded_at',{ascending:false}).limit(1);
+      const h=data?.[0];
+      chipEl.innerHTML=h
+        ?`<div class="hcp-chip">Handicap <strong>${h.handicap}</strong> <span class="hcp-chip-date">as of ${h.recorded_at}</span> <button class="hcp-chip-link" onclick="showPage('profile')">Update →</button></div>`
+        :`<div class="hcp-chip hcp-chip-empty">No handicap logged · <button class="hcp-chip-link" onclick="showPage('profile')">Add in Profile →</button></div>`;
+    }catch{chipEl.innerHTML='';}
+  }
+}
+
+// ══ Profile page ══════════════════════════════════════════════════════════════
+
+async function loadProfilePage(){
+  const el=document.getElementById('profile-page-content');
+  if(!el)return;
+  const{data:sd,error:se}=await sb.auth.getSession();
+  if(se||!sd.session?.user){
+    el.innerHTML='<div class="page-intro">Profile</div><div class="stats-login-note">Log in to view your profile.</div>';
+    return;
+  }
+  _currentUserId=sd.session.user.id;
+  el.innerHTML='<div class="page-intro">Profile</div><div class="stats-loading">Loading…</div>';
+
+  let profileData=null,profileAvail=true;
+  try{
+    const{data,error}=await sb.from('profiles').select('display_name,dominant_hand,main_goal').eq('user_id',_currentUserId).maybeSingle();
+    if(error&&error.code!=='PGRST116')profileAvail=false;
+    else profileData=data;
+  }catch{profileAvail=false;}
+
+  let latestHcp=null,hcpAvail=true;
+  try{
+    const{data:hd,error:he}=await sb.from('handicap_history').select('handicap,recorded_at').eq('user_id',_currentUserId).order('recorded_at',{ascending:false}).limit(1);
+    if(he)hcpAvail=false;
+    else latestHcp=hd?.[0]??null;
+  }catch{hcpAvail=false;}
+
+  const hcpSubtitle=hcpAvail?(latestHcp?`Current: ${latestHcp.handicap}`:'Not set yet'):'Run migration to enable';
+
+  el.innerHTML=`<div class="page-intro">Profile</div>
+    ${profileAvail?`<div class="stats-form-card" style="margin-bottom:16px;">
+      <div class="profile-field">
+        <label class="profile-label">Display name</label>
+        <input id="profile-name" type="text" placeholder="e.g. Joel" value="${escapeHtml(profileData?.display_name||'')}" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="profile-field">
+        <label class="profile-label">Dominant hand</label>
+        <select id="profile-hand">
+          <option value="right"${(profileData?.dominant_hand||'right')==='right'?' selected':''}>Right</option>
+          <option value="left"${profileData?.dominant_hand==='left'?' selected':''}>Left</option>
+        </select>
+      </div>
+      <div class="profile-field">
+        <label class="profile-label">Main goal</label>
+        <input id="profile-goal" type="text" placeholder="e.g. Break 90" value="${escapeHtml(profileData?.main_goal||'')}" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="form-actions"><button id="save-profile-page-btn" onclick="saveProfilePage()">Save profile</button></div>
+      <div id="profile-page-msg" class="alias-msg"></div>
+    </div>`
+    :'<div class="stats-login-note">Run the latest migration to enable profile settings.</div>'}
+
+    <div class="acc" id="acc-handicap-history">
+      <div class="acc-head" onclick="toggleAccById('acc-handicap-history')">
+        <div class="acc-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+        <div class="acc-title">Handicap</div>
+        <div class="acc-subtitle">${hcpSubtitle}</div>
+        <div class="acc-arrow">›</div>
+      </div>
+      <div class="acc-body">
+        <div class="stats-section-pad">
+          ${hcpAvail?`
+          <div class="log-sub-head" id="sub-head-hcp-form" onclick="toggleLogForm('hcp-form')">
+            <span class="log-sub-label">+ Log new handicap</span>
+            <span class="log-sub-arrow">›</span>
+          </div>
+          <div class="log-sub-body" id="sub-body-hcp-form">
+            <div class="stats-form-card" style="margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
+              <div class="form-grid">
+                <input id="hcp-date" type="date" value="${new Date().toISOString().slice(0,10)}">
+                <input id="hcp-value" type="number" step="0.1" min="0" max="54" placeholder="Handicap (e.g. 26.5)" inputmode="decimal">
+                <input id="hcp-notes" type="text" class="form-span-2" placeholder="Notes (optional)" autocorrect="off" spellcheck="false">
+              </div>
+              <div class="form-actions"><button id="add-hcp-btn" onclick="addHandicapEntry()">Log handicap</button></div>
+              <div id="hcp-form-msg" class="alias-msg"></div>
+            </div>
+          </div>
+          <div id="handicap-history-list"><div class="stats-loading">Loading…</div></div>
+          `:'<div class="more-placeholder">Run the latest migration to enable handicap history.<br><code style="font-size:11px;color:var(--text3)">migration.sql → Phase 10 block</code></div>'}
+        </div>
+      </div>
+    </div>`;
+
+  if(hcpAvail)await loadHandicapHistoryList();
+}
+
+async function loadHandicapHistoryList(){
+  const el=document.getElementById('handicap-history-list');
+  if(!el||!_currentUserId)return;
+  try{
+    const{data,error}=await sb.from('handicap_history').select('id,handicap,recorded_at,notes').eq('user_id',_currentUserId).order('recorded_at',{ascending:false}).limit(20);
+    if(error||!data?.length){
+      el.innerHTML='<div class="stats-empty-small">No handicap entries yet. Log your first above.</div>';
+      return;
+    }
+    el.innerHTML=data.map((h,i)=>{
+      const prev=data[i+1];
+      const delta=prev?h.handicap-prev.handicap:null;
+      const deltaStr=delta===null?'':delta===0?'':delta>0?` <span style="color:var(--amber)">▲${delta.toFixed(1)}</span>`:`<span style="color:var(--green)">▼${Math.abs(delta).toFixed(1)}</span>`;
+      return`<div class="round-row">
+        <div class="round-row-head" style="cursor:default;">
+          <div class="round-row-info">
+            <span class="round-date">${escapeHtml(h.recorded_at)}</span>
+            ${h.notes?`<span class="round-course">${escapeHtml(h.notes)}</span>`:''}
+          </div>
+          <div class="round-row-kpis">
+            <span class="round-score">${h.handicap}${deltaStr}</span>
+          </div>
+          <button onclick="deleteHandicapEntry('${escapeHtml(h.id)}')" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px 8px;line-height:1;" title="Delete">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML='<div class="stats-error">Failed to load handicap history.</div>';
+  }
+}
+
+async function addHandicapEntry(){
+  if(!_currentUserId)return;
+  const dateVal=document.getElementById('hcp-date')?.value;
+  const hcpVal=document.getElementById('hcp-value')?.value;
+  const notes=document.getElementById('hcp-notes')?.value?.trim()||null;
+  const msgEl=document.getElementById('hcp-form-msg');
+  if(!dateVal||!hcpVal){
+    if(msgEl){msgEl.textContent='Enter date and handicap.';msgEl.classList.add('error');}
+    return;
+  }
+  const handicap=parseFloat(hcpVal);
+  if(isNaN(handicap)||handicap<0||handicap>54){
+    if(msgEl){msgEl.textContent='Handicap must be 0–54.';msgEl.classList.add('error');}
+    return;
+  }
+  const{error}=await sb.from('handicap_history').insert({user_id:_currentUserId,handicap,recorded_at:dateVal,notes});
+  if(error){
+    if(msgEl){msgEl.textContent='Error: '+error.message;msgEl.classList.add('error');}
+    return;
+  }
+  if(msgEl){msgEl.textContent='Logged ✓';msgEl.classList.remove('error');setTimeout(()=>{if(msgEl)msgEl.textContent='';},2000);}
+  const hv=document.getElementById('hcp-value');if(hv)hv.value='';
+  const hn=document.getElementById('hcp-notes');if(hn)hn.value='';
+  await loadHandicapHistoryList();
+  // Reload page so subtitle updates
+  await loadProfilePage();
+}
+
+async function deleteHandicapEntry(id){
+  if(!_currentUserId||!confirm('Delete this handicap entry?'))return;
+  const{error}=await sb.from('handicap_history').delete().eq('id',id).eq('user_id',_currentUserId);
+  if(error){if(typeof showToast==='function')showToast('Error: '+error.message);return;}
+  await loadHandicapHistoryList();
+  await loadProfilePage();
+}
+
+async function saveProfilePage(){
+  if(!_currentUserId)return;
+  const btn=document.getElementById('save-profile-page-btn');
+  const msgEl=document.getElementById('profile-page-msg');
+  if(btn)btn.disabled=true;
+  const display_name=document.getElementById('profile-name')?.value?.trim()||null;
+  const dominant_hand=document.getElementById('profile-hand')?.value||'right';
+  const main_goal=document.getElementById('profile-goal')?.value?.trim()||null;
+  const{error}=await sb.from('profiles').upsert({user_id:_currentUserId,display_name,dominant_hand,main_goal,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  if(btn)btn.disabled=false;
+  if(error){
+    if(msgEl){msgEl.textContent='Error: '+error.message;msgEl.classList.add('error');}
+  }else{
+    if(msgEl){msgEl.textContent='Saved ✓';msgEl.classList.remove('error');setTimeout(()=>{if(msgEl)msgEl.textContent='';},2500);}
+  }
+}
+
 window.startEditPuttingSession=startEditPuttingSession;window.deletePuttingSession=deletePuttingSession;window.cancelEditPuttingSession=cancelEditPuttingSession;
 window.openClubInAnalysis=openClubInAnalysis;
 window.addRangeSession=addRangeSession;window.addCourseNote=addCourseNote;
@@ -2054,6 +2248,11 @@ window.loadProgressSection=loadProgressSection;
 window.loadProfileSection=loadProfileSection;window.saveProfile=saveProfile;
 window.loadRoundsSummary=loadRoundsSummary;
 window.previewRoundImport=previewRoundImport;window.confirmRoundImport=confirmRoundImport;
+window.loadRoundsPage=loadRoundsPage;
+window.loadProfilePage=loadProfilePage;
+window.addHandicapEntry=addHandicapEntry;
+window.deleteHandicapEntry=deleteHandicapEntry;
+window.saveProfilePage=saveProfilePage;
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const b=(id,fn)=>{const e=document.getElementById(id);if(e)e.addEventListener('click',fn);};
@@ -2064,7 +2263,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 
   // Auto-fill today's date on forms
   const today=new Date().toISOString().slice(0,10);
-  ['chip-date','putt-date','range-date','course-date'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=today;});
+  ['chip-date','putt-date','range-date','course-date','manual-round-date'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=today;});
 
   // Live bucket counter & R12 watchers
   ['chip-in1','chip-in2','chip-in3','chip-out3','chip-attempts'].forEach(id=>{
