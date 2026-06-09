@@ -1757,7 +1757,14 @@ function _mrRender(){
     return`<span onclick="_mrGoTo(${n})" style="display:inline-block;width:${isCur?9:7}px;height:${isCur?9:7}px;border-radius:50%;margin:0 3px;cursor:pointer;background:${bg};box-shadow:${shadow};transition:all .15s;vertical-align:middle;"></span>`;
   }).join('');
   el.innerHTML=`<div id="mr-hole-card" class="mr-card" style="touch-action:pan-y;">
-    <div class="mr-context">${_mr.roundDate} · ${escapeHtml(_mr.courseName)}</div>
+    <div class="mr-context" style="display:flex;gap:6px;padding:8px 12px 0;align-items:center;flex-wrap:wrap;">
+      <input type="date" value="${_mr.roundDate||''}"
+        style="font-size:11px;color:var(--text3);background:transparent;border:none;border-bottom:0.5px solid var(--border2);padding:2px 4px;"
+        onchange="if(_mr)_mr.roundDate=this.value">
+      <input type="text" value="${escapeHtml(_mr.courseName||'')}" placeholder="Course name"
+        style="font-size:11px;color:var(--text3);background:transparent;border:none;border-bottom:0.5px solid var(--border2);padding:2px 4px;flex:1;min-width:80px;"
+        onchange="if(_mr)_mr.courseName=this.value">
+    </div>
     <div class="mr-nav">
       <button class="mr-nav-btn${_mr.cur<=1?' dim':''}" onclick="_mrNav(-1)">‹</button>
       <div class="mr-hole-label">
