@@ -1950,7 +1950,7 @@ window.editRoundById=async function(roundId){
     shots.forEach(s=>{
       if(!holesMap[s.hole])holesMap[s.hole]={par:s.par??null,hcp:s.hcp??null,shots:[]};
       holesMap[s.hole].shots.push({
-        club:s.club||'',distance_m:s.distance_m??null,
+        club:window.normaliseRoundClub(s.club||'')||'',distance_m:s.distance_m??null,
         lie:s.lie||'',miss_direction:s.miss_direction||'',comment:s.comment||'',
       });
     });
