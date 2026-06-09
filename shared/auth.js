@@ -916,7 +916,7 @@ async function loadClubsOverview(){
   if(am&&typeof renderAliasManager==='function')renderAliasManager();
 }
 
-function openClubInAnalysis(k){if(!k)return;showPage('analysis');if(typeof setAnalysisClub==='function')setAnalysisClub(k);}
+function openClubInAnalysis(k){if(!k)return;window.__pendingAnalysisClub=k;showPage('analysis');}
 
 // ── Chipping CRUD ───────────────────────────────────────────────────────────
 async function addChippingSession(){

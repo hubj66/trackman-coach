@@ -12,11 +12,11 @@ function loadScript(path) {
   global.eval(fs.readFileSync(path, 'utf8'));
 }
 
-loadScript('utils.js');
-loadScript('golfLogic.js');
-loadScript('parsers.js');
-loadScript('roundLogic.js');
-loadScript('rounds.js');
+loadScript('core/utils.js');
+loadScript('core/golfLogic.js');
+loadScript('rounds/parsers.js');
+loadScript('rounds/roundLogic.js');
+loadScript('rounds/rounds.js');
 
 assert.equal(escapeHtml('<b>x</b>'), '&lt;b&gt;x&lt;/b&gt;');
 assert.equal(sum([1, '2', null, 'bad']), 3);

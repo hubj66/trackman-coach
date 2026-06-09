@@ -136,6 +136,11 @@ async function loadAnalysis() {
 
   if (error) { el.innerHTML = `<div class="analysis-empty">Error: ${escapeHtml(error.message)}</div>`; return; }
   _allFetchedShots = data || [];
+  if (window.__pendingAnalysisClub) {
+    analysisClub = window.__pendingAnalysisClub;
+    window.__pendingAnalysisClub = null;
+    buildAnalysisClubTabs();
+  }
   analysisShots = _allFetchedShots.filter(s => CA().shotMatchesClub(s, analysisClub));
   renderAnalysis(analysisShots);
 }
