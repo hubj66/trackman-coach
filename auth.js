@@ -566,7 +566,8 @@ function renderBagCards(){
     const ocMishitCount=mishitThreshold!=null?ocDists.length-ocCleanDists.length:null;
     const ocAvgDist=ocCleanDists.length>=2?Math.round(ocCleanDists.reduce((a,b)=>a+b,0)/ocCleanDists.length):(ocDists.length>=3?Math.round(ocDists.reduce((a,b)=>a+b,0)/ocDists.length):null);
     const ocMishitRate=(ocMishitCount!=null&&ocDists.length>=3)?Math.round(ocMishitCount/ocDists.length*100):null;
-    const ocGap=ocAvgDist!=null&&avgC!=null?ocAvgDist-Math.round(avgC):null;
+    // Compare course total vs TrackMan total (not carry) — both are full distance
+    const ocGap=ocAvgDist!=null&&avgT!=null?ocAvgDist-Math.round(avgT):null;
     const ocDirShots=ocShots.filter(s=>s.miss_direction);
     const ocLeft=ocDirShots.filter(s=>s.miss_direction?.includes('left')).length;
     const ocRight=ocDirShots.filter(s=>s.miss_direction?.includes('right')).length;
@@ -613,7 +614,7 @@ ${expanded?`<div class="bag-card-body">
       ${playTotal!=null?`<div class="bag-stat-row bag-stat-play"><span>Play number</span><strong>${playTotal}m ${escapeHtml(playSource)}</strong></div>`:''}
       ${carrySD?`<div class="bag-stat-row"><span>Spread ±</span><strong>${fmt(carrySD)}m</strong></div>`:''}
       ${(carryMin!=null&&carryMax!=null&&carryMin!==carryMax)?`<div class="bag-stat-row"><span>Typical range</span><strong>${carryMin}–${carryMax}m</strong></div>`:''}
-      ${ocAvgDist!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>Course total avg</span><strong>${ocAvgDist}m${ocGap!=null&&Math.abs(ocGap)>=5?` <span class="bag-oc-gap">(${ocGap>0?'+':''}${Math.round(ocGap)}m vs carry)</span>`:''}</strong></div>`:''}
+      ${ocAvgDist!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>Course total avg</span><strong>${ocAvgDist}m${ocGap!=null&&Math.abs(ocGap)>=5?` <span class="bag-oc-gap">(${ocGap>0?'+':''}${Math.round(ocGap)}m vs TM total)</span>`:''}</strong></div>`:''}
       ${ocMishitRate!=null?`<div class="bag-stat-row bag-stat-oncourse"><span>Mishit rate</span><strong>${ocMishitRate}% (${ocMishitCount}/${ocDists.length})</strong></div>`:''}
     </div>
     <div class="bag-section"><div class="bag-sec-title">Direction</div>
