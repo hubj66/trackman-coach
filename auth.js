@@ -1736,6 +1736,7 @@ function _mrRender(){
         <div class="mr-hole-sub">of ${_mr.total}</div>
       </div>
       <button class="mr-nav-btn" onclick="_mrNav(1)" title="${_mr.cur===_mr.total?'Add hole':'Next hole'}">›</button>
+      <button class="mr-save-top-btn" onclick="_mrFinish()">${_mr.editRoundId?'Save':'Import'}</button>
     </div>
     <div class="mr-dots">${dots}</div>
     <div class="mr-body">

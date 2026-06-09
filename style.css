@@ -1473,6 +1473,8 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
 .mr-cancel-btn:active{opacity:.6}
 .mr-save-btn{padding:8px 18px;font-size:13px;font-weight:700;background:var(--accent);color:#0e1012;border:none;border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .mr-save-btn:active{opacity:.8}
+.mr-save-top-btn{padding:5px 13px;font-size:12px;font-weight:700;background:var(--accent);color:#0e1012;border:none;border-radius:7px;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-left:4px;flex-shrink:0}
+.mr-save-top-btn:active{opacity:.8}
 /* Bag on-course rows */
 .bag-stat-oncourse span{color:var(--text3);font-style:italic}
 .bag-oc-gap{font-size:11px;color:var(--text3);font-weight:400;margin-left:4px}
