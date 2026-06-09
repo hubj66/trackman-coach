@@ -4,7 +4,7 @@
 /**
  * Compute summary stats from an array of shot objects.
  * GIR: first putt shot_number <= par - 1
- * FW hit: tee shot lie matches fairway variants (case-insensitive)
+ * FW hit (par 4/5 only): lie of the shot after the last tee shot is fairway
  */
 function computeRoundSummary(shots) {
   const byHole = {};
@@ -14,7 +14,7 @@ function computeRoundSummary(shots) {
   });
   const holes = Object.keys(byHole).map(Number).sort((a, b) => a - b);
 
-  let totalStrokes = 0, totalPutts = 0, totalPar = 0, girCount = 0, fwHitCount = 0;
+  let totalStrokes = 0, totalPutts = 0, totalPar = 0, girCount = 0, fwHitCount = 0, par45Count = 0;
   const strokesByHole = [];
 
   holes.forEach(h => {
@@ -30,10 +30,17 @@ function computeRoundSummary(shots) {
       const firstPutt = Math.min(...puttShots.map(s => s.shot_number));
       if (firstPutt <= par - 1) girCount++;
     }
-    const tee = hs.find(s => s.shot_number === 1);
-    if (tee) {
-      const lie = (tee.lie || '').toLowerCase();
-      if (lie === 'fairway' || lie === 'fareways' || lie === 'fareway') fwHitCount++;
+    if (par && par >= 4) {
+      par45Count++;
+      const teeShots = hs.filter(s => (s.lie || '').toLowerCase() === 'tee');
+      if (teeShots.length) {
+        const lastTee = teeShots[teeShots.length - 1];
+        const nextShot = hs.find(s => s.shot_number === lastTee.shot_number + 1);
+        if (nextShot) {
+          const nl = (nextShot.lie || '').toLowerCase();
+          if (nl === 'fairway' || nl === 'fareways' || nl === 'fareway') fwHitCount++;
+        }
+      }
     }
   });
 
@@ -72,6 +79,7 @@ function computeRoundSummary(shots) {
     totalPutts,
     totalPar: totalPar || null,
     holesPlayed: holes.length,
+    par45Holes: par45Count,
     girCount,
     fwHitCount,
     avgPuttsPerHole: holes.length ? totalPutts / holes.length : 0,

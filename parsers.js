@@ -43,6 +43,33 @@ function parseMissDir(val) {
   return null;
 }
 
+function extractMissDirFromComment(comment) {
+  if (!comment) return null;
+  const c = comment.toLowerCase();
+  const hasLeft  = /\bleft\b/.test(c);
+  const hasRight = /\bright\b/.test(c);
+  const hasShort = /\bshort\b/.test(c);
+  const hasLong  = /\blong\b/.test(c);
+
+  if (!hasLeft && !hasRight && !hasShort && !hasLong) {
+    return /\bstraight\b/.test(c) ? 'straight' : null;
+  }
+
+  let lateral = null;
+  if (hasLeft && hasRight) {
+    lateral = c.indexOf('left') < c.indexOf('right') ? 'left' : 'right';
+  } else if (hasLeft) {
+    lateral = 'left';
+  } else if (hasRight) {
+    lateral = 'right';
+  }
+
+  const depth = hasLong && !hasShort ? 'long' : hasShort && !hasLong ? 'short' : null;
+
+  if (lateral && depth) return `${lateral}-${depth}`;
+  return lateral || depth || null;
+}
+
 function parseRoundDist(val) {
   if (!val && val !== 0) return null;
   const s = String(val).replace(',', '.').trim();
@@ -107,7 +134,7 @@ function parseGolfPadTSV(text) {
     const comment = (cols[7] || '').trim() || null;
     const lieRaw = (cols[8] || '').trim() || null;
     const lie = lieRaw && lieRaw.toLowerCase() === 'sand' ? 'Bunker' : lieRaw;
-    const miss_direction = parseMissDir(cols[9]);
+    const miss_direction = parseMissDir(cols[9]) ?? extractMissDirFromComment(comment);
     const is_penalty = club?.toLowerCase() === 'penalty' || (comment ? PENALTY_RE.test(comment) : false);
 
     holeCounters[hole] = (holeCounters[hole] || 0) + 1;
@@ -129,6 +156,7 @@ function parseGolfPadTSV(text) {
 window.TCParsers = {
   normaliseRoundClub,
   parseMissDir,
+  extractMissDirFromComment,
   parseRoundDist,
   parseDateToISO,
   parseGolfPadTSV,
