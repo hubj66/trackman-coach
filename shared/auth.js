@@ -1297,19 +1297,34 @@ async function loadProgressSection(){
 }
 
 // ── Practice sessions (range + course) ────────────────────────────────────
+const _MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _fmtDate(d){
+  if(!d)return'';
+  const p=String(d).split('-');
+  if(p.length<3)return d;
+  const m=parseInt(p[1],10)-1;
+  const day=parseInt(p[2],10);
+  return(m>=0&&m<12)?_MONTHS[m]+' '+day:d;
+}
+
 function _renderPracticeList(sessions,type){
   if(!sessions.length){
     const label=type==='range'?'range sessions':'course notes';
     return`<div class="stats-empty-small">No ${label} yet. Use the button above to add one.</div>`;
   }
   return sessions.slice(0,10).map(s=>{
+    const dateStr=_fmtDate(s.session_date);
     const title=s.title||(type==='range'?(s.club_key||'Range session'):'Course note');
     const sub=[s.focus_area,s.main_miss?'Miss: '+s.main_miss:null].filter(Boolean).join(' · ');
     const confStr=s.confidence?'★'.repeat(Math.min(s.confidence,5)):'';
+    const ballsStr=(type==='range'&&s.balls!=null)?`${s.balls} balls${s.good_shots!=null?' / '+s.good_shots+' good':''}`:null;
+    const cueStr=(type==='range'&&s.best_cue)?s.best_cue:null;
     return`<div class="practice-session-row">
-      <div class="practice-session-date">${escapeHtml(s.session_date||'')}</div>
+      <div class="practice-session-date">${escapeHtml(dateStr)}</div>
       <div class="practice-session-title">${escapeHtml(title)}${confStr?`<span class="practice-session-conf">${confStr}</span>`:''}</div>
       ${sub?`<div class="practice-session-sub">${escapeHtml(sub)}</div>`:''}
+      ${ballsStr?`<div class="practice-session-sub">${escapeHtml(ballsStr)}</div>`:''}
+      ${cueStr?`<div class="practice-session-cue">Cue: ${escapeHtml(cueStr)}</div>`:''}
       ${s.notes?`<div class="practice-session-notes">${escapeHtml(s.notes)}</div>`:''}
     </div>`;
   }).join('');

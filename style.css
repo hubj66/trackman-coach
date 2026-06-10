@@ -1358,6 +1358,7 @@ body.light-theme .lqa-btn{background:var(--surface);border-color:var(--border2)}
 .practice-session-title{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .practice-session-conf{font-size:10px;color:var(--amber);font-weight:400;letter-spacing:1px}
 .practice-session-sub{font-size:12px;color:var(--text2)}
+.practice-session-cue{font-size:11px;color:var(--green);font-style:italic}
 .practice-session-notes{font-size:12px;color:var(--text3);font-style:italic}
 .stats-empty-small{font-size:13px;color:var(--text3);padding:14px 0;text-align:center;line-height:1.5}
 
