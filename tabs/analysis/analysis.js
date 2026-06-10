@@ -279,7 +279,7 @@ function renderOverallOverview() {
       <div class="occ-carry">${r.carryMed != null ? f(r.carryMed,0)+'m' : '–'}</div>
       ${r.sdCarry != null ? `<div class="occ-sd">±${f(r.sdCarry,0)}m</div>` : ''}
       <div class="occ-shots">${r.n} shots</div>
-      <div class="occ-reason">${escapeHtml(r.health.reason)}</div>
+      <div class="occ-reason">${escapeHtml(r.health.mainIssue || r.health.reason)}</div>
     </button>`).join('')}
   </div>`;
 }
@@ -678,7 +678,16 @@ function clubHealthForShots(clubShots) {
   const status = risk >= 4 ? 'bad' : risk >= 2 ? 'warn' : 'good';
   const label = status === 'good' ? 'Good' : status === 'warn' ? 'Watch' : 'Fix first';
   const score = status === 'good' ? 'OK' : status === 'warn' ? '!' : '!!';
-  return { status, label, score, reason:reasons.slice(0, 2).join(' / ') };
+  // Priority for main issue: lateral miss > mishit/contact > distance
+  let mainIssue = null;
+  if      (sideMed != null && Math.abs(sideMed) > 12) mainIssue = `Strong ${sideMed > 0 ? 'right' : 'left'} miss`;
+  else if (sideMed != null && Math.abs(sideMed) > 6)  mainIssue = `${sideMed > 0 ? 'Right' : 'Left'} miss bias`;
+  else if (faceSd  != null && faceSd > 4)             mainIssue = 'Inconsistent contact';
+  else if (playableRate != null && playableRate < 0.55) mainIssue = `Poor contact (${Math.round(playableRate*100)}%)`;
+  else if (playableRate != null && playableRate < 0.7)  mainIssue = `Contact ${Math.round(playableRate*100)}% playable`;
+  else if (carrySd != null && carrySd > 12)            mainIssue = `Distance spread ±${f(carrySd,0)}m`;
+  else if (carrySd != null && carrySd > 8)             mainIssue = `Carry varies ±${f(carrySd,0)}m`;
+  return { status, label, score, reason:reasons.slice(0, 2).join(' / '), mainIssue };
 }
 
 function renderClubHealthStrip(allShots) {
