@@ -338,7 +338,6 @@ function renderSubDirection(shots, allShots) {
 function renderSubStriking(shots) {
   return `
     ${renderOverviewKPIs(shots)}
-    ${renderConsistency(shots, ['smash', 'attack', 'spin'])}
     <div class="report-diagram-note">Blue = club/attack path, red = face/launch, dashed grey = neutral reference. Quality labels are simple checkpoints, not fixed swing laws.</div>
     <div class="report-diagram-grid">
       <canvas id="report-delivery-canvas" height="260"></canvas>
@@ -1265,6 +1264,48 @@ function drawDeliveryDiagram(shots) {
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(28, baseY); ctx.lineTo(w - 28, baseY); ctx.stroke();
 
+  // P10-P90 bands for attack and launch
+  const attacks = shots.map(s => s.attack_angle).filter(x => x != null && !isNaN(x));
+  const launches = shots.map(s => s.launch_angle).filter(x => x != null && !isNaN(x));
+  const p10Atk = statPercentile(attacks, 10), p90Atk = statPercentile(attacks, 90);
+  const p10La  = statPercentile(launches, 10), p90La  = statPercentile(launches, 90);
+  const targetAtk = BASELINES[analysisClub]?.attack_angle ?? null;
+  const targetLa  = BASELINES[analysisClub]?.launch_angle ?? null;
+
+  if (p10Atk != null && p90Atk != null) {
+    const r1 = p10Atk * Math.PI / 180, r2 = p90Atk * Math.PI / 180;
+    ctx.globalAlpha = 0.15; ctx.fillStyle = '#2f68ff';
+    ctx.beginPath();
+    ctx.moveTo(baseX - 82, baseY + Math.sin(r1) * 36);
+    ctx.lineTo(baseX + 72, baseY - Math.sin(r1) * 36);
+    ctx.lineTo(baseX + 72, baseY - Math.sin(r2) * 36);
+    ctx.lineTo(baseX - 82, baseY + Math.sin(r2) * 36);
+    ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  if (targetAtk != null) {
+    const r = targetAtk * Math.PI / 180;
+    ctx.save(); ctx.strokeStyle = '#2f68ff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.45;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(baseX - 82, baseY + Math.sin(r) * 36); ctx.lineTo(baseX + 72, baseY - Math.sin(r) * 36); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+  if (p10La != null && p90La != null) {
+    const r1 = p10La * Math.PI / 180, r2 = p90La * Math.PI / 180;
+    ctx.globalAlpha = 0.13; ctx.fillStyle = '#ff4f3a';
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    ctx.lineTo(baseX + 104, baseY - Math.tan(r1) * 104);
+    ctx.lineTo(baseX + 104, baseY - Math.tan(r2) * 104);
+    ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  if (targetLa != null) {
+    const r = targetLa * Math.PI / 180;
+    ctx.save(); ctx.strokeStyle = '#ff4f3a'; ctx.lineWidth = 1; ctx.globalAlpha = 0.45;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(baseX, baseY); ctx.lineTo(baseX + 104, baseY - Math.tan(r) * 104); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+
   ctx.strokeStyle = '#2f68ff';
   ctx.lineWidth = 2;
   const attackRad = (attack || 0) * Math.PI / 180;
@@ -1327,6 +1368,22 @@ function drawPathDiagram(shots) {
     ctx.lineTo(cx + Math.cos(r) * len, cy - Math.sin(r) * len * 0.45);
     ctx.stroke();
   };
+  // P10-P90 bands
+  const bandAt = (p10, p90, color) => {
+    if (p10 == null || p90 == null) return;
+    const r1 = (p10 || 0) * Math.PI / 180, r2 = (p90 || 0) * Math.PI / 180;
+    ctx.globalAlpha = 0.15; ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(r1) * len, cy + Math.sin(r1) * len * 0.45);
+    ctx.lineTo(cx + Math.cos(r1) * len, cy - Math.sin(r1) * len * 0.45);
+    ctx.lineTo(cx + Math.cos(r2) * len, cy - Math.sin(r2) * len * 0.45);
+    ctx.lineTo(cx - Math.cos(r2) * len, cy + Math.sin(r2) * len * 0.45);
+    ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+  };
+  const pathVals = shots.map(s => s.club_path).filter(x => x != null && !isNaN(x));
+  const faceVals = shots.map(s => s.face_angle).filter(x => x != null && !isNaN(x));
+  bandAt(statPercentile(pathVals, 10), statPercentile(pathVals, 90), '#2f68ff');
+  bandAt(statPercentile(faceVals, 10), statPercentile(faceVals, 90), '#ff4f3a');
   lineAt(path, '#2f68ff', 2);
   lineAt(face, '#ff4f3a', 2);
   ctx.strokeStyle = cv.baseline;
@@ -1489,10 +1546,11 @@ function renderOverviewKPIs(shots) {
   const cs=shots.map(s=>s.club_speed).filter(Boolean);
   const sp=shots.map(s=>s.spin_rate).filter(Boolean);
   const la=shots.map(s=>s.launch_angle).filter(Boolean);
+  const aa=shots.map(s=>s.attack_angle).filter(x=>x!=null&&!isNaN(x));
 
   const avgCarry=statAvg(c),medCarry=statMedian(c),sdCarry=statStdDev(c);
   const avgSmash=statAvg(sm),avgBS=statAvg(bs),avgCS=statAvg(cs);
-  const avgSpin=statAvg(sp),avgLaunch=statAvg(la);
+  const avgSpin=statAvg(sp),avgLaunch=statAvg(la),avgAtk=statAvg(aa);
 
   // Trend: compare most recent 20% of shots vs all-time average
   const recentN=Math.max(3,Math.round(shots.length*0.2));
@@ -1507,7 +1565,7 @@ function renderOverviewKPIs(shots) {
     return'<span class="kpi-trend kpi-trend-flat">→</span>';
   };
 
-  const sdSmash=statStdDev(sm),sdBS=statStdDev(bs),sdSpin=statStdDev(sp),sdLaunch=statStdDev(la);
+  const sdSmash=statStdDev(sm),sdBS=statStdDev(bs),sdSpin=statStdDev(sp),sdLaunch=statStdDev(la),sdAtk=statStdDev(aa);
   const sdFmt = (sd, dp=1) => sd != null ? `<span class="kpi-sd"> ±${f(sd,dp)}</span>` : '';
   const kpis = [
     { l:'Shots (last 50)', raw:shots.length,  disp:shots.length,          cls:'' },
@@ -1518,6 +1576,7 @@ function renderOverviewKPIs(shots) {
     { l:'Club Speed', raw:avgCS,           disp:f(avgCS)+' m/s',        cls:kpiColor('club_speed',avgCS) },
     { l:'Avg Spin',   raw:avgSpin,         disp:avgSpin?Math.round(avgSpin)+' rpm'+sdFmt(sdSpin,0):'–', cls:kpiColor('spin_rate',avgSpin) },
     { l:'Launch',     raw:avgLaunch,       disp:f(avgLaunch)+'°'+sdFmt(sdLaunch,1), cls:kpiColor('launch_angle',avgLaunch) },
+    { l:'Attack',     raw:avgAtk,          disp:avgAtk!=null?fSign(avgAtk,1)+'°'+sdFmt(sdAtk,1):'–', cls:'' },
   ];
 
   const loadBtn = renderLoadIntoCoachBtn(shots);
