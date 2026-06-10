@@ -28,13 +28,18 @@ const SESSION_COLORS = ['#00d68f','#ffaa00','#7b9cff','#ff7eb3','#40e0d0','#f4a4
 
 const CA = () => window.clubAliases;
 
-// ── Baselines per club/metric — update as confirmed carries change ──────────
+// ── Baselines per club/metric — reference points, not personal targets ──────
 const BASELINES = {
-  '7': { carry: 108, smash_factor: 1.30, face_angle: 0, attack_angle: -3 },
-  '9': { carry: 88,  smash_factor: 1.30, face_angle: 0 },
-  'pw':{ carry: 82,  smash_factor: 1.28, face_angle: 0 },
-  '6': { carry: 114, smash_factor: 1.30, face_angle: 0 },
-  '58':{ carry: 59,  smash_factor: 1.18, face_angle: 0 },
+  'driver': { carry: 200, smash_factor: 1.44, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle:  2, launch_angle: 14, spin_rate: 2700 },
+  '4':      { carry: 155, smash_factor: 1.35, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -2, launch_angle: 14, spin_rate: 5000 },
+  '5':      { carry: 145, smash_factor: 1.33, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -2, launch_angle: 16, spin_rate: 5500 },
+  '6':      { carry: 114, smash_factor: 1.30, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -3, launch_angle: 17, spin_rate: 6200 },
+  '7':      { carry: 108, smash_factor: 1.30, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -3, launch_angle: 18, spin_rate: 7000 },
+  '8':      { carry: 95,  smash_factor: 1.28, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -4, launch_angle: 20, spin_rate: 7800 },
+  '9':      { carry: 88,  smash_factor: 1.28, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -4, launch_angle: 23, spin_rate: 8500 },
+  'pw':     { carry: 82,  smash_factor: 1.18, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -5, launch_angle: 27, spin_rate: 9000 },
+  'sw':     { carry: 62,  smash_factor: 1.18, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -5, launch_angle: 30, spin_rate: 9500 },
+  '58':     { carry: 59,  smash_factor: 1.18, face_angle: 0, club_path: 0, face_to_path: 0, attack_angle: -5, launch_angle: 32, spin_rate: 9800 },
 };
 function getBaselineForMetric(key, club) {
   return BASELINES[club]?.[key] ?? null;
@@ -234,7 +239,7 @@ function renderReportSubContent(shots, allShots, formShots, colorMap) {
   switch (currentReportSubTab) {
     case 'distance':   return renderSubDistance(shots);
     case 'direction':  return renderSubDirection(shots, allShots);
-    case 'striking':   return renderSubStriking(shots);
+    case 'striking':   return renderSubStriking(formShots);
     case 'trends':     return renderSubTrends(allShots);
     case 'shots':      return renderSubShots(shots, colorMap);
     case 'causecheck': return renderSubCauseCheck(shots);
@@ -1520,16 +1525,17 @@ function renderOverviewKPIs(shots) {
     return'<span class="kpi-trend kpi-trend-flat">→</span>';
   };
 
+  const sdSmash=statStdDev(sm),sdBS=statStdDev(bs),sdSpin=statStdDev(sp),sdLaunch=statStdDev(la);
+  const sdFmt = (sd, dp=1) => sd != null ? `<span class="kpi-sd"> ±${f(sd,dp)}</span>` : '';
   const kpis = [
-    { l:'Shots',      raw:shots.length,    disp:shots.length,          cls:'' },
-    { l:'Avg Carry',  raw:avgCarry,        disp:f(avgCarry)+'m'+trendArrow(trendCarry,avgCarry,1.5),  cls:kpiColor('carry',avgCarry) },
+    { l:'Shots (last 50)', raw:shots.length,  disp:shots.length,          cls:'' },
+    { l:'Avg Carry',  raw:avgCarry,        disp:f(avgCarry)+'m'+sdFmt(sdCarry,0)+trendArrow(trendCarry,avgCarry,1.5), cls:kpiColor('carry',avgCarry) },
     { l:'Median',     raw:medCarry,        disp:f(medCarry)+'m',        cls:kpiColor('carry',medCarry) },
-    { l:'Carry ±',    raw:sdCarry,         disp:f(sdCarry)+'m',         cls:carrySDColor(sdCarry) },
-    { l:'Smash',      raw:avgSmash,        disp:f(avgSmash,2)+trendArrow(trendSmash,avgSmash,0.01), cls:kpiColor('smash_factor',avgSmash) },
-    { l:'Ball Speed', raw:avgBS,           disp:f(avgBS)+' m/s',        cls:kpiColor('ball_speed',avgBS) },
+    { l:'Smash',      raw:avgSmash,        disp:f(avgSmash,2)+sdFmt(sdSmash,2)+trendArrow(trendSmash,avgSmash,0.01), cls:kpiColor('smash_factor',avgSmash) },
+    { l:'Ball Speed', raw:avgBS,           disp:f(avgBS)+' m/s'+sdFmt(sdBS,0),  cls:kpiColor('ball_speed',avgBS) },
     { l:'Club Speed', raw:avgCS,           disp:f(avgCS)+' m/s',        cls:kpiColor('club_speed',avgCS) },
-    { l:'Avg Spin',   raw:avgSpin,         disp:avgSpin?Math.round(avgSpin)+' rpm':'–', cls:kpiColor('spin_rate',avgSpin) },
-    { l:'Launch',     raw:avgLaunch,       disp:f(avgLaunch)+'°',       cls:kpiColor('launch_angle',avgLaunch) },
+    { l:'Avg Spin',   raw:avgSpin,         disp:avgSpin?Math.round(avgSpin)+' rpm'+sdFmt(sdSpin,0):'–', cls:kpiColor('spin_rate',avgSpin) },
+    { l:'Launch',     raw:avgLaunch,       disp:f(avgLaunch)+'°'+sdFmt(sdLaunch,1), cls:kpiColor('launch_angle',avgLaunch) },
   ];
 
   const loadBtn = renderLoadIntoCoachBtn(shots);

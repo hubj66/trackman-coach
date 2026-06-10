@@ -475,6 +475,7 @@ button:active{background:var(--surface4)}
 .analysis-kpi-card.kpi-good .analysis-kpi-value{color:var(--green)}
 .analysis-kpi-card.kpi-ok .analysis-kpi-value{color:var(--amber)}
 .analysis-kpi-card.kpi-bad .analysis-kpi-value{color:var(--red)}
+.kpi-sd{font-size:11px;font-weight:500;color:var(--text3);opacity:.85}
 .analysis-two-col{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:4px}
 .analysis-col-label{font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
 .analysis-row-list{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
