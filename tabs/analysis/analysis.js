@@ -147,6 +147,10 @@ async function loadAnalysis() {
 
 function applyFilter(shots) { return window.TCGolf.filterAnalysisShots(shots, analysisFilter); }
 
+function recentFormShots(shots, n = 50) {
+  return [...shots].sort(byRecent).slice(0, n);
+}
+
 function buildSessionColorMap(shots) {
   const dates = [...new Set([...shots].sort((a,b)=>new Date(a.shot_time||a.created_at)-new Date(b.shot_time||b.created_at)).map(s=>(s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
   const map = {};
@@ -159,6 +163,7 @@ function renderAnalysis(allShots) {
   const el = document.getElementById('analysis-content');
   if (!el) return;
   const shots = applyFilter(allShots);
+  const formShots = recentFormShots(shots);
   const colorMap = buildSessionColorMap(allShots);
 
   const unknowns = CA().findUnknownClubNames(_allFetchedShots);
@@ -178,11 +183,11 @@ function renderAnalysis(allShots) {
         <div class="trackman-section-title">Report</div>
         <div class="trackman-section-sub">What matters for this club right now.</div>
       </div>
-      ${renderDataUsedChips(allShots, shots, 'Report')}
+      ${renderDataUsedChips(allShots, formShots, 'Report')}
       ${renderClubHealthStrip(_allFetchedShots)}
-      ${renderTrackmanInsights(shots, allShots)}
-      ${renderPlayDecisionCard(shots)}
-      ${renderClubReportMetrics(allShots)}
+      ${renderTrackmanInsights(formShots, allShots)}
+      ${renderPlayDecisionCard(formShots)}
+      ${renderClubReportMetrics(allShots, 50)}
       ${renderAnalysisAcc('cause-check', 'Cause Check',
         renderSwingCauseCheck(shots) + renderTrackmanNumberExplainer(getClubReportShots(allShots)),
         false)}
@@ -511,7 +516,8 @@ function healthStatusClass(status) {
 }
 
 function clubHealthForShots(clubShots) {
-  const shots = window.TCGolf.filterAnalysisShots(clubShots || [], 'progress');
+  const included = window.TCGolf.filterAnalysisShots(clubShots || [], 'progress');
+  const shots = [...included].sort(byRecent).slice(0, 50);
   if (shots.length < 5) {
     return { status:'neutral', label:'Needs data', score:'--', reason:`${shots.length} included shots` };
   }
@@ -731,7 +737,7 @@ function renderTrackmanNumberExplainer(shots) {
 }
 
 function renderTrackmanInsights(shots, allShots) {
-  const reportShots = getClubReportShots(allShots);
+  const reportShots = getClubReportShots(allShots).slice(0, 50);
   const insights = [];
 
   if (isAnalysisWedgeClub()) {
@@ -1027,8 +1033,9 @@ function renderSwingCauseCheck(shots) {
   </div>`;
 }
 
-function renderClubReportMetrics(allShots) {
-  const reportShots = getClubReportShots(allShots);
+function renderClubReportMetrics(allShots, limit) {
+  let reportShots = getClubReportShots(allShots);
+  if (limit) reportShots = reportShots.slice(0, limit);
   const clubLabel = CA().clubLabel(analysisClub);
   const filters = renderReportFilters(allShots);
   if (!reportShots.length) {
