@@ -400,6 +400,17 @@ button:active{background:var(--surface4)}
 .club-health-score{font-family:var(--mono);font-size:11px;color:var(--text3)}
 .club-health-label{font-size:11px;font-weight:700;color:var(--text2);line-height:1.2}
 .club-health-reason{grid-column:1/-1;font-size:10px;color:var(--text3);line-height:1.25;min-height:24px}
+.overall-club-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.overall-club-card{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all .15s}
+.overall-club-card.good{border-color:var(--green)}
+.overall-club-card.warn{border-color:var(--amber)}
+.overall-club-card.bad{border-color:var(--red)}
+.occ-club{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
+.occ-score{font-size:18px;font-weight:800;font-family:var(--mono);color:var(--green)}
+.occ-carry{font-size:13px;font-weight:600;color:var(--text)}
+.occ-sd{font-size:11px;color:var(--text3)}
+.occ-shots{font-size:10px;color:var(--text3);margin-top:2px}
+.occ-reason{font-size:10px;color:var(--text3);margin-top:3px;line-height:1.3}
 .play-decision-card,.round-compare-card{background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:10px;margin:0 0 10px}
 .play-decision-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:9px}
 .play-decision-kicker,.round-compare-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:3px}

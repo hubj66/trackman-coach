@@ -80,9 +80,11 @@ function buildAnalysisClubTabs() {
   const el = document.getElementById('analysis-club-tabs');
   if (!el) return;
   const defs = CA().CLUB_DEFINITIONS.filter(c => !['3w','5w'].includes(c.key));
-  el.innerHTML = defs.map(c =>
-    `<button class="atab${c.key===analysisClub?' on':''}" onclick="setAnalysisClub('${c.key}')">${c.label}</button>`
-  ).join('');
+  el.innerHTML =
+    `<button class="atab${analysisClub==='overall'?' on':''}" onclick="setAnalysisClub('overall')">All</button>` +
+    defs.map(c =>
+      `<button class="atab${c.key===analysisClub?' on':''}" onclick="setAnalysisClub('${c.key}')">${c.label}</button>`
+    ).join('');
 }
 
 function buildFilterTabs() {
@@ -95,11 +97,17 @@ function buildFilterTabs() {
 
 function setAnalysisClub(key) {
   analysisClub = key;
-  document.querySelectorAll('.atab').forEach(t =>
-    t.classList.toggle('on', t.textContent === CA().clubLabel(key))
-  );
+  document.querySelectorAll('.atab').forEach(t => {
+    const label = key === 'overall' ? 'All' : CA().clubLabel(key);
+    t.classList.toggle('on', t.textContent === label);
+  });
   openSessions = new Set();
-  analysisShots = _allFetchedShots.filter(s => CA().shotMatchesClub(s, analysisClub));
+  analysisShots = key === 'overall'
+    ? [..._allFetchedShots]
+    : _allFetchedShots.filter(s => CA().shotMatchesClub(s, key));
+  if (key === 'overall' && !['overview','shots'].includes(currentReportSubTab)) {
+    currentReportSubTab = 'overview';
+  }
   renderAnalysis(analysisShots);
 }
 
@@ -199,7 +207,7 @@ function renderAnalysis(allShots) {
 }
 
 function renderReportSubTabs() {
-  const tabs = [
+  const allTabs = [
     { key: 'overview',   label: 'Overview' },
     { key: 'distance',   label: 'Distance' },
     { key: 'direction',  label: 'Direction' },
@@ -208,6 +216,9 @@ function renderReportSubTabs() {
     { key: 'shots',      label: 'Shots' },
     { key: 'causecheck', label: 'Cause' },
   ];
+  const tabs = analysisClub === 'overall'
+    ? allTabs.filter(t => t.key === 'overview' || t.key === 'shots')
+    : allTabs;
   return `<div class="report-sub-tabs">
     ${tabs.map(t => `<button class="report-sub-tab${currentReportSubTab===t.key?' on':''}" onclick="setReportSubTab('${t.key}')">${t.label}</button>`).join('')}
   </div>`;
@@ -231,6 +242,7 @@ function renderReportSubContent(shots, allShots, formShots, colorMap) {
 }
 
 function renderSubOverview(shots, allShots, formShots) {
+  if (analysisClub === 'overall') return renderOverallOverview();
   return `
     ${renderClubHealthStrip(_allFetchedShots)}
     ${renderTrackmanInsights(formShots, allShots)}
@@ -238,6 +250,32 @@ function renderSubOverview(shots, allShots, formShots) {
     ${renderClubReportMetrics(allShots, 50)}
     ${renderRoundComparisonCard(allShots)}
   `;
+}
+
+function renderOverallOverview() {
+  const defs = CA().CLUB_DEFINITIONS.filter(c => !['3w','5w'].includes(c.key));
+  const rows = defs.map(def => {
+    const clubShots = _allFetchedShots.filter(s => CA().shotMatchesClub(s, def.key));
+    const included  = clubShots.filter(s => !s.exclude_from_progress);
+    const recent    = recentFormShots(included, 50);
+    const health    = clubHealthForShots(clubShots);
+    const carryMed  = statMedian(recent.map(s => s.carry).filter(Boolean));
+    const sdCarry   = statStdDev(recent.map(s => s.carry).filter(Boolean));
+    return { def, n: clubShots.length, health, carryMed, sdCarry };
+  }).filter(r => r.n > 0);
+
+  if (!rows.length) return '<div class="analysis-empty-small">No shots found across any club.</div>';
+
+  return `<div class="overall-club-grid">
+    ${rows.map(r => `<button class="overall-club-card ${healthStatusClass(r.health.status)}" onclick="setAnalysisClub('${r.def.key}')">
+      <div class="occ-club">${escapeHtml(r.def.label)}</div>
+      <div class="occ-score">${escapeHtml(r.health.score)}</div>
+      <div class="occ-carry">${r.carryMed != null ? f(r.carryMed,0)+'m' : '–'}</div>
+      ${r.sdCarry != null ? `<div class="occ-sd">±${f(r.sdCarry,0)}m</div>` : ''}
+      <div class="occ-shots">${r.n} shots</div>
+      <div class="occ-reason">${escapeHtml(r.health.reason)}</div>
+    </button>`).join('')}
+  </div>`;
 }
 
 function renderSubDistance(shots) {
