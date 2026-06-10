@@ -323,7 +323,6 @@ function renderSubDirection(shots, allShots) {
   }).join('');
   return `
     ${renderDirection(shots)}
-    ${renderConsistency(shots, ['face', 'path'])}
     <div class="map-date-filter" id="map-date-filter">
       <span class="map-date-label">Sessions:</span>
       <button class="map-date-pill map-date-all${allOn?' on':''}" onclick="selectAllMapDates()">All</button>
@@ -1591,7 +1590,7 @@ function renderDirection(shots) {
   const sides = shots.map(s=>s.side).filter(x=>x!=null);
 
   const avgFace = statAvg(faces), avgPath = statAvg(paths), avgFTP = statAvg(ftps);
-  const sdFTP = statStdDev(ftps);
+  const sdFace = statStdDev(faces), sdPath = statStdDev(paths), sdFTP = statStdDev(ftps);
   const tot = sides.length || 1;
   const left   = sides.filter(s=>s<-5).length;
   const right  = sides.filter(s=>s>5).length;
@@ -1618,8 +1617,10 @@ function renderDirection(shots) {
   const faceCls = avgFace == null ? '' : Math.abs(avgFace) < 1   ? 'dir-val-good' : Math.abs(avgFace) < 3 ? 'dir-val-warn' : 'dir-val-bad';
   const pathCls = avgPath == null ? '' : Math.abs(avgPath) < 2   ? 'dir-val-good' : Math.abs(avgPath) < 5 ? 'dir-val-warn' : 'dir-val-bad';
 
-  const faceSubDesc = avgFace==null ? '' : Math.abs(avgFace)<=0.5 ? 'square' : avgFace>0 ? 'open' : 'closed';
-  const pathSubDesc = avgPath==null ? '' : Math.abs(avgPath)<=1 ? '–' : avgPath>0 ? 'in-to-out' : 'out-to-in';
+  const faceSubDesc = avgFace==null ? '' : (Math.abs(avgFace)<=0.5 ? 'square' : avgFace>0 ? 'open' : 'closed')
+                      + (sdFace != null ? ` · ±${f(sdFace,1)}°` : '');
+  const pathSubDesc = avgPath==null ? '' : (Math.abs(avgPath)<=1 ? 'Neutral' : avgPath>0 ? 'Inside-out' : 'Outside-in')
+                      + (sdPath != null ? ` · ±${f(sdPath,1)}°` : '');
   const ftpSubDesc  = avgFTP ==null ? '' : (Math.abs(avgFTP)<=1 ? 'neutral' : avgFTP>0 ? 'fade side' : 'draw side')
                       + (sdFTP != null ? ` · ±${f(sdFTP,1)}°` : '');
 
