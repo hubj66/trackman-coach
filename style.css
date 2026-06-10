@@ -568,6 +568,7 @@ button:active{background:var(--surface4)}
 .shot-card-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .shot-card-time{font-family:var(--mono);font-size:10px;color:var(--text3)}
 .shot-card-carry{font-family:var(--cond);font-size:20px;font-weight:800;color:var(--text);margin-right:auto}
+.shot-card-total{font-size:13px;font-weight:500;color:var(--text3);margin-left:2px}
 .shot-card-status{font-family:var(--mono);font-size:9px;border-radius:12px;padding:3px 7px}
 .shot-card-status.use{background:var(--green-dim);color:var(--green)}
 .shot-card-status.skip{background:rgba(255,170,0,.12);color:var(--amber)}

@@ -2308,6 +2308,8 @@ function renderSessionGroup(group, colorMap) {
 
   const carries = shots.map(s=>s.carry).filter(Boolean);
   const avgCarry = carries.length ? (carries.reduce((a,b)=>a+b,0)/carries.length).toFixed(1) : '–';
+  const totals = shots.map(s=>s.total).filter(Boolean);
+  const avgTotal = totals.length ? ' / ' + (totals.reduce((a,b)=>a+b,0)/totals.length).toFixed(1) + 'm' : '';
   const avgFace = statAvg(shots.map(s=>s.face_angle).filter(x=>x!=null));
   const faceSD = statStdDev(shots.map(s=>s.face_angle).filter(x=>x!=null));
   const avgSmash = statAvg(shots.map(s=>s.smash_factor).filter(Boolean));
@@ -2325,7 +2327,7 @@ function renderSessionGroup(group, colorMap) {
            onclick="toggleSession('${date}')">
         <span class="session-dot" style="background:${sessionCol}"></span>
         <span class="session-date">${date}</span>
-        <span class="session-meta">${shots.length} shots · ${avgCarry}m · ${facePart} · smash ${f(avgSmash,2)}</span>
+        <span class="session-meta">${shots.length} shots · ${avgCarry}m${avgTotal} · ${facePart} · smash ${f(avgSmash,2)}</span>
         <span class="session-chevron">${isOpen?'▲':'▼'}</span>
       </div>
       <div class="session-body" id="session-body-${date}" style="display:${isOpen?'block':'none'};">
@@ -2476,7 +2478,7 @@ function renderShotRows(shots, sessionCol) {
     <table class="analysis-raw-table">
       <thead><tr>
         <th>Time</th>
-        <th>Carry</th><th>Smash</th>
+        <th>Carry</th><th>Total</th><th>Smash</th>
         <th>Face</th><th>Path</th><th>FTP</th>
         <th>Atk</th><th>Launch</th><th>Spin</th><th>Side</th>
         <th>Use</th><th>Window</th><th>Notes</th><th></th>
@@ -2497,7 +2499,7 @@ function renderShotRow(s, sessionCol) {
   if (s.id === editingRowId) {
     return `<tr class="shot-row shot-row-editing" data-id="${s.id}" data-shot-id="${s.id}">
       <td><span class="shot-time">${time}</span></td>
-      <td>${f(s.carry,1)}</td><td>${f(s.smash_factor,2)}</td>
+      <td>${f(s.carry,1)}</td><td class="cell-dim">${s.total?f(s.total,1):'–'}</td><td>${f(s.smash_factor,2)}</td>
       <td>${fSign(s.face_angle,1)}</td><td>${fSign(s.club_path,1)}</td><td>${fSign(s.face_to_path,1)}</td>
       <td>${fSign(s.attack_angle,1)}</td><td>${f(s.launch_angle,1)}</td>
       <td>${s.spin_rate?Math.round(s.spin_rate):'–'}</td><td>${fSign(s.side,1)}</td>
@@ -2516,6 +2518,7 @@ function renderShotRow(s, sessionCol) {
   return `<tr class="shot-row" data-id="${s.id}" data-shot-id="${s.id}">
     <td><span class="shot-time">${time}</span></td>
     <td>${f(s.carry,1)}</td>
+    <td class="cell-dim">${s.total?f(s.total,1):'–'}</td>
     <td>${f(s.smash_factor,2)}</td>
     <td class="${faceCol(s.face_angle)}">${fSign(s.face_angle,1)}</td>
     <td>${fSign(s.club_path,1)}</td>
@@ -2560,7 +2563,7 @@ function renderShotCard(s, sessionCol) {
   return `<div class="analysis-shot-card" data-shot-id="${s.id}" style="--session-color:${sessionCol}">
     <div class="shot-card-head">
       <span class="shot-card-time">${time}</span>
-      <span class="shot-card-carry">${f(s.carry,1)}m</span>
+      <span class="shot-card-carry">${f(s.carry,1)}m${s.total?`<span class="shot-card-total"> / ${f(s.total,1)}m</span>`:''}</span>
       <span class="shot-card-status ${s.exclude_from_progress?'skip':'use'}">${status}</span>
     </div>
     <div class="shot-card-metrics">
