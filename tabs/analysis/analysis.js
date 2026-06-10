@@ -11,6 +11,7 @@ let currentChartMode = 'sessions';
 let currentAnalysisSection = 'report';
 let currentReportFilter = 'included';
 let currentReportWindow = 'all';
+let currentReportSubTab = 'overview';
 let swingCauseAnswers = {};
 let swingPracticeResults = {};
 let _allFetchedShots = [];
@@ -177,71 +178,18 @@ function renderAnalysis(allShots) {
   }
 
   el.innerHTML = unknownBanner + `
-    ${renderTrackmanSectionTabs()}
-    <section class="trackman-section" id="trackman-section-report">
-      <div class="trackman-section-head">
-        <div class="trackman-section-title">Report</div>
-        <div class="trackman-section-sub">What matters for this club right now.</div>
-      </div>
+    <section class="trackman-section">
       ${renderDataUsedChips(allShots, formShots, 'Report')}
-      ${renderClubHealthStrip(_allFetchedShots)}
-      ${renderTrackmanInsights(formShots, allShots)}
-      ${renderPlayDecisionCard(formShots)}
-      ${renderClubReportMetrics(allShots, 50)}
-      ${renderAnalysisAcc('cause-check', 'Cause Check',
-        renderSwingCauseCheck(shots) + renderTrackmanNumberExplainer(getClubReportShots()),
-        false)}
-      ${renderAnalysisAcc('details-diagrams', 'Details & Diagrams',
-        `<div class="trackman-subgrid">
-          <div class="trackman-subpanel">${renderOverviewKPIs(shots)}</div>
-          <div class="trackman-subpanel">${renderConsistency(shots)}</div>
-          <div class="trackman-subpanel">${renderDirection(shots)}</div>
-          <div class="trackman-subpanel">${renderDistanceControl(shots)}</div>
-        </div>
-        <div class="report-diagram-note">Blue = club/attack path, red = face/launch, dashed grey = neutral reference. Quality labels are simple checkpoints, not fixed swing laws.</div>
-        <div class="report-diagram-grid">
-          <canvas id="report-delivery-canvas" height="260"></canvas>
-          <canvas id="report-path-canvas" height="260"></canvas>
-        </div>`,
-        false)}
-      ${renderAnalysisAcc('range-course', 'Range vs Course',
-        renderRoundComparisonCard(allShots),
-        false)}
-    </section>
-    <section class="trackman-section" id="trackman-section-charts">
-      <div class="trackman-section-head">
-        <div class="trackman-section-title">Charts</div>
-        <div class="trackman-section-sub">Trends, windows and shot pattern.</div>
+      ${renderReportFilters()}
+      ${renderReportSubTabs()}
+      <div id="report-sub-content">
+        ${renderReportSubContent(shots, allShots, formShots, colorMap)}
       </div>
-      ${renderDataUsedChips(allShots, shots, 'Charts')}
-      ${renderProgressSection(allShots)}
-      <div class="trackman-chart-divider"></div>
-      ${renderShotMaps(shots, allShots)}
-    </section>
-    <section class="trackman-section" id="trackman-section-shots">
-      <div class="trackman-section-head">
-        <div class="trackman-section-title">Shots</div>
-        <div class="trackman-section-sub">Edit use/skip, wedge windows and notes.</div>
-      </div>
-      ${renderDataUsedChips(allShots, shots, 'Shots')}
-      ${renderSessionGroups(shots, colorMap)}
     </section>
   `;
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    drawTrackmanChart(currentChartMode, currentProgKey, applyFilter(analysisShots));
-    const filteredShots = applyFilter(analysisShots);
-    const colorMap2 = buildSessionColorMap(analysisShots);
-    const activeShotsForMaps = filteredShots.filter(s =>
-      analysisMapActiveDates === null || analysisMapActiveDates.has((s.shot_time||s.created_at)?.slice(0,10))
-    );
-    drawTopViewMap(activeShotsForMaps, colorMap2);
-    drawSideViewMap(activeShotsForMaps, colorMap2);
-    drawClubReportDiagrams();
-    const _distOf = s => (s.shot_type === 'round' && s.total) ? s.total : s.carry;
-    const _distVals = filteredShots.map(_distOf).filter(Boolean);
-    _drawHistogram('dist-histogram', _distVals, { unit:'m', median: statMedian(_distVals), sd: statStdDev(_distVals), title:'distance distribution' });
-    _drawDirHistogram('dir-histogram', filteredShots.map(s=>s.side).filter(x=>x!=null));
+    drawCurrentSubTabCanvases(shots, allShots, colorMap);
     openSessions.forEach(date => {
       const body = document.getElementById(`session-body-${date}`);
       const head = document.getElementById(`session-head-${date}`);
@@ -251,23 +199,138 @@ function renderAnalysis(allShots) {
   }));
 }
 
-function renderTrackmanSectionTabs() {
+function renderReportSubTabs() {
   const tabs = [
-    { key:'report', label:'Report' },
-    { key:'charts', label:'Charts' },
-    { key:'shots',  label:'Shots' },
+    { key: 'overview',   label: 'Overview' },
+    { key: 'distance',   label: 'Distance' },
+    { key: 'direction',  label: 'Direction' },
+    { key: 'striking',   label: 'Striking' },
+    { key: 'trends',     label: 'Trends' },
+    { key: 'shots',      label: 'Shots' },
+    { key: 'causecheck', label: 'Cause' },
   ];
-  return `<div class="trackman-section-tabs">
-    ${tabs.map(t => `<button class="trackman-section-tab${currentAnalysisSection===t.key?' on':''}" onclick="showTrackmanSection('${t.key}')">${t.label}</button>`).join('')}
+  return `<div class="report-sub-tabs">
+    ${tabs.map(t => `<button class="report-sub-tab${currentReportSubTab===t.key?' on':''}" onclick="setReportSubTab('${t.key}')">${t.label}</button>`).join('')}
   </div>`;
 }
 
-function showTrackmanSection(key) {
-  currentAnalysisSection = key;
-  document.querySelectorAll('.trackman-section-tab').forEach(btn => {
-    btn.classList.toggle('on', btn.textContent.toLowerCase() === key);
-  });
-  document.getElementById(`trackman-section-${key}`)?.scrollIntoView({ behavior:'smooth', block:'start' });
+function setReportSubTab(key) {
+  currentReportSubTab = key;
+  renderAnalysis(analysisShots);
+}
+
+function renderReportSubContent(shots, allShots, formShots, colorMap) {
+  switch (currentReportSubTab) {
+    case 'distance':   return renderSubDistance(shots);
+    case 'direction':  return renderSubDirection(shots, allShots);
+    case 'striking':   return renderSubStriking(shots);
+    case 'trends':     return renderSubTrends(allShots);
+    case 'shots':      return renderSubShots(shots, colorMap);
+    case 'causecheck': return renderSubCauseCheck(shots);
+    default:           return renderSubOverview(shots, allShots, formShots);
+  }
+}
+
+function renderSubOverview(shots, allShots, formShots) {
+  return `
+    ${renderClubHealthStrip(_allFetchedShots)}
+    ${renderTrackmanInsights(formShots, allShots)}
+    ${renderPlayDecisionCard(formShots)}
+    ${renderClubReportMetrics(allShots, 50)}
+    ${renderRoundComparisonCard(allShots)}
+  `;
+}
+
+function renderSubDistance(shots) {
+  return `
+    ${renderDistanceControl(shots)}
+    ${renderConsistency(shots, ['carry'])}
+    <div class="map-chart-block" style="margin-top:14px;">
+      <div class="map-chart-title">Side View &nbsp;·&nbsp; ball flight &amp; roll</div>
+      <canvas id="side-view-canvas" height="165" style="width:100%;display:block;border-radius:10px;background:var(--canvas-bg);margin-top:4px;"></canvas>
+    </div>
+  `;
+}
+
+function renderSubDirection(shots, allShots) {
+  const colorMap = buildSessionColorMap(allShots);
+  const allDates = [...new Set(shots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
+  if (analysisMapActiveDates === null || ![...analysisMapActiveDates].some(d => allDates.includes(d))) {
+    analysisMapActiveDates = new Set(allDates.slice(-4));
+  } else {
+    [...analysisMapActiveDates].forEach(d => { if (!allDates.includes(d)) analysisMapActiveDates.delete(d); });
+  }
+  const allOn = analysisMapActiveDates.size === allDates.length;
+  const pills = allDates.map(d => {
+    const col = colorMap[d] || '#8a9099';
+    const on = analysisMapActiveDates.has(d);
+    return `<button class="map-date-pill${on?' on':''}" style="--pill-color:${col}" onclick="toggleMapDate('${d}')">${d.slice(5)}</button>`;
+  }).join('');
+  return `
+    ${renderDirection(shots)}
+    ${renderConsistency(shots, ['face', 'path'])}
+    <div class="map-date-filter" id="map-date-filter">
+      <span class="map-date-label">Sessions:</span>
+      <button class="map-date-pill map-date-all${allOn?' on':''}" onclick="selectAllMapDates()">All</button>
+      ${pills}
+    </div>
+    <div class="map-chart-block">
+      <div class="map-chart-title">Top View &nbsp;·&nbsp; landing zone (carry &amp; lateral)</div>
+      <canvas id="top-view-canvas" height="230" style="width:100%;display:block;border-radius:10px;background:var(--canvas-bg);margin-top:4px;"></canvas>
+    </div>
+  `;
+}
+
+function renderSubStriking(shots) {
+  return `
+    ${renderOverviewKPIs(shots)}
+    ${renderConsistency(shots, ['smash', 'attack', 'spin'])}
+    <div class="report-diagram-note">Blue = club/attack path, red = face/launch, dashed grey = neutral reference. Quality labels are simple checkpoints, not fixed swing laws.</div>
+    <div class="report-diagram-grid">
+      <canvas id="report-delivery-canvas" height="260"></canvas>
+      <canvas id="report-path-canvas" height="260"></canvas>
+    </div>
+    ${renderTrackmanNumberExplainer(getClubReportShots())}
+  `;
+}
+
+function renderSubTrends(allShots) {
+  return renderProgressSection(allShots);
+}
+
+function renderSubShots(shots, colorMap) {
+  return `
+    <div class="trackman-section-sub" style="margin-bottom:8px;">Edit use/skip, wedge windows and notes.</div>
+    ${renderSessionGroups(shots, colorMap)}
+  `;
+}
+
+function renderSubCauseCheck(shots) {
+  return `
+    ${renderSwingCauseCheck(shots)}
+    ${renderTrackmanNumberExplainer(getClubReportShots())}
+  `;
+}
+
+function drawCurrentSubTabCanvases(shots, allShots, colorMap) {
+  const filteredShots = applyFilter(analysisShots);
+  const colorMap2 = buildSessionColorMap(analysisShots);
+  if (currentReportSubTab === 'distance') {
+    drawSideViewMap(filteredShots, colorMap2);
+    const distOf = s => (s.shot_type === 'round' && s.total) ? s.total : s.carry;
+    const distVals = filteredShots.map(distOf).filter(Boolean);
+    _drawHistogram('dist-histogram', distVals, { unit:'m', median:statMedian(distVals), sd:statStdDev(distVals), title:'distance distribution' });
+  } else if (currentReportSubTab === 'direction') {
+    const activeShotsForMaps = filteredShots.filter(s =>
+      analysisMapActiveDates === null || analysisMapActiveDates.has((s.shot_time||s.created_at)?.slice(0,10))
+    );
+    drawTopViewMap(activeShotsForMaps, colorMap2);
+    _drawDirHistogram('dir-histogram', filteredShots.map(s=>s.side).filter(x=>x!=null));
+  } else if (currentReportSubTab === 'striking') {
+    drawClubReportDiagrams();
+  } else if (currentReportSubTab === 'trends') {
+    drawTrackmanChart(currentChartMode, currentProgKey, applyFilter(analysisShots));
+  }
 }
 
 function renderAnalysisAcc(id, title, content, defaultOpen) {
@@ -1037,9 +1100,8 @@ function renderClubReportMetrics(allShots, limit) {
   let reportShots = getClubReportShots();
   if (limit) reportShots = reportShots.slice(0, limit);
   const clubLabel = CA().clubLabel(analysisClub);
-  const filters = renderReportFilters();
   if (!reportShots.length) {
-    return `${filters}<div class="analysis-empty-small">No ${escapeHtml(clubLabel)} shots match this report filter.</div>`;
+    return `<div class="analysis-empty-small">No ${escapeHtml(clubLabel)} shots match this report filter.</div>`;
   }
   const cards = REPORT_METRICS.map(metric => {
     const vals = reportShots.map(s => s[metric.key]).filter(x => x != null && !isNaN(x));
@@ -1051,7 +1113,7 @@ function renderClubReportMetrics(allShots, limit) {
       <div class="report-trend ${trend.cls}">${trend.text || `${vals.length} shots`}</div>
     </div>`;
   }).join('');
-  return `${filters}
+  return `
     <div class="report-summary-line">${escapeHtml(clubLabel)} / ${reportFilterLabel()} / ${reportShots.length} shots / medians</div>
     ${renderWedgeTargetReport(reportShots)}
     <div class="report-metric-grid">${cards}</div>`;
@@ -1431,7 +1493,9 @@ function renderOverviewKPIs(shots) {
 }
 
 // ── Consistency ───────────────────────────────────────────────────────────
-function renderConsistency(shots) {
+// keys: optional array of 'carry','smash','face','path','attack','spin' — omit to render all
+function renderConsistency(shots, keys) {
+  const renderKeys = keys || ['carry', 'smash', 'face', 'path', 'attack', 'spin'];
   const carries = shots.map(s=>s.carry).filter(Boolean);
   const faces   = shots.map(s=>s.face_angle).filter(x=>x!=null);
   const paths   = shots.map(s=>s.club_path).filter(x=>x!=null);
@@ -1450,27 +1514,27 @@ function renderConsistency(shots) {
     </div>`;
 
   let rows = '';
-  if (carries.length) {
+  if (renderKeys.includes('carry') && carries.length) {
     const med = statMedian(carries), sd = statStdDev(carries);
     rows += row('Carry', f(med,0)+'m', f(sd,1)+'m', carrySDColor(sd));
   }
-  if (smashes.length) {
+  if (renderKeys.includes('smash') && smashes.length) {
     const avg = statAvg(smashes), sd = statStdDev(smashes);
     rows += row('Smash', f(avg,2), f(sd,3), kpiColor('smash_factor',avg));
   }
-  if (faces.length) {
+  if (renderKeys.includes('face') && faces.length) {
     const avg = statAvg(faces), sd = statStdDev(faces);
     rows += row('Face', fSign(avg,1)+'°', f(sd,1)+'°', '');
   }
-  if (paths.length) {
+  if (renderKeys.includes('path') && paths.length) {
     const avg = statAvg(paths), sd = statStdDev(paths);
     rows += row('Path', fSign(avg,1)+'°', f(sd,1)+'°', '');
   }
-  if (attacks.length) {
+  if (renderKeys.includes('attack') && attacks.length) {
     const avg = statAvg(attacks), sd = statStdDev(attacks);
     rows += row('Attack', fSign(avg,1)+'°', f(sd,1)+'°', '');
   }
-  if (spins.length) {
+  if (renderKeys.includes('spin') && spins.length) {
     const avg = statAvg(spins), sd = statStdDev(spins);
     rows += row('Spin', avg?Math.round(avg)+' rpm':'–', avg?Math.round(sd)+' rpm':'–', kpiColor('spin_rate',avg));
   }
@@ -3064,9 +3128,9 @@ window.setAnalysisClub        = setAnalysisClub;
 window.setAnalysisFilter      = setAnalysisFilter;
 window.setReportFilter        = setReportFilter;
 window.setReportWindow        = setReportWindow;
+window.setReportSubTab        = setReportSubTab;
 window.setSwingCauseChoice    = setSwingCauseChoice;
 window.setSwingPracticeResult = setSwingPracticeResult;
-window.showTrackmanSection    = showTrackmanSection;
 window.switchChartMode        = switchChartMode;
 window.switchProgChart        = switchProgChart;
 window.redrawCurrentTrackmanChart = redrawCurrentTrackmanChart;

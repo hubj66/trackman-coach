@@ -483,6 +483,9 @@ button:active{background:var(--surface4)}
 .prog-tab.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
 #progress-canvas{min-height:220px}
 .progress-baseline-note{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:5px;padding:0 2px}
+.report-sub-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}
+.report-sub-tab{padding:5px 11px;border:0.5px solid var(--border2);border-radius:6px;font-size:12px;font-weight:700;color:var(--text3);background:var(--surface);cursor:pointer;transition:all .15s;letter-spacing:.03em}
+.report-sub-tab.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
 .report-filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px}
 .report-filter-btn{padding:4px 9px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer}
 .report-filter-btn.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
@@ -1635,6 +1638,8 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
     scroll-padding-left:12px;
   }
   .ctab,.today-focus-chip,.atab,.filter-tab,.chart-mode-tab,.prog-tab,.drill-cat-btn{min-height:34px;display:flex;align-items:center}
+  .report-sub-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .report-sub-tab{min-height:34px;flex-shrink:0;display:flex;align-items:center}
   .report-filter-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
   .report-filter-btn{min-height:34px;flex-shrink:0}
   .report-window-select{min-height:34px;flex-shrink:0}
