@@ -179,7 +179,6 @@ function renderAnalysis(allShots) {
 
   el.innerHTML = unknownBanner + `
     <section class="trackman-section">
-      ${renderDataUsedChips(allShots, formShots, 'Report')}
       ${renderReportFilters()}
       ${renderReportSubTabs()}
       <div id="report-sub-content">
@@ -374,8 +373,10 @@ function isAssignedWedgeWindowShot(s) {
 }
 
 function getClubReportShots() {
-  let shots = [..._allFetchedShots].filter(s => CA().shotMatchesClub(s, analysisClub));
-  if (currentReportFilter === 'included') shots = shots.filter(s => !s.exclude_from_progress);
+  if (analysisClub === 'overall') return [];
+  let shots = [..._allFetchedShots]
+    .filter(s => CA().shotMatchesClub(s, analysisClub))
+    .filter(s => !s.exclude_from_progress);
   if (currentReportFilter === 'range') shots = shots.filter(s => s.shot_type !== 'round');
   if (currentReportFilter === 'round') shots = shots.filter(s => s.shot_type === 'round');
   if (currentReportFilter === 'windowed') shots = shots.filter(isAssignedWedgeWindowShot);
@@ -405,8 +406,8 @@ function reportWindowOptions() {
 }
 
 function setReportFilter(key) {
-  currentReportFilter = key;
-  if (key !== 'windowed') currentReportWindow = 'all';
+  currentReportFilter = (currentReportFilter === key) ? 'included' : key;
+  if (currentReportFilter !== 'windowed') currentReportWindow = 'all';
   renderAnalysis(analysisShots);
 }
 
@@ -417,11 +418,10 @@ function setReportWindow(value) {
 }
 
 function renderReportFilters() {
+  if (analysisClub === 'overall') return '';
   const options = [
-    { key:'included', label:'Use' },
-    { key:'all',      label:'All' },
-    { key:'range',    label:'Range' },
-    { key:'round',    label:'Course' },
+    { key:'range', label:'Range' },
+    { key:'round', label:'Course' },
   ];
   if (isAnalysisWedgeClub()) options.push({ key:'windowed', label:'Windows' });
   const windowOptions = reportWindowOptions();
@@ -1114,7 +1114,6 @@ function renderClubReportMetrics(allShots, limit) {
     </div>`;
   }).join('');
   return `
-    <div class="report-summary-line">${escapeHtml(clubLabel)} / ${reportFilterLabel()} / ${reportShots.length} shots / medians</div>
     ${renderWedgeTargetReport(reportShots)}
     <div class="report-metric-grid">${cards}</div>`;
 }
