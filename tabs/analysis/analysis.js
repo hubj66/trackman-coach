@@ -241,7 +241,7 @@ function renderReportSubContent(shots, allShots, formShots, colorMap) {
     case 'direction':  return renderSubDirection(shots, allShots);
     case 'striking':   return renderSubStriking(formShots);
     case 'trends':     return renderSubTrends(allShots);
-    case 'shots':      return renderSubShots(shots, colorMap);
+    case 'shots':      return renderSubShots(allShots, colorMap);
     case 'causecheck': return renderSubCauseCheck(shots);
     default:           return renderSubOverview(shots, allShots, formShots);
   }
@@ -432,14 +432,10 @@ function isAssignedWedgeWindowShot(s) {
 
 function getClubReportShots() {
   if (analysisClub === 'overall') return [];
-  let shots = [..._allFetchedShots]
+  return [..._allFetchedShots]
     .filter(s => CA().shotMatchesClub(s, analysisClub))
-    .filter(s => !s.exclude_from_progress);
-  if (currentReportFilter === 'range') shots = shots.filter(s => s.shot_type !== 'round');
-  if (currentReportFilter === 'round') shots = shots.filter(s => s.shot_type === 'round');
-  if (currentReportFilter === 'windowed') shots = shots.filter(isAssignedWedgeWindowShot);
-  if (currentReportWindow !== 'all') shots = shots.filter(s => normalizeWedgeWindowValue(s.shot_type) === currentReportWindow);
-  return shots.sort(byRecent);
+    .filter(s => !s.exclude_from_progress)
+    .sort(byRecent);
 }
 
 function reportFilterLabel() {
@@ -475,22 +471,7 @@ function setReportWindow(value) {
   renderAnalysis(analysisShots);
 }
 
-function renderReportFilters() {
-  if (analysisClub === 'overall') return '';
-  const options = [
-    { key:'range', label:'Range' },
-    { key:'round', label:'Course' },
-  ];
-  if (isAnalysisWedgeClub()) options.push({ key:'windowed', label:'Windows' });
-  const windowOptions = reportWindowOptions();
-  return `<div class="report-filter-row">
-    ${options.map(o => `<button class="report-filter-btn${currentReportFilter===o.key?' on':''}" onclick="setReportFilter('${o.key}')">${o.label}</button>`).join('')}
-    ${windowOptions.length ? `<select class="report-window-select" onchange="setReportWindow(this.value)" aria-label="Wedge window filter">
-      <option value="all"${currentReportWindow==='all'?' selected':''}>All windows</option>
-      ${windowOptions.map(o => `<option value="${escapeHtml(o.value)}"${currentReportWindow===o.value?' selected':''}>${escapeHtml(o.label)}</option>`).join('')}
-    </select>` : ''}
-  </div>`;
-}
+function renderReportFilters() { return ''; }
 
 function metricDisplay(metric, value) {
   if (value == null || isNaN(value)) return '-';
@@ -691,24 +672,17 @@ function clubHealthForShots(clubShots) {
 }
 
 function renderClubHealthStrip(allShots) {
-  const defs = CA().CLUB_DEFINITIONS.filter(c => !['3w','5w'].includes(c.key));
-  const rows = defs
-    .map(def => {
-      const shots = (allShots || []).filter(s => CA().shotMatchesClub(s, def.key));
-      return { def, shots, health:clubHealthForShots(shots) };
-    })
-    .filter(r => r.shots.length || r.def.key === analysisClub)
-    .sort((a,b) => (a.def.key === analysisClub ? -1 : b.def.key === analysisClub ? 1 : b.shots.length - a.shots.length))
-    .slice(0, 8);
-
-  if (!rows.length) return '';
+  const def = CA().CLUB_DEFINITIONS.find(c => c.key === analysisClub);
+  if (!def) return '';
+  const shots = (allShots || []).filter(s => CA().shotMatchesClub(s, analysisClub));
+  const health = clubHealthForShots(shots);
   return `<div class="club-health-strip">
-    ${rows.map(r => `<button class="club-health-card ${r.def.key === analysisClub ? 'active' : ''} ${healthStatusClass(r.health.status)}" onclick="setAnalysisClub('${r.def.key}')">
-      <span class="club-health-club">${escapeHtml(r.def.label)}</span>
-      <span class="club-health-score">${escapeHtml(r.health.score)}</span>
-      <span class="club-health-label">${escapeHtml(r.health.label)}</span>
-      <span class="club-health-reason">${escapeHtml(r.health.reason)}</span>
-    </button>`).join('')}
+    <div class="club-health-card active ${healthStatusClass(health.status)}">
+      <span class="club-health-club">${escapeHtml(def.label)}</span>
+      <span class="club-health-score">${escapeHtml(health.score)}</span>
+      <span class="club-health-label">${escapeHtml(health.label)}</span>
+      <span class="club-health-reason">${escapeHtml(health.reason)}</span>
+    </div>
   </div>`;
 }
 
