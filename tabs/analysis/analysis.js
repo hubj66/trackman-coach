@@ -189,7 +189,7 @@ function renderAnalysis(allShots) {
       ${renderPlayDecisionCard(formShots)}
       ${renderClubReportMetrics(allShots, 50)}
       ${renderAnalysisAcc('cause-check', 'Cause Check',
-        renderSwingCauseCheck(shots) + renderTrackmanNumberExplainer(getClubReportShots(allShots)),
+        renderSwingCauseCheck(shots) + renderTrackmanNumberExplainer(getClubReportShots()),
         false)}
       ${renderAnalysisAcc('details-diagrams', 'Details & Diagrams',
         `<div class="trackman-subgrid">
@@ -310,8 +310,8 @@ function isAssignedWedgeWindowShot(s) {
   return isWedgeShot(s) && isWedgeWindowValue(s.shot_type);
 }
 
-function getClubReportShots(allShots) {
-  let shots = [...(allShots || [])].filter(s => CA().shotMatchesClub(s, analysisClub));
+function getClubReportShots() {
+  let shots = [..._allFetchedShots].filter(s => CA().shotMatchesClub(s, analysisClub));
   if (currentReportFilter === 'included') shots = shots.filter(s => !s.exclude_from_progress);
   if (currentReportFilter === 'range') shots = shots.filter(s => s.shot_type !== 'round');
   if (currentReportFilter === 'round') shots = shots.filter(s => s.shot_type === 'round');
@@ -330,10 +330,10 @@ function reportFilterLabel() {
   }[currentReportFilter] || 'used shots';
 }
 
-function reportWindowOptions(allShots) {
+function reportWindowOptions() {
   if (!isAnalysisWedgeClub()) return [];
   const values = new Set();
-  (allShots || []).forEach(s => {
+  _allFetchedShots.forEach(s => {
     if (CA().shotMatchesClub(s, analysisClub) && isWedgeWindowValue(s.shot_type)) values.add(normalizeWedgeWindowValue(s.shot_type));
   });
   return WEDGE_WINDOW_OPTIONS
@@ -353,7 +353,7 @@ function setReportWindow(value) {
   renderAnalysis(analysisShots);
 }
 
-function renderReportFilters(allShots) {
+function renderReportFilters() {
   const options = [
     { key:'included', label:'Use' },
     { key:'all',      label:'All' },
@@ -361,7 +361,7 @@ function renderReportFilters(allShots) {
     { key:'round',    label:'Course' },
   ];
   if (isAnalysisWedgeClub()) options.push({ key:'windowed', label:'Windows' });
-  const windowOptions = reportWindowOptions(allShots);
+  const windowOptions = reportWindowOptions();
   return `<div class="report-filter-row">
     ${options.map(o => `<button class="report-filter-btn${currentReportFilter===o.key?' on':''}" onclick="setReportFilter('${o.key}')">${o.label}</button>`).join('')}
     ${windowOptions.length ? `<select class="report-window-select" onchange="setReportWindow(this.value)" aria-label="Wedge window filter">
@@ -608,7 +608,7 @@ function renderPlayDecisionCard(shots) {
 
   let wedgeNote = '';
   if (isAnalysisWedgeClub()) {
-    const rows = wedgeWindowTargetRows(getClubReportShots(analysisShots)).filter(r => r.miss != null);
+    const rows = wedgeWindowTargetRows(getClubReportShots()).filter(r => r.miss != null);
     if (rows.length) {
       const worst = [...rows].sort((a,b) => Math.abs(b.miss) - Math.abs(a.miss))[0];
       wedgeNote = `<div class="play-decision-note">Window note: ${escapeHtml(windowDisplayLabel(worst.label))} is ${Math.abs(Math.round(worst.miss))}m ${worst.miss > 0 ? 'long' : 'short'} versus target.</div>`;
@@ -737,7 +737,7 @@ function renderTrackmanNumberExplainer(shots) {
 }
 
 function renderTrackmanInsights(shots, allShots) {
-  const reportShots = getClubReportShots(allShots).slice(0, 50);
+  const reportShots = getClubReportShots().slice(0, 50);
   const insights = [];
 
   if (isAnalysisWedgeClub()) {
@@ -1034,10 +1034,10 @@ function renderSwingCauseCheck(shots) {
 }
 
 function renderClubReportMetrics(allShots, limit) {
-  let reportShots = getClubReportShots(allShots);
+  let reportShots = getClubReportShots();
   if (limit) reportShots = reportShots.slice(0, limit);
   const clubLabel = CA().clubLabel(analysisClub);
-  const filters = renderReportFilters(allShots);
+  const filters = renderReportFilters();
   if (!reportShots.length) {
     return `${filters}<div class="analysis-empty-small">No ${escapeHtml(clubLabel)} shots match this report filter.</div>`;
   }
@@ -1133,7 +1133,7 @@ function drawReportLegend(ctx, items, x, y) {
 }
 
 function drawClubReportDiagrams() {
-  const shots = getClubReportShots(analysisShots);
+  const shots = getClubReportShots();
   drawDeliveryDiagram(shots);
   drawPathDiagram(shots);
 }
