@@ -866,6 +866,9 @@ body.light-theme .today-login-btn{color:#fff}
 .dist-sd.kpi-ok{color:var(--amber)}
 .dist-sd.kpi-bad{color:var(--red)}
 .dist-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.dist-view-toggle{display:flex;gap:6px;margin-bottom:10px}
+.dist-view-btn{padding:5px 14px;border:0.5px solid var(--border2);border-radius:6px;font-size:12px;font-weight:700;color:var(--text3);background:var(--surface);cursor:pointer}
+.dist-view-btn.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
 
 /* Direction stacked bar */
 .dir-miss-wrap{margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)}

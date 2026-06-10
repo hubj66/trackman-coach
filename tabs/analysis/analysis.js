@@ -17,6 +17,7 @@ let swingPracticeResults = {};
 let _allFetchedShots = [];
 let openSessions = new Set();
 let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
+let currentDistanceView = 'carry'; // 'carry' | 'total'
 
 const FILTER_OPTIONS = [
   { key:'all',           label:'All' },
@@ -279,14 +280,26 @@ function renderOverallOverview() {
 }
 
 function renderSubDistance(shots) {
+  const hasTotal = shots.some(s => s.total != null);
+  const toggleHtml = hasTotal ? `
+    <div class="dist-view-toggle">
+      <button class="dist-view-btn${currentDistanceView==='carry'?' on':''}" onclick="setDistanceView('carry')">Carry</button>
+      <button class="dist-view-btn${currentDistanceView==='total'?' on':''}" onclick="setDistanceView('total')">Total</button>
+    </div>` : '';
   return `
-    ${renderDistanceControl(shots)}
+    ${toggleHtml}
+    ${renderDistanceControl(shots, currentDistanceView)}
     ${renderConsistency(shots, ['carry'])}
     <div class="map-chart-block" style="margin-top:14px;">
       <div class="map-chart-title">Side View &nbsp;·&nbsp; ball flight &amp; roll</div>
       <canvas id="side-view-canvas" height="165" style="width:100%;display:block;border-radius:10px;background:var(--canvas-bg);margin-top:4px;"></canvas>
     </div>
   `;
+}
+
+function setDistanceView(key) {
+  currentDistanceView = key;
+  renderAnalysis(analysisShots);
 }
 
 function renderSubDirection(shots, allShots) {
@@ -354,7 +367,9 @@ function drawCurrentSubTabCanvases(shots, allShots, colorMap) {
   const colorMap2 = buildSessionColorMap(analysisShots);
   if (currentReportSubTab === 'distance') {
     drawSideViewMap(filteredShots, colorMap2);
-    const distOf = s => (s.shot_type === 'round' && s.total) ? s.total : s.carry;
+    const distOf = currentDistanceView === 'total'
+      ? s => s.total || s.carry
+      : s => s.carry;
     const distVals = filteredShots.map(distOf).filter(Boolean);
     _drawHistogram('dist-histogram', distVals, { unit:'m', median:statMedian(distVals), sd:statStdDev(distVals), title:'distance distribution' });
   } else if (currentReportSubTab === 'direction') {
@@ -1650,29 +1665,30 @@ function renderDirection(shots) {
 }
 
 // ── Distance control ───────────────────────────────────────────────────────
-function renderDistanceControl(shots) {
-  // On-course shots use total distance; TrackMan shots use carry
-  const distOf = s => (s.shot_type === 'round' && s.total) ? s.total : s.carry;
+function renderDistanceControl(shots, viewMode) {
+  viewMode = viewMode || 'carry';
+  const distOf = viewMode === 'total'
+    ? s => s.total || s.carry
+    : s => s.carry;
   const c = shots.map(distOf).filter(Boolean);
   if (!c.length) return '<div class="analysis-empty-small">No carry data</div>';
   const sorted = [...c].sort((a,b)=>a-b);
   const med = statMedian(c), sd = statStdDev(c);
   const p10 = statPercentile(c,10), p90 = statPercentile(c,90);
-  const hasOnCourse = shots.some(s => s.shot_type === 'round' && s.total);
   const row = (l,v) => `<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value">${v}</span></div>`;
   return `
     <div class="dist-summary">
       <div class="dist-main">
         <span class="dist-median">${f(med,0)}m</span>
         <span class="dist-sd ${carrySDColor(sd)}">±${f(sd,1)}m</span>
-        <span class="dist-label">median · std dev${hasOnCourse?' · on-course=total':''}</span>
+        <span class="dist-label">most likely &nbsp;·&nbsp; consistency</span>
       </div>
     </div>
     <div class="analysis-row-list" style="display:grid;grid-template-columns:1fr 1fr;">
-      ${row('Min', f(sorted[0],0)+'m')}
-      ${row('Max', f(sorted[sorted.length-1],0)+'m')}
-      ${row('Range', f(sorted[sorted.length-1]-sorted[0],0)+'m')}
-      ${row('P10 – P90', f(p10,0)+'–'+f(p90,0)+'m')}
+      ${row('Shortest', f(sorted[0],0)+'m')}
+      ${row('Longest', f(sorted[sorted.length-1],0)+'m')}
+      ${row('Typical range', f(p10,0)+'–'+f(p90,0)+'m')}
+      ${row('Most likely', f(med,0)+'m')}
     </div>
     <canvas id="dist-histogram" height="88" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-top:12px;"></canvas>`;
 }
