@@ -2256,9 +2256,7 @@ function drawProgressChart(key,shots){
     ctx.restore();
   }
 
-  let prev='';ctx.setLineDash([3,4]);ctx.strokeStyle=cv.sessionSep;ctx.lineWidth=1;
-  dates.forEach((d,i)=>{if(d!==prev&&i>0){ctx.beginPath();ctx.moveTo(px(i),pad.t);ctx.lineTo(px(i),pad.t+ch);ctx.stroke();}prev=d;});
-  ctx.setLineDash([]);
+  // No session separator lines — x-axis is shot index, not date
 
   const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
   grad.addColorStop(0,cv.gradTop);grad.addColorStop(1,cv.gradBot);
@@ -2309,8 +2307,7 @@ function drawProgressChart(key,shots){
   ctx.fillStyle=cv.titleTxt;ctx.textAlign='left';ctx.font="700 11px 'Barlow Condensed',sans-serif";
   ctx.fillText(`${progLabel(key).toUpperCase()} · ${values.length} shots`,pad.l,pad.t-12);
 
-  const ud=[...new Set(dates)];ctx.font="9px 'DM Mono',monospace";ctx.textAlign='left';let lx=pad.l;
-  ud.forEach(d=>{if(lx>w-60)return;const col=colorMap[d]||cv.lineColor;ctx.fillStyle=col;ctx.beginPath();ctx.arc(lx+4,pad.t+ch+20,4,0,Math.PI*2);ctx.fill();ctx.fillStyle=cv.dim;ctx.fillText(d.slice(5),lx+12,pad.t+ch+23);lx+=54;});
+  // No date legend — trend line uses shot index on x-axis
 
   // Baseline note
   const noteEl=document.getElementById('progress-baseline-note');
