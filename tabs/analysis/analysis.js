@@ -1723,12 +1723,30 @@ function renderProgressSection(allShots) {
   ];
   const metrics=['carry','smash_factor','ball_speed','spin_rate','launch_angle','face_angle','club_path','face_to_path','attack_angle','playable_rate'];
   const showMetrics = currentChartMode === 'sessions' || currentChartMode === 'recent';
+
+  let patternFilter = '';
+  if (currentChartMode === 'pattern') {
+    const patShots = applyFilter(allShots).filter(s => s.carry != null && s.side != null);
+    const allDates = [...new Set(patShots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
+    if (analysisMapActiveDates === null || ![...analysisMapActiveDates].some(d => allDates.includes(d))) {
+      analysisMapActiveDates = new Set(allDates.slice(-4));
+    } else {
+      [...analysisMapActiveDates].forEach(d => { if (!allDates.includes(d)) analysisMapActiveDates.delete(d); });
+    }
+    const allOn = analysisMapActiveDates.size === allDates.length;
+    patternFilter = allDates.length ? `<div class="map-date-filter" id="map-date-filter" style="margin-top:8px;">
+      <button class="map-date-btn${allOn?' on':''}" onclick="toggleAllPatternDates()">All</button>
+      ${allDates.map(d => `<button class="map-date-btn${analysisMapActiveDates.has(d)?' on':''}" onclick="togglePatternDate('${d}')">${d.slice(5)}</button>`).join('')}
+    </div>` : '';
+  }
+
   return`<div class="chart-mode-tabs">
     ${modes.map(m=>`<button class="chart-mode-tab${m.key===currentChartMode?' on':''}" onclick="switchChartMode('${m.key}')">${m.label}</button>`).join('')}
   </div>
   ${showMetrics ? `<div class="progress-chart-tabs">
     ${metrics.map(k=>`<button class="prog-tab${k===currentProgKey?' on':''}" onclick="switchProgChart('${k}',this)">${progLabel(k)}</button>`).join('')}
   </div>` : ''}
+  ${patternFilter}
   <canvas id="progress-canvas" height="220" style="width:100%;display:block;margin-top:8px;border-radius:10px;background:var(--canvas-bg);"></canvas>
   <div class="progress-baseline-note" id="progress-baseline-note"></div>`;
 }
@@ -1737,7 +1755,31 @@ function progLabel(k){return{carry:'Carry',smash_factor:'Smash',ball_speed:'Ball
 
 function switchChartMode(mode) {
   currentChartMode = mode;
+  if (mode === 'pattern') analysisMapActiveDates = null;
   renderAnalysis(analysisShots);
+}
+
+function togglePatternDate(d) {
+  if (!analysisMapActiveDates) {
+    const allShots = applyFilter(analysisShots).filter(s => s.carry != null && s.side != null);
+    const allDates = [...new Set(allShots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
+    analysisMapActiveDates = new Set(allDates);
+  }
+  if (analysisMapActiveDates.has(d)) analysisMapActiveDates.delete(d);
+  else analysisMapActiveDates.add(d);
+  if (!analysisMapActiveDates.size) analysisMapActiveDates = null;
+  document.querySelectorAll('#map-date-filter .map-date-btn').forEach(btn => {
+    if (btn.textContent === 'All') { btn.classList.toggle('on', analysisMapActiveDates === null); return; }
+    const date = btn.getAttribute('onclick')?.match(/'([\d-]+)'/)?.[1];
+    if (date) btn.classList.toggle('on', analysisMapActiveDates?.has(date) ?? true);
+  });
+  redrawCurrentTrackmanChart();
+}
+
+function toggleAllPatternDates() {
+  analysisMapActiveDates = null;
+  document.querySelectorAll('#map-date-filter .map-date-btn').forEach(btn => btn.classList.add('on'));
+  redrawCurrentTrackmanChart();
 }
 
 function switchProgChart(key,btn){
@@ -1815,7 +1857,7 @@ function drawSessionChart(key, shots) {
   const values = sessions.map(s => s.value);
   const baseline = key === 'playable_rate' ? 70 : getBaselineForMetric(key, analysisClub);
   const allVals = baseline != null ? [...values, baseline] : values;
-  const pad=compact ? {t:36,r:16,b:56,l:54} : {t:30,r:20,b:44,l:48};
+  const pad=compact ? {t:36,r:16,b:56,l:62} : {t:30,r:20,b:44,l:62};
   const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   const span=Math.max(...allVals)-Math.min(...allVals)||1;
   const min=Math.min(...allVals)-span*0.14,max=Math.max(...allVals)+span*0.14;
@@ -1879,7 +1921,11 @@ function drawPatternChart(shots) {
   const { ctx, w, h } = p;
   const cv = _cv();
   const colorMap = buildSessionColorMap(shots);
-  const valid = shots.filter(s => s.carry != null && s.side != null);
+  const valid = shots.filter(s => {
+    if (!s.carry || s.side == null) return false;
+    if (analysisMapActiveDates === null) return true;
+    return analysisMapActiveDates.has((s.shot_time||s.created_at)?.slice(0,10));
+  });
   if (valid.length < 2) {
     drawEmptyChart(ctx, w, h, 'Need carry and side data for shot pattern', 'Import TrackMan shots with Carry and Side to see this chart.');
     const note = document.getElementById('progress-baseline-note');
@@ -2177,15 +2223,28 @@ function drawProgressChart(key,shots){
   ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(xs[0],ys[0]);smLine(xs,ys);
   ctx.lineTo(xs[xs.length-1],pad.t+ch);ctx.lineTo(xs[0],pad.t+ch);ctx.closePath();ctx.fill();
 
-  values.forEach((v,i)=>{ctx.fillStyle=colorMap[dates[i]]||cv.lineColor;ctx.globalAlpha=0.65;ctx.beginPath();ctx.arc(xs[i],ys[i],3,0,Math.PI*2);ctx.fill();});
+  // Individual shot dots (faint — rolling line is the main signal)
+  values.forEach((v,i)=>{ctx.fillStyle=colorMap[dates[i]]||cv.lineColor;ctx.globalAlpha=0.30;ctx.beginPath();ctx.arc(xs[i],ys[i],2.5,0,Math.PI*2);ctx.fill();});
   ctx.globalAlpha=1;
 
-  const roll=values.map((_,i)=>{const sl=values.slice(Math.max(0,i-4),i+1);return sl.reduce((a,b)=>a+b,0)/sl.length;});
-  const rys=roll.map(v=>py(v));
-  ctx.strokeStyle=cv.lineColor;ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.beginPath();ctx.moveTo(xs[0],rys[0]);smLine(xs,rys);ctx.stroke();
-  // Last-value highlighted dot
-  const lvx=xs[xs.length-1],lvy=ys[ys.length-1],lvv=values[values.length-1];
+  // Rolling 50-shot average — only draw from shot 50 onwards
+  const rollSize = 50;
+  const roll = values.map((_, i) => {
+    if (i < rollSize - 1) return null;
+    const sl = values.slice(i - rollSize + 1, i + 1);
+    return sl.reduce((a,b)=>a+b,0) / sl.length;
+  });
+  const rollStart = roll.findIndex(v => v != null);
+  if (rollStart >= 0) {
+    const rxs = xs.slice(rollStart), rys = roll.slice(rollStart).map(v=>py(v));
+    ctx.strokeStyle=cv.lineColor;ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(rxs[0],rys[0]);smLine(rxs,rys);ctx.stroke();
+  }
+  // Last-value highlighted dot — use rolling avg tip if available, else raw last
+  const lastRoll = roll[roll.length - 1];
+  const lvx=xs[xs.length-1];
+  const lvy = lastRoll != null ? py(lastRoll) : ys[ys.length-1];
+  const lvv = lastRoll != null ? lastRoll : values[values.length-1];
   ctx.shadowColor=cv.lineColor;ctx.shadowBlur=8;
   ctx.fillStyle=cv.lineColor;ctx.beginPath();ctx.arc(lvx,lvy,5,0,Math.PI*2);ctx.fill();
   ctx.shadowBlur=0;ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(lvx,lvy,2,0,Math.PI*2);ctx.fill();
@@ -2213,7 +2272,8 @@ function drawProgressChart(key,shots){
   // Baseline note
   const noteEl=document.getElementById('progress-baseline-note');
   if(noteEl){
-    noteEl.textContent=baseline!=null?`Dashed line = confirmed baseline (${isSign?(baseline>0?'+':'')+baseline:baseline})`:'' ;
+    const baseNote = baseline!=null ? `  ·  dashed = reference (${isSign?(baseline>0?'+':'')+baseline:baseline})` : '';
+    noteEl.textContent = (rollStart >= 0 ? 'Rolling 50-shot avg' : 'Fewer than 50 shots — dots only') + baseNote;
   }
 }
 
