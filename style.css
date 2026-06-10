@@ -366,9 +366,6 @@ button:active{background:var(--surface4)}
 .analysis-club-tabs{display:flex;flex-wrap:wrap;gap:4px;padding-bottom:5px;border-bottom:0.5px solid var(--border)}
 .atab{padding:4px 11px;border:0.5px solid var(--border2);border-radius:4px;font-family:var(--cond);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);background:transparent;cursor:pointer;transition:all .15s}
 .atab.on{background:var(--accent);color:#0e1012;border-color:var(--accent)}
-.analysis-filter-tabs{display:flex;gap:4px;flex-wrap:wrap;padding-top:5px}
-.filter-tab{padding:3px 10px;border:0.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);background:transparent;cursor:pointer;transition:all .15s}
-.filter-tab.on{background:var(--surface3);border-color:var(--border2);color:var(--text)}
 .trackman-section-tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--bg);border-bottom:0.5px solid var(--border);padding:7px 12px}
 .trackman-section-tab{min-height:34px;border:0.5px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text3);font-size:12px;font-weight:700;cursor:pointer}
 .trackman-section-tab.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
@@ -1660,13 +1657,13 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
   .top-nav-btn{min-height:48px;padding:8px 2px 7px;border-radius:9px;font-size:10px;line-height:1.1;letter-spacing:.03em}
   .top-nav-btn svg{width:15px;height:15px}
 
-  .club-scroll,.today-focus-bar,.analysis-club-tabs,.analysis-filter-tabs,.chart-mode-tabs,.progress-chart-tabs,.drill-catalog-filters{
+  .club-scroll,.today-focus-bar,.analysis-club-tabs,.chart-mode-tabs,.progress-chart-tabs,.drill-catalog-filters{
     flex-wrap:nowrap;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
     scroll-padding-left:12px;
   }
-  .ctab,.today-focus-chip,.atab,.filter-tab,.chart-mode-tab,.prog-tab,.drill-cat-btn{min-height:34px;display:flex;align-items:center}
+  .ctab,.today-focus-chip,.atab,.chart-mode-tab,.prog-tab,.drill-cat-btn{min-height:34px;display:flex;align-items:center}
   .report-sub-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
   .report-sub-tab{min-height:34px;flex-shrink:0;display:flex;align-items:center}
   .report-filter-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}

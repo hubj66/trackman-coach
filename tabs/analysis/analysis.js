@@ -2,15 +2,12 @@
 // Face SD in session headers · Fault frequency summary · Baseline reference line
 
 let analysisClub   = '7';
-let analysisFilter = 'progress';
 let analysisShots  = [];
 let analysisRawSort = { col: 'shot_time', dir: -1 };
 let editingRowId   = null;
 let currentProgKey = 'carry';
 let currentChartMode = 'sessions';
 let currentAnalysisSection = 'report';
-let currentReportFilter = 'included';
-let currentReportWindow = 'all';
 let currentReportSubTab = 'overview';
 let swingCauseAnswers = {};
 let swingPracticeResults = {};
@@ -18,11 +15,6 @@ let _allFetchedShots = [];
 let openSessions = new Set();
 let analysisMapActiveDates = null; // null = all dates; Set<string> = filtered
 let currentDistanceView = 'carry'; // 'carry' | 'total'
-
-const FILTER_OPTIONS = [
-  { key:'all',           label:'All' },
-  { key:'progress',      label:'Included' },
-];
 
 const SESSION_COLORS = ['#00d68f','#ffaa00','#7b9cff','#ff7eb3','#40e0d0','#f4a460','#b8ff5a','#ff6b6b','#c084fc','#34d3f7','#fbbf24','#a3e635'];
 
@@ -78,7 +70,6 @@ async function initAnalysisTab() {
   loadSwingCauseAnswers();
   loadSwingPracticeResults();
   buildAnalysisClubTabs();
-  buildFilterTabs();
   loadAnalysis();
 }
 
@@ -91,14 +82,6 @@ function buildAnalysisClubTabs() {
     defs.map(c =>
       `<button class="atab${c.key===analysisClub?' on':''}" onclick="setAnalysisClub('${c.key}')">${c.label}</button>`
     ).join('');
-}
-
-function buildFilterTabs() {
-  const el = document.getElementById('analysis-filter-tabs');
-  if (!el) return;
-  el.innerHTML = FILTER_OPTIONS.map(f =>
-    `<button class="filter-tab${f.key===analysisFilter?' on':''}" onclick="setAnalysisFilter('${f.key}')">${f.label}</button>`
-  ).join('');
 }
 
 function setAnalysisClub(key) {
@@ -114,14 +97,6 @@ function setAnalysisClub(key) {
   if (key === 'overall' && !['overview','shots'].includes(currentReportSubTab)) {
     currentReportSubTab = 'overview';
   }
-  renderAnalysis(analysisShots);
-}
-
-function setAnalysisFilter(key) {
-  analysisFilter = key;
-  document.querySelectorAll('.filter-tab').forEach(t =>
-    t.classList.toggle('on', t.textContent === FILTER_OPTIONS.find(f=>f.key===key)?.label)
-  );
   renderAnalysis(analysisShots);
 }
 
@@ -160,7 +135,7 @@ async function loadAnalysis() {
   renderAnalysis(analysisShots);
 }
 
-function applyFilter(shots) { return window.TCGolf.filterAnalysisShots(shots, analysisFilter); }
+function includedShots(shots) { return (shots || []).filter(s => s.exclude_from_progress !== true); }
 
 function recentFormShots(shots, n = 50) {
   return [...shots].sort(byRecent).slice(0, n);
@@ -177,7 +152,7 @@ function buildSessionColorMap(shots) {
 function renderAnalysis(allShots) {
   const el = document.getElementById('analysis-content');
   if (!el) return;
-  const shots = applyFilter(allShots);
+  const shots = includedShots(allShots);
   const formShots = recentFormShots(shots);
   const colorMap = buildSessionColorMap(allShots);
 
@@ -366,7 +341,7 @@ function renderSubCauseCheck(shots) {
 }
 
 function drawCurrentSubTabCanvases(shots, allShots, colorMap) {
-  const filteredShots = applyFilter(analysisShots);
+  const filteredShots = includedShots(analysisShots);
   const colorMap2 = buildSessionColorMap(analysisShots);
   if (currentReportSubTab === 'distance') {
     drawSideViewMap(filteredShots, colorMap2);
@@ -384,7 +359,7 @@ function drawCurrentSubTabCanvases(shots, allShots, colorMap) {
   } else if (currentReportSubTab === 'striking') {
     drawClubReportDiagrams();
   } else if (currentReportSubTab === 'trends') {
-    drawTrackmanChart(currentChartMode, currentProgKey, applyFilter(analysisShots));
+    drawTrackmanChart(currentChartMode, currentProgKey, includedShots(analysisShots));
   }
 }
 
@@ -436,16 +411,6 @@ function getClubReportShots() {
     .sort(byRecent);
 }
 
-function reportFilterLabel() {
-  return {
-    included: 'used shots',
-    all: 'all shots',
-    range: 'range/simulator',
-    round: 'on-course',
-    windowed: 'assigned windows',
-  }[currentReportFilter] || 'used shots';
-}
-
 function reportWindowOptions() {
   if (!isAnalysisWedgeClub()) return [];
   const values = new Set();
@@ -455,18 +420,6 @@ function reportWindowOptions() {
   return WEDGE_WINDOW_OPTIONS
     .filter(o => o.value && values.has(o.value))
     .map(o => ({ value:o.value, label:o.label }));
-}
-
-function setReportFilter(key) {
-  currentReportFilter = (currentReportFilter === key) ? 'included' : key;
-  if (currentReportFilter !== 'windowed') currentReportWindow = 'all';
-  renderAnalysis(analysisShots);
-}
-
-function setReportWindow(value) {
-  currentReportWindow = value || 'all';
-  if (currentReportWindow !== 'all') currentReportFilter = 'windowed';
-  renderAnalysis(analysisShots);
 }
 
 function renderReportFilters() { return ''; }
@@ -507,9 +460,7 @@ function wedgeWindowTargetRows(reportShots) {
   WEDGE_WINDOW_OPTIONS.forEach(o => {
     if (o.value && window.getWedgeTarget?.(analysisClub, o.value) != null) labels.add(o.value);
   });
-  const selectedLabels = currentReportWindow === 'all'
-    ? [...labels]
-    : [...labels].filter(label => label === currentReportWindow);
+  const selectedLabels = [...labels];
   return selectedLabels
     .map(label => {
       const shots = assigned
@@ -588,7 +539,7 @@ function renderDataUsedChips(allShots, shots, label) {
   const chips = [
     label,
     CA().clubLabel(analysisClub),
-    analysisFilter === 'progress' ? 'Included shots' : 'All shots',
+    'Included shots',
     `${filtered.length} shown`,
   ].filter(Boolean);
 
@@ -604,7 +555,7 @@ function renderDataUsedChips(allShots, shots, label) {
   }
 
   const skipped = clubShots.filter(s => s.exclude_from_progress).length;
-  if (analysisFilter === 'progress' && skipped) chips.push(`${skipped} skipped`);
+  if (skipped) chips.push(`${skipped} skipped`);
 
   return `<div class="data-used-strip">
     ${chips.map(c => `<span class="data-used-chip">${escapeHtml(c)}</span>`).join('')}
@@ -1485,7 +1436,7 @@ function renderLoadIntoCoachBtn(shots) {
 }
 
 function loadAnalysisSessionIntoCoach(date) {
-  const shots = applyFilter(analysisShots).filter(s => (s.shot_time||s.created_at)?.startsWith(date));
+  const shots = includedShots(analysisShots).filter(s => (s.shot_time||s.created_at)?.startsWith(date));
   if (!shots.length) return;
 
   const coachMap = {
@@ -1769,7 +1720,7 @@ function renderProgressSection(allShots) {
 
   let patternFilter = '';
   if (currentChartMode === 'pattern') {
-    const patShots = applyFilter(allShots).filter(s => s.carry != null && s.side != null);
+    const patShots = includedShots(allShots).filter(s => s.carry != null && s.side != null);
     const allDates = [...new Set(patShots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
     if (analysisMapActiveDates === null || ![...analysisMapActiveDates].some(d => allDates.includes(d))) {
       analysisMapActiveDates = new Set(allDates.slice(-4));
@@ -1804,7 +1755,7 @@ function switchChartMode(mode) {
 
 function togglePatternDate(d) {
   if (!analysisMapActiveDates) {
-    const allShots = applyFilter(analysisShots).filter(s => s.carry != null && s.side != null);
+    const allShots = includedShots(analysisShots).filter(s => s.carry != null && s.side != null);
     const allDates = [...new Set(allShots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
     analysisMapActiveDates = new Set(allDates);
   }
@@ -1829,7 +1780,7 @@ function switchProgChart(key,btn){
   currentProgKey=key;
   document.querySelectorAll('.prog-tab').forEach(t=>t.classList.remove('on'));
   if(btn)btn.classList.add('on');
-  drawTrackmanChart(currentChartMode,currentProgKey,applyFilter(analysisShots));
+  drawTrackmanChart(currentChartMode,currentProgKey,includedShots(analysisShots));
 }
 
 function drawTrackmanChart(mode, key, shots) {
@@ -1840,7 +1791,7 @@ function drawTrackmanChart(mode, key, shots) {
 }
 
 function redrawCurrentTrackmanChart() {
-  drawTrackmanChart(currentChartMode, currentProgKey, applyFilter(analysisShots));
+  drawTrackmanChart(currentChartMode, currentProgKey, includedShots(analysisShots));
 }
 
 function prepProgressCanvas(height=190) {
@@ -2727,14 +2678,14 @@ function toggleMapDate(date) {
 }
 
 function selectAllMapDates() {
-  const shots = applyFilter(analysisShots);
+  const shots = includedShots(analysisShots);
   const allDates = [...new Set(shots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))];
   analysisMapActiveDates = new Set(allDates);
   _redrawMaps();
 }
 
 function _redrawMaps() {
-  const shots = applyFilter(analysisShots);
+  const shots = includedShots(analysisShots);
   const colorMap = buildSessionColorMap(analysisShots);
   const allDates = [...new Set(shots.map(s => (s.shot_time||s.created_at)?.slice(0,10)).filter(Boolean))].sort();
   const allOn = analysisMapActiveDates.size === allDates.length;
@@ -3313,9 +3264,6 @@ function showAliasMsg(m){const el=document.getElementById('alias-msg');if(el){el
 // ── Expose ─────────────────────────────────────────────────────────────────
 window.initAnalysisTab        = initAnalysisTab;
 window.setAnalysisClub        = setAnalysisClub;
-window.setAnalysisFilter      = setAnalysisFilter;
-window.setReportFilter        = setReportFilter;
-window.setReportWindow        = setReportWindow;
 window.setReportSubTab        = setReportSubTab;
 window.setSwingCauseChoice    = setSwingCauseChoice;
 window.setSwingPracticeResult = setSwingPracticeResult;
