@@ -551,10 +551,26 @@ async function loadLastSessionBanner() {
     _lastSessionCache[club] = window.TCGolf.summarizeLastTrackmanSession(relevantShots);
 
     const s = _lastSessionCache[club];
-    const fmtN = (v, dp=1) => v != null ? Number(v).toFixed(dp) : '–';
-    const fmtS = (v, dp=1) => v != null ? (v>0?'+':'')+Number(v).toFixed(dp) : '–';
 
-    text.innerHTML = `<strong>${s.date}</strong> · ${s.n} shots · carry ${fmtN(s.carry)}m · face ${fmtS(s.face)}° · smash ${fmtN(s.smash,2)}`;
+    // Auto-apply to sliders (silent — no toast, no accordion-open)
+    if (!vals[club]) vals[club] = {};
+    const fieldMap = {
+      face:'face', path:'path', attack:'attack', launch:'launch',
+      spin:'spin', smash:'smash', clubSpeed:'clubspeed', dynLoft:'dynloft', spinAxis:'spinaxis',
+    };
+    const allInps = getAllInputs(club);
+    Object.entries(fieldMap).forEach(([field, sliderId]) => {
+      const inp = allInps.find(i => i.id === sliderId);
+      if (!inp) return;
+      const val = s[field];
+      if (val == null) return;
+      const rawVal = inp.scale ? Math.round(val * inp.scale) : Math.round(val * 10) / 10;
+      vals[club][sliderId] = Math.max(inp.min, Math.min(inp.max, rawVal));
+    });
+    render();
+
+    const fmtN = (v, dp=1) => v != null ? Number(v).toFixed(dp) : '–';
+    text.innerHTML = `Loaded from <strong>${s.date}</strong> &nbsp;·&nbsp; ${s.n} shots &nbsp;·&nbsp; carry ${fmtN(s.carry)}m &nbsp;·&nbsp; smash ${fmtN(s.smash,2)}`;
     banner.style.display = 'flex';
   } catch(e) {
     banner.style.display = 'none';
