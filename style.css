@@ -1578,6 +1578,12 @@ body.light-theme .progress-summary-strip,.progress-card{background:var(--surface
 .round-table td{padding:5px 8px 5px 0;color:var(--text);border-bottom:0.5px solid var(--border)}
 .round-table tr:last-child td{border-bottom:none}
 .round-table-total td{font-weight:700;color:var(--text);border-top:0.5px solid var(--border)}
+.round-stats-strip{display:flex;flex-wrap:wrap;padding:8px 14px 6px;border-bottom:0.5px solid var(--border);gap:0}
+.rss-item{display:flex;flex-direction:column;align-items:center;padding:4px 8px;min-width:54px;flex:1}
+.rss-val{font-family:var(--cond);font-size:17px;font-weight:700;color:var(--text)}
+.rss-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:1px;text-align:center;white-space:nowrap}
+.rss-dim .rss-val{color:var(--text3);font-size:14px}
+.rss-warn .rss-val{color:var(--amber)}
 .round-body-actions{margin-top:4px;display:flex;gap:8px;}
 .round-delete-btn{font-size:12px;color:var(--red);background:none;border:0.5px solid var(--red);border-radius:7px;padding:5px 12px;cursor:pointer;opacity:.8}
 .round-delete-btn:active{opacity:.5}

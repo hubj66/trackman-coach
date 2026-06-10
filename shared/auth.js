@@ -1614,10 +1614,30 @@ function _renderRoundBody(shots,summary,roundId){
   const totalRel=summary.totalPar?(summary.totalStrokes-summary.totalPar):null;
   const totalRelStr=totalRel===null?'':totalRel===0?' (E)':totalRel>0?` (+${totalRel})`:(` (${totalRel})`);
   const totRow=`<tr class="round-table-total"><td colspan="2">Total</td><td colspan="2">${summary.totalStrokes}${totalRelStr}</td><td>${summary.totalPutts}</td><td colspan="2"></td></tr>`;
+  const doublesPlus=summary.strokesByHole.filter(h=>h.par!=null&&(h.strokes-h.par)>=2).length;
+  const scrAtt=(summary.roughUD?.att||0)+(summary.bunkerUD?.att||0);
+  const scrMade=(summary.roughUD?.made||0)+(summary.bunkerUD?.made||0);
+  const scrStr=scrAtt>0?`${scrMade}/${scrAtt}`:'–';
+  const fwStr=summary.par45Holes>0?`${summary.fwHitCount}/${summary.par45Holes}`:'–';
+  const girStr=summary.holesPlayed>0?`${summary.girCount}/${summary.holesPlayed}`:'–';
+  const avgPuttsStr=summary.avgPuttsPerHole?summary.avgPuttsPerHole.toFixed(1):'–';
+  const parItems=[3,4,5].filter(p=>summary.byPar&&summary.byPar[p]).map(p=>{
+    const avgScore=(summary.byPar[p].avgRelPar+p).toFixed(1);
+    return`<div class="rss-item"><span class="rss-val">${avgScore}</span><span class="rss-lbl">Avg par ${p}</span></div>`;
+  }).join('');
+  const statsStrip=`<div class="round-stats-strip">
+    <div class="rss-item"><span class="rss-val">${fwStr}</span><span class="rss-lbl">Fairways</span></div>
+    <div class="rss-item"><span class="rss-val">${avgPuttsStr}</span><span class="rss-lbl">Putts/hole</span></div>
+    <div class="rss-item"><span class="rss-val">${scrStr}</span><span class="rss-lbl">Scrambling</span></div>
+    <div class="rss-item${doublesPlus>=3?' rss-warn':''}"><span class="rss-val">${doublesPlus}</span><span class="rss-lbl">Doubles+</span></div>
+    ${parItems}
+    <div class="rss-item rss-dim"><span class="rss-val">${girStr}</span><span class="rss-lbl">Greens</span></div>
+  </div>`;
   return`<div class="round-table-wrap"><table class="round-table">
     <thead><tr><th>H</th><th>Par</th><th>Score</th><th>Shots</th><th>Putts</th><th>Clubs</th><th>Notes</th></tr></thead>
     <tbody>${rows}${totRow}</tbody>
   </table></div>
+  ${statsStrip}
   <div class="round-body-actions">
     <button class="round-edit-btn" onclick="editRoundById('${escapeHtml(roundId)}')">Edit round</button>
     <button class="round-delete-btn" onclick="deleteRoundById('${escapeHtml(roundId)}')">Delete round</button>
