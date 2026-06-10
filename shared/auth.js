@@ -90,6 +90,7 @@ async function loadStatsPage(){
     loadClubsOverview(),
     loadStatsGlance(),
     loadPracticeSessions(),
+    loadRecentActivityTimeline(),
     // loadRoundsSummary() removed — Rounds has its own page now
   ]);
 }
@@ -182,6 +183,53 @@ async function loadStatsGlance(){
       <div class="glance-sep"></div>
       <div class="glance-item"><div class="glance-val">${puttRate!=null?((puttRate*100).toFixed(0)+'%'):'–'}</div><div class="glance-label">Last putt make rate</div></div>
     `;
+  }catch{el.innerHTML='';}
+}
+
+// ── Recent activity timeline ───────────────────────────────────────────────
+async function loadRecentActivityTimeline(){
+  const el=document.getElementById('stats-recent-activity');if(!el)return;
+  if(!_currentUserId){el.innerHTML='';return;}
+  try{
+    const[chipRes,puttRes]=await Promise.all([
+      sb.from('chipping_sessions').select('session_date,attempts,inside_1m,between_1_2m').eq('user_id',_currentUserId).order('session_date',{ascending:false}).limit(10),
+      sb.from('putting_sessions').select('session_date,holed,total').eq('user_id',_currentUserId).order('session_date',{ascending:false}).limit(10),
+    ]);
+    const practRes=await sb.from('practice_sessions').select('session_date,practice_type,club_key,focus_area,balls,good_shots,title').eq('user_id',_currentUserId).order('session_date',{ascending:false}).limit(10);
+    const practData=practRes.error?[]:(practRes.data||[]);
+
+    const items=[];
+    (chipRes.data||[]).forEach(s=>{
+      const inside2=(s.inside_1m||0)+(s.between_1_2m||0);
+      const parts=[s.attempts?s.attempts+' att':null,inside2>0&&s.attempts?inside2+' inside 2m':null].filter(Boolean);
+      items.push({date:s.session_date,type:'chip',label:'Chipping',detail:parts.join(' · ')});
+    });
+    (puttRes.data||[]).forEach(s=>{
+      const detail=s.total?(s.holed??'–')+'/'+s.total+' made':(s.holed?s.holed+' made':'');
+      items.push({date:s.session_date,type:'putt',label:'Putting',detail});
+    });
+    practData.forEach(s=>{
+      if(s.practice_type==='range'){
+        const parts=[s.club_key,s.focus_area,s.balls!=null?s.balls+'b'+(s.good_shots!=null?'/'+s.good_shots+' good':''):null].filter(Boolean);
+        items.push({date:s.session_date,type:'range',label:'Range',detail:parts.join(' · ')});
+      }else{
+        items.push({date:s.session_date,type:'course',label:'Course note',detail:s.title||''});
+      }
+    });
+
+    items.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const recent=items.slice(0,7);
+    if(!recent.length){el.innerHTML='';return;}
+
+    const dotColor={chip:'var(--green)',putt:'var(--accent)',range:'var(--text2)',course:'var(--amber)'};
+    el.innerHTML=`<div class="srt-wrap">${recent.map(it=>`
+      <div class="srt-item">
+        <span class="srt-date">${escapeHtml(_fmtDate(it.date))}</span>
+        <span class="srt-dot" style="color:${dotColor[it.type]||'var(--text3)'}">●</span>
+        <span class="srt-label">${escapeHtml(it.label)}</span>
+        ${it.detail?`<span class="srt-detail">${escapeHtml(it.detail)}</span>`:''}
+      </div>`).join('')}
+    </div>`;
   }catch{el.innerHTML='';}
 }
 
