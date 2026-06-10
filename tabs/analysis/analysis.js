@@ -1602,28 +1602,60 @@ function renderDirection(shots) {
   const sides = shots.map(s=>s.side).filter(x=>x!=null);
 
   const avgFace = statAvg(faces), avgPath = statAvg(paths), avgFTP = statAvg(ftps);
+  const sdFTP = statStdDev(ftps);
   const tot = sides.length || 1;
   const left   = sides.filter(s=>s<-5).length;
   const right  = sides.filter(s=>s>5).length;
-  const center = tot - left - right;
   const lPct = sides.length ? Math.round(left/tot*100)   : 0;
   const rPct = sides.length ? Math.round(right/tot*100)  : 0;
   const cPct = 100 - lPct - rPct;
 
+  // Pattern label: lower thresholds + SD-based variability check
   const miss = (()=>{
-    if (!avgFTP) return '–';
-    if (avgFTP > 4)  return avgPath != null && avgPath > 3 ? 'Push Draw' : 'Draw / Fade';
-    if (avgFTP < -4) return avgPath != null && avgPath < -3 ? 'Pull Fade' : 'Fade / Draw';
-    if (avgFace != null && avgFace > 2)  return 'Push Right';
-    if (avgFace != null && avgFace < -2) return 'Pull Left';
+    if (avgFTP == null) return '–';
+    if (avgFTP > 5)    return avgPath != null && avgPath > 3 ? 'Push / Draw' : 'Strong slice';
+    if (avgFTP < -5)   return avgPath != null && avgPath < -3 ? 'Pull / Hook' : 'Strong hook';
+    if (avgFTP > 2.5)  return 'Fade tendency';
+    if (avgFTP < -2.5) return 'Draw tendency';
+    if (sdFTP != null && sdFTP > 4.5) return 'Inconsistent — both ways';
+    if (avgFTP > 1)    return 'Slight fade bias';
+    if (avgFTP < -1)   return 'Slight draw bias';
+    if (avgFace != null && avgFace > 1.5) return 'Slight push right';
+    if (avgFace != null && avgFace < -1.5) return 'Slight pull left';
     return 'Neutral';
   })();
 
-  const faceDesc = avgFace==null ? '–' : Math.abs(avgFace)<=1 ? `${fSign(avgFace,1)}° neutral` : avgFace>0 ? `${fSign(avgFace,1)}° open` : `${fSign(avgFace,1)}° closed`;
-  const pathDesc = avgPath==null ? '–' : Math.abs(avgPath)<=2 ? `${fSign(avgPath,1)}°` : avgPath>0 ? `${fSign(avgPath,1)}° in-to-out` : `${fSign(avgPath,1)}° out-to-in`;
-  const ftpDesc  = avgFTP==null  ? '–' : Math.abs(avgFTP)<=3  ? `${fSign(avgFTP,1)}° neutral`  : avgFTP>0 ? `${fSign(avgFTP,1)}° slice bias` : `${fSign(avgFTP,1)}° hook bias`;
+  const ftpCls  = avgFTP  == null ? '' : Math.abs(avgFTP)  < 1.5 ? 'dir-val-good' : Math.abs(avgFTP)  < 4 ? 'dir-val-warn' : 'dir-val-bad';
+  const faceCls = avgFace == null ? '' : Math.abs(avgFace) < 1   ? 'dir-val-good' : Math.abs(avgFace) < 3 ? 'dir-val-warn' : 'dir-val-bad';
+  const pathCls = avgPath == null ? '' : Math.abs(avgPath) < 2   ? 'dir-val-good' : Math.abs(avgPath) < 5 ? 'dir-val-warn' : 'dir-val-bad';
 
-  const row=(l,v)=>`<div class="analysis-row"><span class="analysis-row-label">${l}</span><span class="analysis-row-value">${v}</span></div>`;
+  const faceSubDesc = avgFace==null ? '' : Math.abs(avgFace)<=0.5 ? 'square' : avgFace>0 ? 'open' : 'closed';
+  const pathSubDesc = avgPath==null ? '' : Math.abs(avgPath)<=1 ? '–' : avgPath>0 ? 'in-to-out' : 'out-to-in';
+  const ftpSubDesc  = avgFTP ==null ? '' : (Math.abs(avgFTP)<=1 ? 'neutral' : avgFTP>0 ? 'fade side' : 'draw side')
+                      + (sdFTP != null ? ` · ±${f(sdFTP,1)}°` : '');
+
+  const heroGrid = (faces.length || ftps.length) ? `
+    <div class="dir-hero-grid">
+      ${faces.length ? `<div class="dir-hero-cell">
+        <div class="dir-hero-label">Face</div>
+        <div class="dir-hero-val ${faceCls}">${fSign(avgFace,1)}°</div>
+        <div class="dir-hero-sub">${faceSubDesc}</div>
+      </div>` : ''}
+      ${paths.length ? `<div class="dir-hero-cell">
+        <div class="dir-hero-label">Path</div>
+        <div class="dir-hero-val ${pathCls}">${fSign(avgPath,1)}°</div>
+        <div class="dir-hero-sub">${pathSubDesc}</div>
+      </div>` : ''}
+      ${ftps.length ? `<div class="dir-hero-cell">
+        <div class="dir-hero-label">FTP</div>
+        <div class="dir-hero-val ${ftpCls}">${fSign(avgFTP,1)}°</div>
+        <div class="dir-hero-sub">${ftpSubDesc}</div>
+      </div>` : ''}
+    </div>
+    <div class="dir-pattern-row">
+      <span class="dir-pattern-label">Pattern</span>
+      <span class="dir-pattern-val">${miss}</span>
+    </div>` : '<div class="analysis-empty-small">No angle data</div>';
 
   const stackedBar = sides.length >= 3 ? `
     <div class="dir-miss-wrap">
@@ -1637,29 +1669,11 @@ function renderDirection(shots) {
         <span class="dml dml-l"></span>L ${lPct}%
         <span class="dml dml-c"></span>C ${cPct}%
         <span class="dml dml-r"></span>R ${rPct}%
-        ${avgFTP != null ? `<span class="dir-pattern-text">${miss}</span>` : ''}
       </div>
     </div>` : '';
 
   return `
-    <div class="analysis-two-col">
-      <div>
-        <div class="analysis-col-label">Angle averages</div>
-        <div class="analysis-row-list">
-          ${faces.length ? row('Face', faceDesc) : ''}
-          ${paths.length ? row('Path', pathDesc) : ''}
-          ${ftps.length  ? row('FTP',  ftpDesc)  : ''}
-          ${!faces.length && !paths.length ? '<div class="analysis-empty-small">No angle data</div>' : ''}
-        </div>
-      </div>
-      <div>
-        <div class="analysis-col-label">Pattern</div>
-        <div class="analysis-row-list">
-          ${row('Pattern', miss)}
-          ${sides.length ? row('Shots', sides.length+'') : ''}
-        </div>
-      </div>
-    </div>
+    ${heroGrid}
     ${stackedBar}
     ${sides.length >= 4 ? '<canvas id="dir-histogram" height="82" style="width:100%;display:block;border-radius:8px;background:var(--canvas-bg);margin-top:12px;"></canvas>' : ''}`;
 }
@@ -2662,9 +2676,14 @@ function drawTopViewMap(shots, colorMap) {
   const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
   const cv = _cv();
 
-  // ── Clean background ──────────────────────────────────────────────────────
-  ctx.fillStyle = light ? '#f2f0ec' : '#0d1215';
-  ctx.fillRect(0, 0, w, h);
+  // ── Grass background ──────────────────────────────────────────────────────
+  const grassBg = ctx.createLinearGradient(0, 0, 0, h);
+  if (light) {
+    grassBg.addColorStop(0, '#cce0c2'); grassBg.addColorStop(1, '#b8d0ae');
+  } else {
+    grassBg.addColorStop(0, '#0a1a0e'); grassBg.addColorStop(1, '#0c1f10');
+  }
+  ctx.fillStyle = grassBg; ctx.fillRect(0, 0, w, h);
 
   const valid = shots.filter(s => s.carry != null && s.side != null);
   if (!valid.length) {
@@ -2685,13 +2704,30 @@ function drawTopViewMap(shots, colorMap) {
   const carryMin   = Math.max(0, avgCarry - carryRange * 0.42);
   const carryMax   = carryMin + carryRange;
 
-  const mapX = sv  => pad.l + cw * (sv + sideRange) / (sideRange * 2);
-  const mapY = cvv => pad.t + ch - ch * (cvv - carryMin) / (carryMax - carryMin);
+  // Equal scale: same pixels-per-metre on both axes
+  const ppm    = Math.min(cw / (sideRange * 2), ch / carryRange);
+  const usedW  = sideRange * 2 * ppm;
+  const usedH  = carryRange * ppm;
+  const xOff   = pad.l + (cw - usedW) / 2;
+  const yBottom = pad.t + ch;
+
+  const mapX = sv  => xOff + (sv + sideRange) * ppm;
+  const mapY = cvv => yBottom - (cvv - carryMin) * ppm;
+
+  // ── Fairway corridor (clear green strip) ──────────────────────────────────
+  const fwL = mapX(-14), fwR = mapX(14);
+  if (fwR - fwL > 6) {
+    const g = ctx.createLinearGradient(fwL, 0, fwR, 0);
+    g.addColorStop(0, 'transparent');
+    g.addColorStop(0.18, light ? 'rgba(80,140,60,0.32)' : 'rgba(0,214,143,0.18)');
+    g.addColorStop(0.5,  light ? 'rgba(80,140,60,0.44)' : 'rgba(0,214,143,0.26)');
+    g.addColorStop(0.82, light ? 'rgba(80,140,60,0.32)' : 'rgba(0,214,143,0.18)');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.fillRect(fwL, pad.t, fwR-fwL, ch);
+  }
 
   // ── Concentric distance arcs from tee (below chart) ───────────────────────
-  // Tee is at carry=0 in metric space; in canvas coords it is below the chart.
-  const pyPerM = ch / carryRange;
-  const oy = pad.t + ch + carryMin * pyPerM; // canvas Y of the tee (below visible area)
+  const oy = yBottom + carryMin * ppm;
   const originX = mapX(0);
   const carryStep = Math.ceil(carryRange/4/5)*5;
   const cFirst = Math.ceil(carryMin/carryStep)*carryStep;
@@ -2699,34 +2735,23 @@ function drawTopViewMap(shots, colorMap) {
   ctx.save();
   ctx.beginPath(); ctx.rect(pad.l, pad.t, cw, ch); ctx.clip();
   for (let c=cFirst; c<=carryMax+carryStep; c+=carryStep) {
-    const arcR = c * pyPerM; // distance from tee in px
+    const arcR = c * ppm;
     ctx.beginPath();
     ctx.arc(originX, oy, arcR, 0, Math.PI*2);
-    ctx.strokeStyle = light ? 'rgba(0,0,0,0.13)' : 'rgba(255,255,255,0.10)';
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.11)' : 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 0.9; ctx.stroke();
   }
   ctx.restore();
 
-  // ── Fairway corridor (subtle green tint) ──────────────────────────────────
-  const fwL = mapX(-14), fwR = mapX(14);
-  if (fwR - fwL > 6) {
-    const g = ctx.createLinearGradient(fwL, 0, fwR, 0);
-    g.addColorStop(0, 'transparent');
-    g.addColorStop(0.18, light ? 'rgba(60,110,50,0.09)' : 'rgba(0,214,143,0.05)');
-    g.addColorStop(0.5,  light ? 'rgba(60,110,50,0.14)' : 'rgba(0,214,143,0.08)');
-    g.addColorStop(0.82, light ? 'rgba(60,110,50,0.09)' : 'rgba(0,214,143,0.05)');
-    g.addColorStop(1, 'transparent');
-    ctx.fillStyle = g; ctx.fillRect(fwL, pad.t, fwR-fwL, ch);
-  }
-
   // ── Grid: carry lines (horizontal) ────────────────────────────────────────
   for (let c=cFirst; c<=carryMax; c+=carryStep) {
     const y = mapY(c);
-    ctx.strokeStyle = light ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.18)';
+    if (y < pad.t - 2 || y > yBottom + 2) continue;
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.14)';
     ctx.lineWidth=1; ctx.setLineDash([3,4]);
-    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xOff, y); ctx.lineTo(xOff+usedW, y); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = light ? 'rgba(0,0,0,0.62)' : 'rgba(255,255,255,0.58)';
+    ctx.fillStyle = light ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.62)';
     ctx.font = "10px 'DM Mono',monospace"; ctx.textAlign='right';
     ctx.fillText(Math.round(c)+'m', pad.l-3, y+3.5);
   }
@@ -2736,9 +2761,10 @@ function drawTopViewMap(shots, colorMap) {
   for (let s=-Math.floor(sideRange/sideStep)*sideStep; s<=sideRange; s+=sideStep) {
     if (s===0) continue;
     const x = mapX(s);
-    ctx.strokeStyle = light ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.12)';
+    if (x < pad.l - 2 || x > pad.l+cw + 2) continue;
+    ctx.strokeStyle = light ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.10)';
     ctx.lineWidth=1; ctx.setLineDash([2,4]);
-    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,pad.t+ch); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, yBottom); ctx.stroke();
     ctx.setLineDash([]);
   }
   // Side distance labels at bottom of grid
@@ -2746,15 +2772,15 @@ function drawTopViewMap(shots, colorMap) {
   ctx.fillStyle = light ? 'rgba(0,0,0,0.58)' : 'rgba(255,255,255,0.52)';
   for (let s=-Math.floor(sideRange/sideStep)*sideStep; s<=sideRange; s+=sideStep) {
     const x = mapX(s);
-    if (x < pad.l+4 || x > pad.l+cw-4) continue;
+    if (x < xOff+4 || x > xOff+usedW-4) continue;
     ctx.textAlign = 'center';
-    ctx.fillText((s===0?'0':(s>0?'+':'')+s)+'m', x, pad.t+ch+20);
+    ctx.fillText((s===0?'0':(s>0?'+':'')+s)+'m', x, yBottom+20);
   }
 
   // ── Centre target line ────────────────────────────────────────────────────
-  ctx.strokeStyle = light ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.10)';
+  ctx.strokeStyle = light ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.09)';
   ctx.lineWidth=1.2; ctx.setLineDash([5,5]);
-  ctx.beginPath(); ctx.moveTo(mapX(0),pad.t); ctx.lineTo(mapX(0),pad.t+ch); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mapX(0), pad.t); ctx.lineTo(mapX(0), yBottom); ctx.stroke();
   ctx.setLineDash([]);
 
   // ── Per-session dispersion ellipses ───────────────────────────────────────
@@ -2824,8 +2850,8 @@ function drawTopViewMap(shots, colorMap) {
   // ── Edge direction labels ─────────────────────────────────────────────────
   ctx.font = "9px 'DM Mono',monospace";
   ctx.fillStyle = light ? 'rgba(0,0,0,0.40)' : 'rgba(255,255,255,0.36)';
-  ctx.textAlign = 'left';  ctx.fillText('← L', pad.l,     pad.t+ch+36);
-  ctx.textAlign = 'right'; ctx.fillText('R →', pad.l+cw,  pad.t+ch+36);
+  ctx.textAlign = 'left';  ctx.fillText('← L', xOff,          yBottom+36);
+  ctx.textAlign = 'right'; ctx.fillText('R →', xOff+usedW,    yBottom+36);
 }
 
 function drawSideViewMap(shots, colorMap) {

@@ -870,6 +870,19 @@ body.light-theme .today-login-btn{color:#fff}
 .dist-view-btn{padding:5px 14px;border:0.5px solid var(--border2);border-radius:6px;font-size:12px;font-weight:700;color:var(--text3);background:var(--surface);cursor:pointer}
 .dist-view-btn.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
 
+/* Direction hero numbers */
+.dir-hero-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.dir-hero-cell{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center}
+.dir-hero-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
+.dir-hero-val{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--text);line-height:1}
+.dir-hero-val.dir-val-good{color:var(--green)}
+.dir-hero-val.dir-val-warn{color:var(--amber)}
+.dir-hero-val.dir-val-bad{color:var(--red)}
+.dir-hero-sub{font-size:10px;color:var(--text3);margin-top:3px;line-height:1.3}
+.dir-pattern-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;margin-bottom:10px}
+.dir-pattern-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);white-space:nowrap}
+.dir-pattern-val{font-size:13px;font-weight:700;color:var(--text)}
+
 /* Direction stacked bar */
 .dir-miss-wrap{margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)}
 .dir-miss-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
