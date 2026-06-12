@@ -15,6 +15,7 @@ function loadScript(path) {
 loadScript('core/utils.js');
 loadScript('core/golfLogic.js');
 loadScript('rounds/parsers.js');
+loadScript('rounds/garmin-import.js');
 loadScript('rounds/roundLogic.js');
 loadScript('rounds/rounds.js');
 
@@ -55,6 +56,25 @@ assert.equal(parsed.courseName, 'Golfpark Otelfingen');
 assert.equal(parsed.holes.length, 1);
 assert.equal(parsed.shots.length, 4);
 assert.equal(parsed.shots[0].miss_direction, 'left');
+
+const garminCsv = [
+  'Date,Player,Club Type,Club Speed,Attack Angle,Club Path,Club Face,Face to Path,Ball Speed,Smash Factor,Launch Angle,Launch Direction,Backspin,Sidespin,Spin Rate,Spin Rate Type,Spin Axis,Apex Height,Carry Distance,Carry Deviation Angle,Carry Deviation Distance,Total Distance,Total Deviation Angle,Total Deviation Distance',
+  ',,,[km/h],[deg],[deg],[deg],[deg],[km/h],,[deg],[deg],[rpm],[rpm],[rpm],,[deg],[m],[m],[deg],[m],[m],[deg],[m]',
+  '06/11/26 18:02:30 PM,Joel,9 Iron,36,-4,2,1,-1,72,2,18,0,3000,0,3000,Estimated,0,1,11,0,-1,20,0,-2',
+  '06/11/26 18:02:48 PM,Joel,9 Iron,108,-5,3,2,-1,144,1.33,19,1,7000,0,7000,Measured,0,16,102,0,2,109,0,3',
+].join('\n');
+const garmin = GarminImport.parseGarminCsv(garminCsv);
+assert.equal(garmin.shots.length, 1);
+assert.equal(garmin.removedCount, 1);
+assert.equal(garmin.measuredSpinCount, 1);
+assert.equal(garmin.shots[0].device, 'garmin_r10');
+assert.equal(garmin.shots[0].club, '9 Iron');
+assert.equal(garmin.shots[0].club_speed, 30);
+assert.equal(garmin.shots[0].ball_speed, 40);
+assert.equal(garmin.shots[0].spin_rate, 7000);
+assert.equal(garmin.shots[0].shot_time, '2026-06-11T18:02:48');
+assert.equal(garmin.shots[0].face_angle, undefined);
+assert.equal(garmin.shots[0].club_path, undefined);
 
 const roundSummary = computeRoundSummary(parsed.shots);
 assert.equal(roundSummary.totalStrokes, 4);
