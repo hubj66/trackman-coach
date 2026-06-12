@@ -512,6 +512,122 @@ function drawShotShape() {
   if (typeof _drawShotShape === 'function') _drawShotShape();
 }
 
+// ── Export for AI ──────────────────────────────────────────────────────────
+async function exportForAI() {
+  showToast('Generating…');
+  try {
+    const { user } = await window.TCData.getCurrentUser();
+    if (!user) { showToast('Log in to export stats'); return; }
+
+    const { data, error } = await window.TCData.fetchTrackmanShots(
+      user.id,
+      'club,carry,total,side,smash_factor,ball_speed,spin_rate,launch_angle,club_path,face_angle,face_to_path,is_full_shot,exclude_from_progress,shot_time,created_at',
+      { limit: 1500 }
+    );
+
+    if (error || !data?.length) { showToast('No TrackMan data to export'); return; }
+
+    await window.clubAliases.loadAliases();
+    const CA = window.clubAliases;
+
+    const BAG_ORDER = ['driver','3w','5w','4','5','6','7','8','9','pw','sw','58','putter'];
+    const allIncluded = data.filter(s => s.exclude_from_progress !== true);
+    const grouped = CA.groupShotsByClub(allIncluded);
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+
+    const f1  = v => v != null ? Number(v).toFixed(1) : '–';
+    const f2  = v => v != null ? Number(v).toFixed(2) : '–';
+    const f0  = v => v != null ? String(Math.round(v)) : '–';
+    const sgn = v => v == null ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(1);
+
+    const lines = [`=== TrackMan Club Report — ${dateStr} ===`, ''];
+    let exported = 0;
+
+    for (const key of BAG_ORDER) {
+      const raw = (grouped[key] || []).slice().sort((a, b) =>
+        (b.shot_time || b.created_at || '').localeCompare(a.shot_time || a.created_at || ''));
+      const recent = raw.slice(0, 50);
+      if (recent.length < 3) continue;
+      exported++;
+
+      const label = CA.clubLabel(key);
+      lines.push(`${label} (last ${recent.length} shots)`);
+
+      const carries  = recent.map(s => s.carry).filter(x => x != null);
+      const totals   = recent.map(s => s.total).filter(x => x != null);
+      const sides    = recent.map(s => s.side).filter(x => x != null);
+      const faces    = recent.map(s => s.face_angle).filter(x => x != null);
+      const paths    = recent.map(s => s.club_path).filter(x => x != null);
+      const ftps     = recent.map(s => s.face_to_path).filter(x => x != null);
+      const smashes  = recent.map(s => s.smash_factor).filter(x => x != null);
+      const bspeeds  = recent.map(s => s.ball_speed).filter(x => x != null);
+      const spins    = recent.map(s => s.spin_rate).filter(x => x != null);
+      const launches = recent.map(s => s.launch_angle).filter(x => x != null);
+
+      if (carries.length) {
+        const med = statMedian(carries), sd = statStdDev(carries);
+        const p10 = statPercentile(carries, 10), p90 = statPercentile(carries, 90);
+        lines.push(`  Carry:       ${f1(med)}m median  ±${f1(sd)}m  (P10 ${f0(p10)}m – P90 ${f0(p90)}m)`);
+      }
+      if (totals.length) {
+        lines.push(`  Total:       ${f1(statMedian(totals))}m median  ±${f1(statStdDev(totals))}m`);
+      }
+      if (sides.length) {
+        const med = statMedian(sides), sd = statStdDev(sides);
+        const tot  = sides.length;
+        const lPct = Math.round(sides.filter(s => s < -10).length / tot * 100);
+        const rPct = Math.round(sides.filter(s => s >  10).length / tot * 100);
+        const cPct = 100 - lPct - rPct;
+        const dir  = med == null ? '' : med > 1 ? ' right' : med < -1 ? ' left' : '';
+        lines.push(`  Lateral:     ${sgn(med)}m${dir}    ±${f1(sd)}m  (Left ${lPct}% / Straight ${cPct}% / Right ${rPct}%)`);
+      }
+      if (faces.length) {
+        const med = statMedian(faces), sd = statStdDev(faces);
+        const lbl = Math.abs(med) < 1 ? 'neutral' : med > 0 ? 'open' : 'closed';
+        lines.push(`  Face:        ${sgn(med)}° ${lbl}  ±${f1(sd)}°`);
+      }
+      if (paths.length) {
+        const med = statMedian(paths), sd = statStdDev(paths);
+        const lbl = Math.abs(med) < 1 ? 'neutral' : med > 0 ? 'inside-out' : 'outside-in';
+        lines.push(`  Path:        ${sgn(med)}° ${lbl}  ±${f1(sd)}°`);
+      }
+      if (ftps.length) {
+        const med = statMedian(ftps);
+        const lbl = Math.abs(med) < 1 ? 'neutral' : med > 0 ? 'fade' : 'draw';
+        lines.push(`  FTP:         ${sgn(med)}° ${lbl}`);
+      }
+      if (smashes.length) {
+        lines.push(`  Smash:       ${f2(statMedian(smashes))}  ±${f2(statStdDev(smashes))}`);
+      }
+      if (bspeeds.length) {
+        lines.push(`  Ball speed:  ${f1(statMedian(bspeeds))} m/s`);
+      }
+      if (spins.length) {
+        lines.push(`  Spin:        ${f0(statMedian(spins))} rpm  ±${f0(statStdDev(spins))}`);
+      }
+      if (launches.length) {
+        lines.push(`  Launch:      ${f1(statMedian(launches))}°`);
+      }
+      lines.push('');
+    }
+
+    if (!exported) { showToast('No clubs with enough data yet'); return; }
+
+    const text = lines.join('\n');
+    toggleMorePanel();
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard ✓');
+    } else {
+      prompt('Copy this text:', text);
+    }
+  } catch (e) {
+    showToast('Export failed');
+  }
+}
+
 // ── C1: Last session banner + load into sliders ────────────────────────────
 let _lastSessionCache = {};
 
