@@ -1602,8 +1602,8 @@ function renderDirection(shots) {
   const avgFace = statAvg(faces), avgPath = statAvg(paths), avgFTP = statAvg(ftps);
   const sdFace = statStdDev(faces), sdPath = statStdDev(paths), sdFTP = statStdDev(ftps);
   const tot = sides.length || 1;
-  const left   = sides.filter(s=>s<-5).length;
-  const right  = sides.filter(s=>s>5).length;
+  const left   = sides.filter(s=>s<-10).length;
+  const right  = sides.filter(s=>s>10).length;
   const lPct = sides.length ? Math.round(left/tot*100)   : 0;
   const rPct = sides.length ? Math.round(right/tot*100)  : 0;
   const cPct = 100 - lPct - rPct;
@@ -1659,7 +1659,7 @@ function renderDirection(shots) {
 
   const stackedBar = sides.length >= 3 ? `
     <div class="dir-miss-wrap">
-      <div class="dir-miss-label">Landing distribution (±5m = centre)</div>
+      <div class="dir-miss-label">Landing distribution (±10m = centre)</div>
       <div class="dir-miss-stacked">
         ${lPct > 0 ? `<div class="dir-miss-seg dir-miss-left" style="width:${lPct}%">${lPct >= 14 ? lPct+'%' : ''}</div>` : ''}
         ${cPct > 0 ? `<div class="dir-miss-seg dir-miss-center" style="width:${cPct}%">${cPct >= 14 ? cPct+'%' : ''}</div>` : ''}
