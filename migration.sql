@@ -33,12 +33,13 @@ ALTER TABLE clubs               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_states        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE club_aliases        ENABLE ROW LEVEL SECURITY;
 
--- If you have a separate trackman_sessions table, uncomment:
--- ALTER TABLE trackman_sessions ENABLE ROW LEVEL SECURITY;
+-- trackman_sessions is required when trackman_shots.session_id is NOT NULL.
+ALTER TABLE trackman_sessions ENABLE ROW LEVEL SECURITY;
 
 -- ── Step 3: Drop existing policies (idempotent re-run) ────────────────────
 
 DROP POLICY IF EXISTS "own_trackman_shots"     ON trackman_shots;
+DROP POLICY IF EXISTS "own_trackman_sessions"  ON trackman_sessions;
 DROP POLICY IF EXISTS "own_chipping"           ON chipping_sessions;
 DROP POLICY IF EXISTS "own_putting"            ON putting_sessions;
 DROP POLICY IF EXISTS "own_clubs"              ON clubs;
@@ -52,6 +53,10 @@ DROP POLICY IF EXISTS "delete_own_aliases"     ON club_aliases;
 
 -- trackman_shots: each user sees and writes only their own shots
 CREATE POLICY "own_trackman_shots" ON trackman_shots
+  USING  (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "own_trackman_sessions" ON trackman_sessions
   USING  (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
@@ -103,6 +108,8 @@ CREATE POLICY "delete_own_aliases" ON club_aliases
 
 CREATE INDEX IF NOT EXISTS idx_tm_shots_user_club   ON trackman_shots (user_id, club);
 CREATE INDEX IF NOT EXISTS idx_tm_shots_user_time   ON trackman_shots (user_id, shot_time DESC);
+CREATE INDEX IF NOT EXISTS idx_tm_sessions_user_date ON trackman_sessions (user_id, session_date DESC);
+CREATE INDEX IF NOT EXISTS idx_tm_shots_user_session ON trackman_shots (user_id, session_id);
 CREATE INDEX IF NOT EXISTS idx_chip_user_date       ON chipping_sessions (user_id, session_date DESC);
 CREATE INDEX IF NOT EXISTS idx_putt_user_date       ON putting_sessions (user_id, session_date DESC);
 CREATE INDEX IF NOT EXISTS idx_clubs_user_active    ON clubs (user_id, is_active);

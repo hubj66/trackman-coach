@@ -2317,8 +2317,21 @@ async function confirmGarminImport(){
     if(msgEl)msgEl.innerHTML=`<span style="color:var(--green);">No new shots to import. ${duplicateCount} duplicates skipped.</span>`;
     return;
   }
+  const sessionDate=String(rows[0].shot_time||fallbackNow).slice(0,10);
+  const sessionRes=await sb.from('trackman_sessions')
+    .insert({user_id:_currentUserId,session_date:sessionDate})
+    .select('id')
+    .single();
+  if(sessionRes.error||!sessionRes.data?.id){
+    if(msgEl)msgEl.innerHTML=`<span style="color:var(--red);">Could not create Garmin session: ${escapeHtml(sessionRes.error?.message||'No session ID returned')}</span>`;
+    if(confirmBtn)confirmBtn.disabled=false;
+    return;
+  }
+  const sessionId=sessionRes.data.id;
+  rows.forEach(row=>{row.session_id=sessionId;});
   const{error}=await sb.from('trackman_shots').insert(rows);
   if(error){
+    await sb.from('trackman_sessions').delete().eq('id',sessionId).eq('user_id',_currentUserId);
     if(msgEl)msgEl.innerHTML=`<span style="color:var(--red);">Import failed: ${escapeHtml(error.message)}</span>`;
     if(confirmBtn)confirmBtn.disabled=false;
     return;
