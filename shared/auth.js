@@ -2220,7 +2220,7 @@ async function loadImportSection(){
     </div>
     <div class="import-block">
       <div class="import-block-title">Garmin R10</div>
-      <p style="margin-bottom:8px;">Export a session CSV from the Garmin Golf app, then pick it here.</p>
+      <p style="margin-bottom:8px;">Export a session CSV from the Garmin Golf app, then pick it here. Invalid shots and carries under 20 m are removed. R10 face, path and estimated spin are not imported.</p>
       <div style="margin-bottom:10px;">
         <label style="font-size:12px;color:var(--text3);display:block;margin-bottom:4px;">Units in your CSV:</label>
         <label style="margin-right:12px;font-size:13px;"><input type="radio" name="garmin-units" value="auto" checked> Auto-detect</label>
@@ -2263,7 +2263,7 @@ function handleGarminFileSelect(event){
     _garminPendingShots=result.shots;
     if(previewEl)previewEl.innerHTML=window.GarminImport.previewHtml(result.shots);
     const warnHtml=result.warnings.map(w=>`<div style="color:var(--amber);">${escapeHtml(w)}</div>`).join('');
-    if(msgEl)msgEl.innerHTML=warnHtml||`<span style="color:var(--text3);">${result.shots.length} shots parsed.</span>`;
+    if(msgEl)msgEl.innerHTML=`<span style="color:var(--text3);">${result.shots.length} shots ready.</span>${warnHtml}`;
     if(confirmBtn)confirmBtn.style.display=result.shots.length?'block':'none';
   };
   reader.readAsText(file);
@@ -2276,23 +2276,47 @@ async function confirmGarminImport(){
   const msgEl=document.getElementById('garmin-import-msg');
   if(confirmBtn)confirmBtn.disabled=true;
   if(msgEl)msgEl.innerHTML='<span style="color:var(--text3);">Importing…</span>';
-  const now=new Date().toISOString();
-  const rows=_garminPendingShots.map(s=>({
+  const fallbackNow=new Date().toISOString();
+  const pendingRows=_garminPendingShots.map((s,index)=>({
     user_id:_currentUserId,
     club:s.club||null,
     carry:s.carry,
     total:s.total,
     side:s.side,
+    total_side:s.total_side,
+    club_speed:s.club_speed,
     ball_speed:s.ball_speed,
     smash_factor:s.smash_factor,
     launch_angle:s.launch_angle,
+    launch_direction:s.launch_direction,
     spin_rate:s.spin_rate,
+    max_height:s.max_height,
     device:'garmin_r10',
     is_full_shot:true,
     exclude_from_progress:false,
-    shot_time:now,
-    created_at:now,
+    shot_time:s.shot_time||new Date(Date.parse(fallbackNow)+index).toISOString(),
+    created_at:fallbackNow,
   }));
+  const times=pendingRows.map(r=>r.shot_time);
+  const existingRes=await sb.from('trackman_shots')
+    .select('shot_time')
+    .eq('user_id',_currentUserId)
+    .eq('device','garmin_r10')
+    .in('shot_time',times);
+  if(existingRes.error){
+    if(msgEl)msgEl.innerHTML=`<span style="color:var(--red);">Duplicate check failed: ${escapeHtml(existingRes.error.message)}</span>`;
+    if(confirmBtn)confirmBtn.disabled=false;
+    return;
+  }
+  const existingTimes=new Set((existingRes.data||[]).map(r=>String(r.shot_time||'').slice(0,19)));
+  const rows=pendingRows.filter(r=>!existingTimes.has(String(r.shot_time).slice(0,19)));
+  const duplicateCount=pendingRows.length-rows.length;
+  if(!rows.length){
+    _garminPendingShots=null;
+    if(confirmBtn)confirmBtn.style.display='none';
+    if(msgEl)msgEl.innerHTML=`<span style="color:var(--green);">No new shots to import. ${duplicateCount} duplicates skipped.</span>`;
+    return;
+  }
   const{error}=await sb.from('trackman_shots').insert(rows);
   if(error){
     if(msgEl)msgEl.innerHTML=`<span style="color:var(--red);">Import failed: ${escapeHtml(error.message)}</span>`;
@@ -2302,7 +2326,7 @@ async function confirmGarminImport(){
   const n=rows.length;
   _garminPendingShots=null;
   if(confirmBtn)confirmBtn.style.display='none';
-  if(msgEl)msgEl.innerHTML=`<span style="color:var(--green);">✓ ${n} shots imported. Go to Bag to see your clubs.</span>`;
+  if(msgEl)msgEl.innerHTML=`<span style="color:var(--green);">✓ ${n} shots imported${duplicateCount?`; ${duplicateCount} duplicates skipped`:''}. Go to Bag to see your clubs.</span>`;
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────
