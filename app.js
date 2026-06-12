@@ -548,7 +548,7 @@ async function exportForAI() {
     for (const key of BAG_ORDER) {
       const raw = (grouped[key] || []).slice().sort((a, b) =>
         (b.shot_time || b.created_at || '').localeCompare(a.shot_time || a.created_at || ''));
-      const recent = raw.slice(0, 50);
+      const recent = raw.slice(0, 75);
       if (recent.length < 3) continue;
       exported++;
 
